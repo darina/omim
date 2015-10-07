@@ -5,6 +5,13 @@
 #include "drape_frontend/visual_params.hpp"
 #include "drape_frontend/user_mark_shapes.hpp"
 
+/////////////////////////////////////
+#include <OpenGL/glext.h>
+#include <OpenGL/gl.h>
+#include "3party/stb_image/stb_image.h"
+#include "math.h"
+/////////////////////////////////////
+
 #include "drape/utils/glyph_usage_tracker.hpp"
 #include "drape/utils/gpu_mem_tracker.hpp"
 #include "drape/utils/projection.hpp"
@@ -502,11 +509,241 @@ void FrontendRenderer::EndUpdateOverlayTree()
     m_overlayTree->EndOverlayPlacing();
 }
 
+////////////////////////////////
+static GLuint g_dstTex;
+static GLuint g_depthTex;
+static GLuint g_program;
+static GLuint g_pos_attrib;
+static GLuint g_tcoord_attrib;
+static GLuint g_fbo;
+static GLuint g_vbo;
+static GLuint g_vao;
+static unsigned g_width;
+static unsigned g_height;
+static unsigned char * g_texData;
+static int g_frameIndex;
+
+
+void setProjection(array<float, 16> & result)
+{
+  result.fill(0.0f);
+
+  float fovy = M_PI / 3.0f;
+  float ctg_fovy = 1.0/tanf(fovy/2.0f);
+  float aspect = (float)g_width / g_height;
+  float near = 0.1f;
+  float far = 100.0f;
+  float width = g_width;
+  float height = g_height;
+
+  result[0] = ctg_fovy / aspect;
+  result[5] = ctg_fovy;
+  result[10] = (far + near) / (far - near);
+  result[11] = 1.0f;
+  result[14] = -2 * far * near / (far - near);
+}
+
+void setRotate(array<float, 16> & result)
+{
+  result.fill(0.0f);
+
+  float angle = -M_PI_4;
+  result[0] = 1.0f;
+  result[5] = cos(angle);
+  result[6] = -sin(angle);
+  result[9] = sin(angle);
+  result[10] = cos(angle);
+  result[15] = 1.0f;
+}
+
+void setTranslate(array<float, 16> & result)
+{
+  result.fill(0.0f);
+
+  float dx = 0.0f;
+  float dy = 0.0f;
+  float dz = 0.5f;
+  result[0] = 1.0f;
+  result[5] = 1.0f;
+  result[10] = 1.0f;
+  result[12] = dx;
+  result[13] = dy;
+  result[14] = dz;
+  result[15] = 1.0f;
+}
+
+void initTwoPassRenderer(unsigned w, unsigned h)
+{
+  if (g_width == w && g_height == h)
+    return;
+
+  if (g_texData)
+    delete[] g_texData;
+
+  g_texData = new unsigned char[g_width * g_height * 4];
+
+  if (g_dstTex)
+    glDeleteTextures(1, &g_dstTex);
+
+  if (!g_fbo)
+    glGenFramebuffers(1, &g_fbo);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
+
+  glGenTextures(1, &g_dstTex);
+  GLFunctions::glBindTexture(g_dstTex);
+  GLFunctions::glTexImage2D(w, h, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  GLFunctions::glBindTexture(0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_dstTex, 0);
+
+  glGenTextures(1, &g_depthTex);
+  GLFunctions::glBindTexture(g_depthTex);
+  GLFunctions::glTexImage2D(w, h, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, g_depthTex, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+
+  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER) ;
+  if (status != GL_FRAMEBUFFER_COMPLETE)
+  {
+    LOG(LWARNING, ("INCOMPLETE FRAMEBUFFER: ", strings::to_string(status)));
+    return;
+  }
+  g_width = w;
+  g_height = h;
+
+  if (g_program)
+    return;
+
+  string vs =
+        "\n attribute vec2 a_pos;"
+        "\n attribute vec2 a_tcoord;"
+        "\n"
+        "\n uniform mat4 rotate;"
+        "\n uniform mat4 translate;"
+        "\n uniform mat4 projection;"
+        "\n"
+        "\n varying vec2 v_tcoord;"
+        "\n"
+        "\n	void main() {"
+        "\n	"
+        "\n		v_tcoord = a_tcoord;"
+        "\n		gl_Position.xy = a_pos;"
+        "\n   gl_Position.zw = vec2(0.0, 1.0);"
+        "\n   gl_Position = projection * translate * rotate * gl_Position;"
+        "\n	}"
+        "\n	";
+
+  string fs =
+        "\n	uniform sampler2D tex;"
+        "\n varying vec2 v_tcoord;"
+        "\n	"
+        "\n	void main() {"
+        "\n		gl_FragColor = texture2D(tex, v_tcoord);"
+//        "\n   gl_FragColor = vec4(v_tcoord.x, v_tcoord.y, 0.0, 1.0);"
+        "\n	}";
+
+  GLuint v = GLFunctions::glCreateShader(GL_VERTEX_SHADER);
+  GLuint f = GLFunctions::glCreateShader(GL_FRAGMENT_SHADER);
+
+  GLFunctions::glShaderSource(v, vs);
+  GLFunctions::glShaderSource(f, fs);
+
+  string errlog;
+  if (!GLFunctions::glCompileShader(v, errlog))
+  {
+    LOG(LWARNING, ("VS Error log: ", errlog));
+    return;
+  }
+  if (!GLFunctions::glCompileShader(f, errlog))
+  {
+    LOG(LWARNING, ("FS Error log: ", errlog));
+    return;
+  }
+
+  g_program = GLFunctions::glCreateProgram();
+
+  GLFunctions::glAttachShader(g_program, v);
+  GLFunctions::glAttachShader(g_program, f);
+
+  GLFunctions::glBindAttribLocation(g_program, 0, "a_pos");
+  GLFunctions::glBindAttribLocation(g_program, 1, "a_tcoord");
+
+  if (!GLFunctions::glLinkProgram(g_program, errlog))
+  {
+    LOG(LWARNING, ("Link Error log: ", errlog));
+    return;
+  }
+  GLFunctions::glUseProgram(g_program);
+
+  GLint loc = GLFunctions::glGetUniformLocation(g_program, "tex");
+  glUniform1i(loc, 0);
+
+  array<float, 16> rotateMatrix;
+  array<float, 16> translateMatrix;
+  array<float, 16> projectionMatrix;
+
+  setRotate(rotateMatrix);
+  setTranslate(translateMatrix);
+  setProjection(projectionMatrix);
+
+  int8_t locationRotate = GLFunctions::glGetUniformLocation(g_program, "rotate");
+  int8_t locationTranslate = GLFunctions::glGetUniformLocation(g_program, "translate");
+  int8_t locationProjection = GLFunctions::glGetUniformLocation(g_program, "projection");
+
+  GLFunctions::glUniformMatrix4x4Value(locationRotate, rotateMatrix.data());
+  GLFunctions::glUniformMatrix4x4Value(locationTranslate, translateMatrix.data());
+  GLFunctions::glUniformMatrix4x4Value(locationProjection, projectionMatrix.data());
+
+  g_pos_attrib = GLFunctions::glGetAttribLocation(g_program, "a_pos");
+  g_tcoord_attrib = GLFunctions::glGetAttribLocation(g_program, "a_tcoord");
+
+  const float vertices[] =
+  {
+    -1.0f,  1.0f, 0.0f, 1.0f,
+
+     1.0f,  1.0f, 1.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f, 0.0f,
+     1.0f, -1.0f, 1.0f, 0.0f
+  };
+
+  g_vbo = GLFunctions::glGenBuffer();
+  GLFunctions::glBindBuffer(g_vbo, GL_ARRAY_BUFFER);
+  GLFunctions::glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  g_vao = GLFunctions::glGenVertexArray();
+  GLFunctions::glBindVertexArray(g_vao);
+  GLFunctions::glVertexAttributePointer(g_pos_attrib, 2, GL_FLOAT, false, sizeof(float)*4, 0);
+  GLFunctions::glEnableVertexAttribute(g_pos_attrib);
+  GLFunctions::glVertexAttributePointer(g_tcoord_attrib, 2, GL_FLOAT, false, sizeof(float)*4, sizeof(float)*2);
+  GLFunctions::glEnableVertexAttribute(g_tcoord_attrib);
+
+  GLFunctions::glBindBuffer(0, GL_ARRAY_BUFFER);
+  GLFunctions::glUseProgram(0);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  LOG(LINFO, ("initTwoPassRenderer completed: tex ", strings::to_string(g_dstTex),
+              " size ", strings::to_string(g_width), "x", strings::to_string(g_height),
+              ", fbo ", strings::to_string(g_fbo),
+              ", program ", strings::to_string(g_program),
+              ", pos_attrib ", strings::to_string(g_pos_attrib),
+              ", tcoord_attrib ", strings::to_string(g_tcoord_attrib)));
+}
+
+////////////////////////////////
+
 void FrontendRenderer::RenderScene(ScreenBase const & modelView)
 {
 #ifdef DRAW_INFO
   BeforeDrawFrame();
 #endif
+
+  ////////////////////////////////////////////////////
+  initTwoPassRenderer(m_viewport.GetWidth(), m_viewport.GetHeight());
+
+  glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
+  ////////////////////////////////////////////////////
 
   RenderGroupComparator comparator;
   sort(m_renderGroups.begin(), m_renderGroups.end(), bind(&RenderGroupComparator::operator (), &comparator, _1, _2));
@@ -602,6 +839,36 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
 
   if (m_guiRenderer != nullptr)
     m_guiRenderer->Render(make_ref(m_gpuProgramManager), modelView);
+
+////////////////////////////////////////////////////
+  /*
+  if (!(++g_frameIndex % 50))
+  {
+    unsigned char* buf = new unsigned char[g_width * g_height * 4];
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, g_width, g_height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    int retCode = stbi_write_bmp("/Users/daravolvenkova/dstTex.bmp", g_width, g_height, 4, buf);
+    delete[] buf;
+  }
+  */
+  GLFunctions::glDisable(gl_const::GLDepthTest);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  GLFunctions::glActiveTexture(GL_TEXTURE0);
+  GLFunctions::glBindTexture(g_dstTex);
+  GLFunctions::glUseProgram(g_program);
+  GLFunctions::glBindBuffer(g_vbo, GL_ARRAY_BUFFER);
+  GLFunctions::glBindVertexArray(g_vao);
+
+
+  m_viewport.Apply();
+  GLFunctions::glClear();
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+  GLFunctions::glUseProgram(0);
+  GLFunctions::glBindTexture(0);
+////////////////////////////////////////////////////
 
   GLFunctions::glEnable(gl_const::GLDepthTest);
 
