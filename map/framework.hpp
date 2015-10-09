@@ -526,6 +526,8 @@ private:
   //@}
 
 public:
+  void Enable3dMode(bool enable);
+
   /// @name Full screen mode
   //@{
   void SetFullScreenMode(bool enable) { m_isFullScreenMode = enable; }
