@@ -155,6 +155,8 @@ namespace android
     location::EMyPositionMode GetMyPositionMode() const;
     void SetMyPositionMode(location::EMyPositionMode mode);
 
+    void Enable3dMode(bool enable);
+
     // Fills mapobject's metadata from UserMark
     void InjectMetadata(JNIEnv * env, jclass clazz, jobject const mapObject, UserMark const * userMark);
 
