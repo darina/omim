@@ -128,7 +128,7 @@ protected:
   unique_ptr<threads::IRoutine> CreateRoutine() override;
 
 private:
-  void OnResize(ScreenBase const & screen);
+  void OnResize(ScreenBase const & screen, m2::RectD const & pixelRect);
   void RenderScene(ScreenBase const & modelView);
   void RenderSingleGroup(ScreenBase const & modelView, ref_ptr<BaseRenderGroup> group);
   void RefreshProjection();
@@ -211,6 +211,7 @@ private:
   bool m_3dModeChanged;
   drape_ptr<Framebuffer> m_framebuffer;
   drape_ptr<Renderer3d> m_renderer3d;
+  ScreenBase m_modelView;
 
   Viewport m_viewport;
   UserEventStream m_userEventStream;

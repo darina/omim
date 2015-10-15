@@ -396,15 +396,32 @@ unique_ptr<threads::IRoutine> FrontendRenderer::CreateRoutine()
   return make_unique<Routine>(*this);
 }
 
-void FrontendRenderer::OnResize(ScreenBase const & screen)
+void FrontendRenderer::OnResize(ScreenBase const & screen, m2::RectD const & pixelRect)
 {
-  m_viewport.SetViewport(0, 0, screen.GetWidth(), screen.GetHeight());
   m_myPositionController->SetPixelRect(screen.PixelRect());
-  m_contextFactory->getDrawContext()->resize(m_viewport.GetWidth(), m_viewport.GetHeight());
-  m_framebuffer->SetDefaultContext(m_contextFactory->getDrawContext());
-  m_framebuffer->SetSize(m_viewport.GetWidth(), m_viewport.GetHeight());
-  m_renderer3d->SetSize(m_viewport.GetWidth(), m_viewport.GetHeight());
+
+  m_viewport.SetViewport(0, 0, screen.GetWidth(), screen.GetHeight());
+  m_contextFactory->getDrawContext()->resize(pixelRect.SizeX(), pixelRect.SizeY());
   RefreshProjection();
+
+  if (m_useFramebuffer)
+  {
+    int width = screen.GetWidth();
+    int height = screen.GetHeight();
+    int maxSide = max(width, height);
+    if (maxSide > m_framebuffer->GetMaxSize())
+    {
+      width = width * m_framebuffer->GetMaxSize() / maxSide;
+      height = height * m_framebuffer->GetMaxSize() / maxSide;
+    }
+    LOG(LINFO, ("Max texture size: ", m_framebuffer->GetMaxSize(), ", max side: ", maxSide, ", scale: ", m_framebuffer->GetMaxSize() / (double)maxSide));
+
+    m_viewport.SetViewport(0, 0, width, height);
+
+    m_renderer3d->SetSize(pixelRect.SizeX(), pixelRect.SizeY());
+    m_framebuffer->SetDefaultContext(m_contextFactory->getDrawContext());
+    m_framebuffer->SetSize(width, height);
+  }
 }
 
 void FrontendRenderer::AddToRenderGroup(vector<drape_ptr<RenderGroup>> & groups,
@@ -978,7 +995,7 @@ ScreenBase const & FrontendRenderer::UpdateScene(bool & modelViewChanged)
   ScreenBase const & modelView = m_userEventStream.ProcessEvents(modelViewChanged, viewportChanged);
   gui::DrapeGui::Instance().SetInUserAction(m_userEventStream.IsInUserAction());
 
-  ScreenBase modelView2 = modelView;
+  m_modelView = modelView;
 
   modelViewChanged = modelViewChanged || m_3dModeChanged;
   viewportChanged = viewportChanged || m_3dModeChanged;
@@ -986,35 +1003,37 @@ ScreenBase const & FrontendRenderer::UpdateScene(bool & modelViewChanged)
   {
     double scale = max(m_renderer3d->GetScaleX(), m_renderer3d->GetScaleY());
 
-    int w = modelView2.GetWidth();
-    int h = modelView2.GetHeight();
+    m2::RectD const & pxRect = m_modelView.PixelRect();
+    m2::RectI iRect(0, 0, (int)(pxRect.maxX() * scale), (int)(pxRect.maxY() * scale));
 
-    m2::AnyRectD rectG = modelView2.GlobalRect();
-    double dyG = rectG.GetLocalRect().SizeY() * (scale - 1.0);
-    modelView2.Scale(1.0/scale);
-    modelView2.MoveG(m2::PointD(0, -dyG / 2.0));
+    m2::AnyRectD const & gRect = m_modelView.GlobalRect();
+    double dyG = gRect.GetLocalRect().SizeY() * (scale - 1.0);
+    m_modelView.Scale(1.0 / scale);
+    m_modelView.MoveG(m2::PointD(0, -dyG / 2.0));
+
+    m_modelView = ScreenBase(iRect, m_modelView.GlobalRect());
   }
   m_3dModeChanged = false;
 
   if (viewportChanged)
-    OnResize(modelView2);
+    OnResize(m_modelView, modelView.PixelRect());
 
   if (modelViewChanged)
   {
-    ResolveZoomLevel(modelView2);
+    ResolveZoomLevel(m_modelView);
     TTilesCollection tiles;
-    ResolveTileKeys(modelView2, tiles);
+    ResolveTileKeys(m_modelView, tiles);
 
     m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
-                              make_unique_dp<UpdateReadManagerMessage>(modelView2, move(tiles)),
+                              make_unique_dp<UpdateReadManagerMessage>(m_modelView, move(tiles)),
                               MessagePriority::High);
 
-    RefreshModelView(modelView2);
+    RefreshModelView(m_modelView);
     RefreshBgColor();
-    EmitModelViewChanged(modelView2);
+    EmitModelViewChanged(m_modelView);
   }
 
-  return modelView2;
+  return m_modelView;
 }
 
 void FrontendRenderer::EmitModelViewChanged(ScreenBase const & modelView) const
