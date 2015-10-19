@@ -376,6 +376,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       m_renderer3d->SetPlaneAngleX(msg->GetAngleX());
       m_useFramebuffer = true;
       m_3dModeChanged = true;
+      AddUserEvent(Enable3dModeEvent(max(m_renderer3d->GetScaleX(), m_renderer3d->GetScaleY())));
       break;
     }
 
@@ -383,6 +384,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     {
       m_useFramebuffer = false;
       m_3dModeChanged = true;
+      AddUserEvent(Disable3dMode(false));
       break;
     }
 
@@ -997,26 +999,19 @@ ScreenBase const & FrontendRenderer::UpdateScene(bool & modelViewChanged)
 
   m_modelView = modelView;
 
-  modelViewChanged = modelViewChanged || m_3dModeChanged;
   viewportChanged = viewportChanged || m_3dModeChanged;
-  if (m_useFramebuffer && modelViewChanged)
-  {
-    double scale = max(m_renderer3d->GetScaleX(), m_renderer3d->GetScaleY());
-
-    m2::RectD const & pxRect = m_modelView.PixelRect();
-    m2::RectI iRect(0, 0, (int)(pxRect.maxX() * scale), (int)(pxRect.maxY() * scale));
-
-    m2::AnyRectD const & gRect = m_modelView.GlobalRect();
-    double dyG = gRect.GetLocalRect().SizeY() * (scale - 1.0);
-    m_modelView.Scale(1.0 / scale);
-    m_modelView.MoveG(m2::PointD(0, -dyG / 2.0));
-
-    m_modelView = ScreenBase(iRect, m_modelView.GlobalRect());
-  }
   m_3dModeChanged = false;
 
+  m2::RectD pxRect = modelView.PixelRect();
+  if (m_useFramebuffer)
+  {
+    double scale = max(m_renderer3d->GetScaleX(), m_renderer3d->GetScaleY());
+    pxRect.setMaxX(pxRect.maxX() / scale);
+    pxRect.setMaxY(pxRect.maxY() / scale);
+  }
+
   if (viewportChanged)
-    OnResize(m_modelView, modelView.PixelRect());
+    OnResize(m_modelView, pxRect);
 
   if (modelViewChanged)
   {

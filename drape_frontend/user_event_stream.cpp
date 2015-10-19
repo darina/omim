@@ -175,6 +175,12 @@ ScreenBase const & UserEventStream::ProcessEvents(bool & modelViewChange, bool &
                                      e.m_followAndRotate.m_azimuth, e.m_followAndRotate.m_isAnim);
       TouchCancel(m_touches);
       break;
+    case UserEvent::EVENT_ENABLE_3D_MODE:
+      Enable3dMode(e.m_enable3dMode.m_scale);
+      break;
+    case UserEvent::EVENT_DISABLE_3D_MODE:
+      Disable3dMode();
+      break;
     default:
       ASSERT(false, ());
       break;
@@ -290,6 +296,16 @@ bool UserEventStream::SetRect(m2::AnyRectD const & rect, bool isAnim, TAnimation
   m_animation.reset();
   m_navigator.SetFromRect(rect);
   return true;
+}
+
+void UserEventStream::Enable3dMode(double scale)
+{
+  m_navigator.Enable3dMode(scale);
+}
+
+void UserEventStream::Disable3dMode()
+{
+  m_navigator.Disable3dMode();
 }
 
 bool UserEventStream::SetFollowAndRotate(m2::AnyRectD const & rect, m2::PointD const & userPos,

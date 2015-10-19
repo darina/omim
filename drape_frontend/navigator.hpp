@@ -46,6 +46,9 @@ public:
   void Scale(m2::PointD const & pt, double factor);
   bool InAction() const;
 
+  void Enable3dMode(double scale);
+  void Disable3dMode();
+
 private:
   bool CheckMinScale(ScreenBase const & screen) const;
   bool CheckMaxScale(ScreenBase const & screen) const;
@@ -62,6 +65,10 @@ private:
   ScreenBase m_StartScreen;
   // Internal screen to do GtoP() and PtoG() calculations. It is always up to date with navigation.
   ScreenBase m_Screen;
+
+  bool m_is3dMode;
+  double m_scale3d;
+
   // Intial point for dragging and scaling.
   m2::PointD m_StartPt1;
   // Last point for dragging and scaling.
