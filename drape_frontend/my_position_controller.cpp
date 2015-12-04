@@ -17,7 +17,7 @@ namespace
 {
 
 int const POSITION_Y_OFFSET = 75;
-int const POSITION_Y_OFFSET_3D = 80;
+int const POSITION_Y_OFFSET_3D = 75;
 double const GPS_BEARING_LIFETIME_S = 5.0;
 double const MIN_SPEED_THRESHOLD_MPS = 1.0;
 
