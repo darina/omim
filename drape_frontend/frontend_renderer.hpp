@@ -46,6 +46,8 @@ namespace df
 {
 
 class SelectionShape;
+class Framebuffer;
+class TransparentLayer;
 
 struct TapInfo
 {
@@ -222,6 +224,8 @@ private:
   drape_ptr<MyPositionController> m_myPositionController;
   drape_ptr<SelectionShape> m_selectionShape;
   drape_ptr<RouteRenderer> m_routeRenderer;
+  drape_ptr<Framebuffer> m_framebuffer;
+  drape_ptr<TransparentLayer> m_transparentLayer;
 
   drape_ptr<dp::OverlayTree> m_overlayTree;
 
