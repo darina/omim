@@ -199,19 +199,16 @@ IsLocalityChecker::IsLocalityChecker()
     m_types.push_back(c.GetTypeByPath(vector<string>(arr[i], arr[i] + 2)));
 }
 
-IsBuildingPartChecker::IsBuildingPartChecker() : BaseChecker(3)
+IsBuildingPartChecker::IsBuildingPartChecker()
 {
+  Classificator const & c = classif();
+  m_types.push_back(c.GetTypeByPath({ "building:part" }));
 }
 
 IsBuildingPartChecker const & IsBuildingPartChecker::Instance()
 {
   static const IsBuildingPartChecker inst;
   return inst;
-}
-
-bool IsBuildingPartChecker::IsMatched(uint32_t type) const
-{
-  return IsTypeConformed(type, {"building:part"});
 }
 
 IsBridgeChecker::IsBridgeChecker() : BaseChecker(3)

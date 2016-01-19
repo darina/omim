@@ -103,9 +103,8 @@ public:
 
 class IsBuildingPartChecker : public BaseChecker
 {
-  virtual bool IsMatched(uint32_t type) const;
-public:
   IsBuildingPartChecker();
+public:
   static IsBuildingPartChecker const & Instance();
 };
 
