@@ -259,7 +259,10 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       bucket->GetBuffer()->Build(isPerspective ? program3d : program);
       if (!IsUserMarkLayer(key))
       {
-        if (CheckTileGenerations(key))
+        //if (CheckTileGenerations(key))
+        if (key.m_generation > m_maxGeneration)
+          m_maxGeneration = key.m_generation;
+        if (key.m_generation == m_maxGeneration)
           m_tileTree->ProcessTile(key, GetCurrentZoomLevelForData(), state, move(bucket));
       }
       else
@@ -273,9 +276,24 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
   case Message::FinishReading:
     {
       ref_ptr<FinishReadingMessage> msg = message;
+      TTilesCollection tiles = msg->GetTiles();
       for (auto const & tileKey : msg->GetTiles())
-        CheckTileGenerations(tileKey);
-      m_tileTree->FinishTiles(msg->GetTiles(), GetCurrentZoomLevelForData());
+      {
+        if (CheckTileGenerations(tileKey))
+        {
+          auto it = m_notFinishedTiles.find(tileKey);
+          if (it != m_notFinishedTiles.end())
+            m_notFinishedTiles.erase(it);
+        }
+        else
+          tiles.erase(tileKey);
+        LOG(LINFO, ("FinishReading : gen ", tileKey.m_generation, ", not finished tiles ", m_notFinishedTiles.size()));
+        //CheckTileGenerations(tileKey);
+        //auto it = m_notFinishedTiles.find(tileKey);
+        //if (it != m_notFinishedTiles.end())
+        //  m_notFinishedTiles.erase(it);
+      }
+      m_tileTree->FinishTiles(tiles, GetCurrentZoomLevelForData());
       break;
     }
 
@@ -897,6 +915,25 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   BeforeDrawFrame();
 #endif
 
+  vector<m2::RectD> tileRects;
+  for (auto tileKey : m_notFinishedTiles)
+    tileRects.push_back(tileKey.GetGlobalRect(false));
+
+  auto isVisibleRect = [&tileRects](m2::RectD const & rect)
+  {
+    for (auto const & tileRect : tileRects)
+      if (rect.IsIntersect(tileRect))
+        return true;
+    return false;
+  };
+
+  for (RenderLayer & layer : m_layers)
+  {
+    for (auto & group : layer.m_renderGroups)
+      if (group->UpdateSharedFeaturesStatus(isVisibleRect))
+        layer.m_isDirty = true;
+  }
+
   bool const isPerspective = modelView.isPerspective();
 
   GLFunctions::glEnable(gl_const::GLDepthTest);
@@ -1001,7 +1038,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   AfterDrawFrame();
 #endif
 
-  MergeBuckets();
+  //MergeBuckets();
 }
 
 void FrontendRenderer::Render2dLayer(ScreenBase const & modelView)
@@ -1322,6 +1359,8 @@ void FrontendRenderer::ResolveTileKeys(m2::RectD const & rect, TTilesCollection 
   int const minTileY = static_cast<int>(floor(rect.minY() / rectSize));
   int const maxTileY = static_cast<int>(ceil(rect.maxY() / rectSize));
 
+  m_notFinishedTiles.clear();
+
   // request new tiles
   m_tileTree->BeginRequesting(zoomLevel, rect);
   for (int tileY = minTileY; tileY < maxTileY; ++tileY)
@@ -1333,6 +1372,7 @@ void FrontendRenderer::ResolveTileKeys(m2::RectD const & rect, TTilesCollection 
       {
         key.m_styleZoomLevel = GetCurrentZoomLevel();
         tiles.insert(key);
+        m_notFinishedTiles.insert(key);
         m_tileTree->RequestTile(key);
       }
     }

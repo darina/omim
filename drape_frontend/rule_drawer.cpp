@@ -13,7 +13,7 @@
 #include "base/assert.hpp"
 #include "std/bind.hpp"
 
-//#define DRAW_TILE_NET
+#define DRAW_TILE_NET
 
 #ifdef DRAW_TILE_NET
 #include "drape_frontend/line_shape.hpp"
@@ -94,6 +94,7 @@ void RuleDrawer::operator()(FeatureType const & f)
     return;
 
   int const zoomLevel = m_context->GetTileKey().m_zoomLevel;
+  m2::RectD tileRect = m_context->GetTileKey().GetGlobalRect(false);
 
   if (s.IsCoastLine() &&
       zoomLevel > scales::GetUpperWorldScale() &&
@@ -124,12 +125,20 @@ void RuleDrawer::operator()(FeatureType const & f)
 #endif
 
   int const minVisibleScale = feature::GetMinDrawableScale(f);
+  uint32_t shapesCount = 0;
 
-  auto insertShape = [this](drape_ptr<MapShape> && shape)
+  auto insertShape = [this, tileRect, zoomLevel, &shapesCount, &f](drape_ptr<MapShape> && shape)
   {
     int const index = static_cast<int>(shape->GetPriority());
     ASSERT_LESS(index, m_mapShapes.size(), ());
+    m2::RectD const limitRect = f.GetLimitRect(zoomLevel);
+    if (!tileRect.IsRectInside(limitRect))
+    {
+      shape->SetFeatureInfo(FeatureGeometryId(f.GetID(), shapesCount));
+      shape->SetFeatureLimitRect(limitRect);
+    }
     m_mapShapes[index].push_back(move(shape));
+    ++shapesCount;
   };
 
   if (s.AreaStyleExists())

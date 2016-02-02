@@ -102,10 +102,40 @@ void RenderBucket::Render(ScreenBase const & screen)
   m_buffer->Render();
 }
 
-void RenderBucket::RenderDebug(ScreenBase const & screen) const
+void RenderBucket::BeginFeatureRecord(FeatureGeometryId feature, const m2::RectD & limitRect)
+{
+  m_featureInfo = feature;
+  m_featureLimitRect = limitRect;
+  m_featuresRanges.insert(make_pair(feature, FeatureGeometryInfo(m_buffer->GetIndexCount(), 0, limitRect)));
+}
+
+void RenderBucket::EndFeatureRecord(bool featureCompleted)
+{
+  auto it = m_featuresRanges.find(m_featureInfo);
+  ASSERT(it != m_featuresRanges.end(), ());
+  it->second.m_indexCount = m_buffer->GetIndexCount() - it->second.m_indexOffset;
+  it->second.m_featureCompleted = featureCompleted;
+  if (it->second.m_indexCount == 0)
+    m_featuresRanges.erase(it);
+  m_featureInfo = FeatureGeometryId();
+}
+
+void RenderBucket::RenderDebug(ScreenBase const & screen, const m2::PointD & tileCenter) const
 {
 #ifdef RENDER_DEBUG_RECTS
-  if (!m_overlay.empty())
+  m2::PointF arrowStart(tileCenter);
+  if (m_overlay.empty())
+  {
+    for (auto const & feature : m_featuresRanges)
+    {
+      m2::RectD pxRect;
+      screen.GtoP(feature.second.m_limitRect, pxRect);
+      m2::PointF arrowEnd(pxRect.Center());
+      DebugRectRenderer::Instance().DrawRect(screen, m2::RectF(pxRect));
+      DebugRectRenderer::Instance().DrawArrow(screen, OverlayTree::DisplacementData(arrowStart, arrowEnd, dp::Color(0, 0, 255, 255)));
+    }
+  }
+  /*if (!m_overlay.empty())
   {
     for (auto const & handle : m_overlay)
     {
@@ -123,6 +153,7 @@ void RenderBucket::RenderDebug(ScreenBase const & screen) const
       }
     }
   }
+  */
 #endif
 }
 

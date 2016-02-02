@@ -49,6 +49,29 @@ public:
   void StartSession(TFlushFn const & flusher);
   void EndSession();
 
+  void BeginFeatureRecord(FeatureGeometryId feature, m2::RectD const & limitRect)
+  {
+    m_currentFeature = feature;
+    m_featureLimitRect = limitRect;
+
+    if (!m_currentFeature.m_featureId.IsValid())
+      return;
+
+    for (auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
+      it->second->BeginFeatureRecord(feature, limitRect);
+  }
+
+  void EndFeatureRecord()
+  {
+    if (!m_currentFeature.m_featureId.IsValid())
+      return;
+
+    m_currentFeature = FeatureGeometryId();
+
+    for (auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
+      it->second->EndFeatureRecord(true);
+  }
+
 private:
   template<typename TBacher>
   IndicesRange InsertTriangles(GLState const & state, ref_ptr<AttributeProvider> params,
@@ -70,6 +93,9 @@ private:
 
   uint32_t m_indexBufferSize;
   uint32_t m_vertexBufferSize;
+
+  FeatureGeometryId m_currentFeature;
+  m2::RectD m_featureLimitRect;
 };
 
 class BatcherFactory

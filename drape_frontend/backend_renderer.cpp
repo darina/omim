@@ -165,7 +165,11 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
       {
         ref_ptr<dp::Batcher> batcher = m_batchersPool->GetTileBatcher(tileKey);
         for (drape_ptr<MapShape> const & shape : msg->GetShapes())
+        {
+          batcher->BeginFeatureRecord(shape->GetFeatureInfo(), shape->GetFeatureLimitRect());
           shape->Draw(batcher, m_texMng);
+          batcher->EndFeatureRecord();
+        }
       }
       break;
     }

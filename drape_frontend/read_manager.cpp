@@ -27,6 +27,11 @@ struct LessCoverageCell
   {
     return l < r->GetTileKey();
   }
+
+  bool operator()(shared_ptr<TileInfo> const & l, shared_ptr<TileInfo> const & r) const
+  {
+    return l->GetTileKey() < r->GetTileKey();
+  }
 };
 
 } // namespace
@@ -55,6 +60,7 @@ void ReadManager::OnTaskFinished(threads::IRoutine * task)
     lock_guard<mutex> lock(m_finishedTilesMutex);
 
     // add finished tile to collection
+    m_finishedTiles.erase(t->GetTileKey());
     m_finishedTiles.emplace(t->GetTileKey());
 
     // decrement counter
@@ -85,10 +91,10 @@ void ReadManager::UpdateCoverage(ScreenBase const & screen, bool is3dBuildings,
 
   if (m_modeChanged || MustDropAllTiles(screen))
   {
-    m_modeChanged = false;
-
     IncreaseCounter(static_cast<int>(tiles.size()));
+
     m_generationCounter++;
+    m_modeChanged = false;
 
     for_each(m_tileInfos.begin(), m_tileInfos.end(), bind(&ReadManager::CancelTileInfo, this, _1));
     m_tileInfos.clear();
@@ -129,6 +135,30 @@ void ReadManager::UpdateCoverage(ScreenBase const & screen, bool is3dBuildings,
     }
 
     IncreaseCounter(static_cast<int>(inputRects.size() + rereadTiles.size()));
+
+    {
+      lock_guard<mutex> lock(m_finishedTilesMutex);
+
+      buffer_vector<shared_ptr<TileInfo>, 8> readyTilesTemp;
+#ifdef _MSC_VER
+      vs_bug::
+#endif
+      set_difference(m_tileInfos.begin(), m_tileInfos.end(),
+                     outdatedTiles.begin(), outdatedTiles.end(),
+                     back_inserter(readyTilesTemp), LessCoverageCell());
+
+      buffer_vector<shared_ptr<TileInfo>, 8> readyTiles;
+#ifdef _MSC_VER
+      vs_bug::
+#endif
+      set_difference(readyTilesTemp.begin(), readyTilesTemp.end(),
+                     rereadTiles.begin(), rereadTiles.end(),
+                     back_inserter(readyTiles), LessCoverageCell());
+
+      // add finished tiles to collection
+      for (shared_ptr<TileInfo> & tile : readyTiles)
+        m_finishedTiles.emplace(tile->GetTileKey());
+    }
 
     for_each(outdatedTiles.begin(), outdatedTiles.end(), bind(&ReadManager::ClearTileInfo, this, _1));
     for_each(rereadTiles.begin(), rereadTiles.end(), bind(&ReadManager::PushTaskFront, this, _1));

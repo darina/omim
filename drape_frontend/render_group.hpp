@@ -62,9 +62,35 @@ public:
   void AddBucket(drape_ptr<dp::RenderBucket> && bucket);
 
   bool IsEmpty() const { return m_renderBuckets.empty(); }
-  void DeleteLater() const { m_pendingOnDelete = true; }
+  void DeleteLater() const
+  {
+    m_sharedFeaturesWaiting = true;
+    m_pendingOnDelete = true;
+  }
+
   bool IsPendingOnDelete() const { return m_pendingOnDelete; }
-  bool CanBeDeleted() const { return IsPendingOnDelete() && !IsAnimating(); }
+  bool IsSharedFeaturesWaiting() const { return m_sharedFeaturesWaiting; }
+
+  using TCheckRectPredicate = function<bool(m2::RectD const &)>;
+  bool UpdateSharedFeaturesStatus(TCheckRectPredicate isVisibleRect)
+  {
+    if (!m_sharedFeaturesWaiting)
+      return false;
+
+    for (auto const & bucket : m_renderBuckets)
+      for (auto const & featureRange : bucket->m_featuresRanges)
+        if (isVisibleRect(featureRange.second.m_limitRect))
+          return false;
+
+    m_sharedFeaturesWaiting = false;
+    return true;
+  }
+
+  bool CanBeDeleted() const
+  {
+    return IsPendingOnDelete() && !IsAnimating() && !IsSharedFeaturesWaiting();
+  }
+
 
   bool IsLess(RenderGroup const & other) const;
 
@@ -81,6 +107,7 @@ private:
   unique_ptr<OpacityAnimation> m_appearAnimation;
 
   mutable bool m_pendingOnDelete;
+  mutable bool m_sharedFeaturesWaiting;
 
 private:
   friend string DebugPrint(RenderGroup const & group);

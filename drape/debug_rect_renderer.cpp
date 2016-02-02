@@ -122,7 +122,7 @@ void DebugRectRenderer::DrawRect(ScreenBase const & screen, m2::RectF const & re
   m_program->Unbind();
 }
 
-#ifdef COLLECT_DISPLACEMENT_INFO
+//#ifdef COLLECT_DISPLACEMENT_INFO
 
 void DebugRectRenderer::DrawArrow(ScreenBase const & screen, OverlayTree::DisplacementData const & data) const
 {
@@ -167,6 +167,6 @@ void DebugRectRenderer::DrawArrow(ScreenBase const & screen, OverlayTree::Displa
   m_program->Unbind();
 }
 
-#endif
+//#endif
 
 } // namespace dp

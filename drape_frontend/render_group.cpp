@@ -46,6 +46,7 @@ bool BaseRenderGroup::IsOverlay() const
 RenderGroup::RenderGroup(dp::GLState const & state, df::TileKey const & tileKey)
   : TBase(state, tileKey)
   , m_pendingOnDelete(false)
+  , m_sharedFeaturesWaiting(false)
 {
 }
 
@@ -117,8 +118,9 @@ void RenderGroup::Render(ScreenBase const & screen)
   }
 
 #ifdef RENDER_DEBUG_RECTS
+  m2::PointD tileCenter = screen.GtoP(GetTileKey().GetGlobalRect(false).Center());
   for(auto const & renderBucket : m_renderBuckets)
-    renderBucket->RenderDebug(screen);
+    renderBucket->RenderDebug(screen, tileCenter);
 #endif
 }
 
@@ -179,6 +181,7 @@ void RenderGroup::Disappear()
   //                                                       1.0 /* startOpacity */, 0.0 /* endOpacity */);
   //}
   //else
+  return;
   {
     // Create separate disappearing animation for area objects to eliminate flickering.
     if (m_state.GetProgramIndex() == gpu::AREA_PROGRAM ||

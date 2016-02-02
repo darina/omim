@@ -66,7 +66,7 @@ public:
 
   void SetFollowingMode(bool mode);
 
-#ifdef COLLECT_DISPLACEMENT_INFO
+//#ifdef COLLECT_DISPLACEMENT_INFO
   struct DisplacementData
   {
     m2::PointF m_arrowStart;
@@ -78,7 +78,7 @@ public:
   };
   using TDisplacementInfo = vector<DisplacementData>;
   TDisplacementInfo const & GetDisplacementInfo() const;
-#endif
+//#endif
 
 private:
   ScreenBase const & GetModelView() const { return m_traits.m_modelView; }

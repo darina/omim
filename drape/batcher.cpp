@@ -6,6 +6,7 @@
 #include "drape/vertex_array_buffer.hpp"
 
 #include "base/assert.hpp"
+#include "base/logging.hpp"
 #include "base/stl_add.hpp"
 
 #include "std/bind.hpp"
@@ -189,6 +190,9 @@ ref_ptr<RenderBucket> Batcher::GetBucket(GLState const & state)
   drape_ptr<VertexArrayBuffer> vao = make_unique_dp<VertexArrayBuffer>(m_indexBufferSize, m_vertexBufferSize);
   drape_ptr<RenderBucket> buffer = make_unique_dp<RenderBucket>(move(vao));
   ref_ptr<RenderBucket> result = make_ref(buffer);
+  if (m_currentFeature.m_featureId.IsValid())
+    result->BeginFeatureRecord(m_currentFeature, m_featureLimitRect);
+
   m_buckets.emplace(state, move(buffer));
 
   return result;
@@ -200,6 +204,9 @@ void Batcher::FinalizeBucket(GLState const & state)
   ASSERT(it != m_buckets.end(), ("Have no bucket for finalize with given state"));
   drape_ptr<RenderBucket> bucket = move(it->second);
   m_buckets.erase(state);
+  if (m_currentFeature.m_featureId.IsValid())
+    bucket->EndFeatureRecord(false);
+
   bucket->GetBuffer()->Preflush();
   m_flushInterface(state, move(bucket));
 }
@@ -210,6 +217,11 @@ void Batcher::Flush()
   for_each(m_buckets.begin(), m_buckets.end(), [this](TBuckets::value_type & bucket)
   {
     ASSERT(bucket.second != nullptr, ());
+    if (m_currentFeature.m_featureId.IsValid())
+    {
+      LOG(LWARNING, ("End feature on Flush"));
+      bucket.second->EndFeatureRecord(true);
+    }
     bucket.second->GetBuffer()->Preflush();
     m_flushInterface(bucket.first, move(bucket.second));
   });

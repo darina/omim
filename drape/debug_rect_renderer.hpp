@@ -7,7 +7,7 @@
 #include "geometry/rect2d.hpp"
 #include "geometry/screenbase.hpp"
 
-//#define RENDER_DEBUG_RECTS
+#define RENDER_DEBUG_RECTS
 
 namespace dp
 {
@@ -24,9 +24,9 @@ public:
 
   void DrawRect(ScreenBase const & screen, m2::RectF const & rect) const;
 
-#ifdef COLLECT_DISPLACEMENT_INFO
+//#ifdef COLLECT_DISPLACEMENT_INFO
   void DrawArrow(ScreenBase const & screen, OverlayTree::DisplacementData const & data) const;
-#endif
+//#endif
 
 private:
   DebugRectRenderer();
