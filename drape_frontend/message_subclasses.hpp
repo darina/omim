@@ -108,17 +108,20 @@ public:
 class FinishReadingMessage : public Message
 {
 public:
-  template<typename T> FinishReadingMessage(T && tiles)
+  template<typename T> FinishReadingMessage(T && tiles, uint64_t tileRequestGeneration)
     : m_tiles(forward<T>(tiles))
+    , m_tileRequestGeneration(tileRequestGeneration)
   {}
 
   Type GetType() const override { return Message::FinishReading; }
 
-  TTilesCollection const & GetTiles() { return m_tiles; }
+  TTilesCollection const & GetTiles() const { return m_tiles; }
   TTilesCollection && MoveTiles() { return move(m_tiles); }
+  uint64_t GetTileRequestGeneration() const { return m_tileRequestGeneration; }
 
 private:
   TTilesCollection m_tiles;
+  uint64_t m_tileRequestGeneration;
 };
 
 class FlushRenderBucketMessage : public BaseTileMessage

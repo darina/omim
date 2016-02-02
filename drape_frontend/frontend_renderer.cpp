@@ -273,8 +273,16 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
   case Message::FinishReading:
     {
       ref_ptr<FinishReadingMessage> msg = message;
+      bool const isLastRequest = m_tileRequestGeneration == msg->GetTileRequestGeneration();
       for (auto const & tileKey : msg->GetTiles())
-        CheckTileGenerations(tileKey);
+      {
+        if (CheckTileGenerations(tileKey) && isLastRequest)
+        {
+          auto it = m_notFinishedTiles.find(tileKey);
+          if (it != m_notFinishedTiles.end())
+            m_notFinishedTiles.erase(it);
+        }
+      }
       m_tileTree->FinishTiles(msg->GetTiles(), GetCurrentZoomLevelForData());
       break;
     }
@@ -585,7 +593,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       ScreenBase screen = m_userEventStream.GetCurrentScreen();
       ResolveTileKeys(screen.ClipRect(), tiles);
 
-      m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), move(tiles));
+      m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), m_tileRequestGeneration, move(tiles));
       m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
                                 make_unique_dp<UpdateReadManagerMessage>(),
                                 MessagePriority::UberHighSingleton);
@@ -726,7 +734,7 @@ void FrontendRenderer::InvalidateRect(m2::RectD const & gRect)
                               MessagePriority::High);
     blocker.Wait();
 
-    m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), move(tiles));
+    m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), m_tileRequestGeneration, move(tiles));
     m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
                               make_unique_dp<UpdateReadManagerMessage>(),
                               MessagePriority::UberHighSingleton);
@@ -897,6 +905,22 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   BeforeDrawFrame();
 #endif
 
+  bool waitFeatures = !m_notFinishedTiles.empty();
+  m2::RectD const & screenRect = modelView.ClipRect();
+  auto isFeaturesWaiting = [&screenRect, waitFeatures](m2::RectD const & rect)
+  {
+    if (waitFeatures && rect.IsIntersect(screenRect))
+      return true;
+    return false;
+  };
+
+  for (RenderLayer & layer : m_layers)
+  {
+    for (auto & group : layer.m_renderGroups)
+      if (group->UpdateFeaturesWaitingStatus(isFeaturesWaiting))
+        layer.m_isDirty = true;
+  }
+
   bool const isPerspective = modelView.isPerspective();
 
   GLFunctions::glEnable(gl_const::GLDepthTest);
@@ -1001,7 +1025,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   AfterDrawFrame();
 #endif
 
-  MergeBuckets();
+  //MergeBuckets();
 }
 
 void FrontendRenderer::Render2dLayer(ScreenBase const & modelView)
@@ -1322,6 +1346,8 @@ void FrontendRenderer::ResolveTileKeys(m2::RectD const & rect, TTilesCollection 
   int const minTileY = static_cast<int>(floor(rect.minY() / rectSize));
   int const maxTileY = static_cast<int>(ceil(rect.maxY() / rectSize));
 
+  m_notFinishedTiles.clear();
+
   // request new tiles
   m_tileTree->BeginRequesting(zoomLevel, rect);
   for (int tileY = minTileY; tileY < maxTileY; ++tileY)
@@ -1333,6 +1359,7 @@ void FrontendRenderer::ResolveTileKeys(m2::RectD const & rect, TTilesCollection 
       {
         key.m_styleZoomLevel = GetCurrentZoomLevel();
         tiles.insert(key);
+        m_notFinishedTiles.insert(key);
         m_tileTree->RequestTile(key);
       }
     }
@@ -1545,7 +1572,12 @@ void FrontendRenderer::UpdateScene(ScreenBase const & modelView)
   };
   RemoveRenderGroups(removePredicate);
 
-  m_requestedTiles->Set(modelView, m_isIsometry || modelView.isPerspective(), move(tiles));
+  if (m_lastReadModelView != modelView)
+  {
+    ++m_tileRequestGeneration;
+    m_lastReadModelView = modelView;
+  }
+  m_requestedTiles->Set(modelView, m_isIsometry || modelView.isPerspective(), m_tileRequestGeneration, move(tiles));
   m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
                             make_unique_dp<UpdateReadManagerMessage>(),
                             MessagePriority::UberHighSingleton);
