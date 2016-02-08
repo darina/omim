@@ -20,7 +20,6 @@
 #include "drape_frontend/route_renderer.hpp"
 #include "drape_frontend/threads_commutator.hpp"
 #include "drape_frontend/tile_info.hpp"
-#include "drape_frontend/tile_tree.hpp"
 #include "drape_frontend/user_event_stream.hpp"
 
 #include "drape/pointers.hpp"
@@ -164,8 +163,6 @@ private:
 
   void ResolveTileKeys(ScreenBase const & screen, TTilesCollection & tiles);
   void ResolveTileKeys(m2::RectD const & rect, TTilesCollection & tiles);
-  int GetCurrentZoomLevel() const;
-  int GetCurrentZoomLevelForData() const;
   void ResolveZoomLevel(ScreenBase const & screen);
   void CheckPerspectiveMinScale();
   void CheckIsometryMinScale(ScreenBase const & screen);
@@ -206,17 +203,9 @@ private:
   void UpdateOverlayTree(ScreenBase const & modelView, drape_ptr<RenderGroup> & renderGroup);
   void EndUpdateOverlayTree();
 
-  void AddToRenderGroup(vector<drape_ptr<RenderGroup>> & groups,
-                        dp::GLState const & state,
+  void AddToRenderGroup(dp::GLState const & state,
                         drape_ptr<dp::RenderBucket> && renderBucket,
                         TileKey const & newTile);
-  void OnAddRenderGroup(TileKey const & tileKey, dp::GLState const & state,
-                        drape_ptr<dp::RenderBucket> && renderBucket);
-  void OnDeferRenderGroup(TileKey const & tileKey, dp::GLState const & state,
-                          drape_ptr<dp::RenderBucket> && renderBucket);
-
-  void OnActivateTile(TileKey const & tileKey);
-  void OnRemoveTile(TileKey const & tileKey);
 
   using TRenderGroupRemovePredicate = function<bool(drape_ptr<RenderGroup> const &)>;
   void RemoveRenderGroups(TRenderGroupRemovePredicate const & predicate);
@@ -251,7 +240,6 @@ private:
     static RenderLayerID GetLayerID(dp::GLState const & renderGroup);
 
     vector<drape_ptr<RenderGroup>> m_renderGroups;
-    vector<drape_ptr<RenderGroup>> m_deferredRenderGroups;
     bool m_isDirty = false;
 
     inline void Sort();
@@ -287,7 +275,6 @@ private:
   ScreenBase m_lastReadModelView;
   TTilesCollection m_notFinishedTiles;
 
-  unique_ptr<TileTree> m_tileTree;
   int m_currentZoomLevel = -1;
 
   bool m_perspectiveDiscarded = false;
