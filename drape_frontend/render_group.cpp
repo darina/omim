@@ -74,6 +74,12 @@ void RenderGroup::CollectOverlay(ref_ptr<dp::OverlayTree> tree)
     renderBucket->CollectOverlayHandles(tree);
 }
 
+void RenderGroup::RemoveOverlay(ref_ptr<dp::OverlayTree> tree)
+{
+  for (auto & renderBucket : m_renderBuckets)
+    renderBucket->RemoveOverlayHandles(tree);
+}
+
 void RenderGroup::Render(ScreenBase const & screen)
 {
   BaseRenderGroup::Render(screen);
@@ -181,7 +187,7 @@ void RenderGroup::Disappear()
   //}
 }
 
-bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWaiting)
+bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWaiting, ref_ptr<dp::OverlayTree> tree)
 {
   if (!m_sharedFeaturesWaiting)
     return false;
@@ -195,6 +201,7 @@ bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWa
                                                         : isTileVisible;
     if (!visibleBucket)
     {
+      m_renderBuckets[i]->RemoveOverlayHandles(tree);
       swap(m_renderBuckets[i], m_renderBuckets.back());
       m_renderBuckets.pop_back();
     }
