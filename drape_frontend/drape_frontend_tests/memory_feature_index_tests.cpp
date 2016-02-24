@@ -38,7 +38,7 @@ public:
   {
     vector<FeatureID> result;
     {
-      df::MemoryFeatureIndex::Lock lock(m_index);
+      df::MemoryFeatureIndex::Lock lock(m_index, -1);
       m_index.ReadFeaturesRequest(m_features, result);
     }
 
@@ -48,7 +48,7 @@ public:
 
   void SetFeatureOwner(FeatureID const & feature)
   {
-    df::MemoryFeatureIndex::Lock lock(m_index);
+    df::MemoryFeatureIndex::Lock lock(m_index, df::MemoryFeatureIndex::Hash(feature));
     if (!m_features[feature])
       m_features[feature] = m_index.SetFeatureOwner(feature);
   }

@@ -55,7 +55,7 @@ void TileInfo::DiscardFeatureInfo(FeatureID const & featureId, MemoryFeatureInde
 {
   CheckCanceled();
 
-  MemoryFeatureIndex::Lock lock(memIndex);
+  MemoryFeatureIndex::Lock lock(memIndex, MemoryFeatureIndex::Hash(featureId));
   UNUSED_VALUE(lock);
 
   m_featureInfo.erase(featureId);
@@ -65,7 +65,7 @@ bool TileInfo::SetFeatureOwner(FeatureID const & featureId, MemoryFeatureIndex &
 {
   CheckCanceled();
 
-  MemoryFeatureIndex::Lock lock(memIndex);
+  MemoryFeatureIndex::Lock lock(memIndex, MemoryFeatureIndex::Hash(featureId));
   UNUSED_VALUE(lock);
 
   if (!m_featureInfo[featureId])
@@ -86,7 +86,7 @@ void TileInfo::ReadFeatures(MapDataProvider const & model, MemoryFeatureIndex & 
 
   vector<FeatureID> featuresToRead;
   {
-    MemoryFeatureIndex::Lock lock(memIndex);
+    MemoryFeatureIndex::Lock lock(memIndex, -1);
     UNUSED_VALUE(lock);
 
     ReadFeatureIndex(model);
@@ -109,7 +109,7 @@ void TileInfo::ReadFeatures(MapDataProvider const & model, MemoryFeatureIndex & 
 void TileInfo::Cancel(MemoryFeatureIndex & memIndex)
 {
   m_isCanceled = true;
-  MemoryFeatureIndex::Lock lock(memIndex);
+  MemoryFeatureIndex::Lock lock(memIndex, -1);
   UNUSED_VALUE(lock);
   memIndex.RemoveFeatures(m_featureInfo);
 }
