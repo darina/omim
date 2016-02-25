@@ -51,6 +51,8 @@ private:
 private:
   drape_ptr<EngineContext> m_context;
   TFeaturesInfo m_featureInfo;
+  threads::Mutex m_featureInfoMutex;
+
   bool m_is3dBuildings;
 
   atomic<bool> m_isCanceled;

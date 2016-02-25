@@ -55,8 +55,8 @@ void TileInfo::DiscardFeatureInfo(FeatureID const & featureId, MemoryFeatureInde
 {
   CheckCanceled();
 
-  MemoryFeatureIndex::Lock lock(memIndex, MemoryFeatureIndex::Hash(featureId));
-  UNUSED_VALUE(lock);
+  threads::MutexGuard lockInfo(m_featureInfoMutex);
+  UNUSED_VALUE(lockInfo);
 
   m_featureInfo.erase(featureId);
 }
@@ -65,11 +65,14 @@ bool TileInfo::SetFeatureOwner(FeatureID const & featureId, MemoryFeatureIndex &
 {
   CheckCanceled();
 
-  MemoryFeatureIndex::Lock lock(memIndex, MemoryFeatureIndex::Hash(featureId));
-  UNUSED_VALUE(lock);
+  threads::MutexGuard lockInfo(m_featureInfoMutex);
+  UNUSED_VALUE(lockInfo);
 
   if (!m_featureInfo[featureId])
   {
+    MemoryFeatureIndex::Lock lock(memIndex, MemoryFeatureIndex::Hash(featureId));
+    UNUSED_VALUE(lock);
+
     bool isOwner = memIndex.SetFeatureOwner(featureId);
     m_featureInfo[featureId] = isOwner;
     return isOwner;
@@ -86,11 +89,15 @@ void TileInfo::ReadFeatures(MapDataProvider const & model, MemoryFeatureIndex & 
 
   vector<FeatureID> featuresToRead;
   {
-    MemoryFeatureIndex::Lock lock(memIndex, -1);
-    UNUSED_VALUE(lock);
+    threads::MutexGuard lockInfo(m_featureInfoMutex);
+    UNUSED_VALUE(lockInfo);
 
     ReadFeatureIndex(model);
     CheckCanceled();
+
+    MemoryFeatureIndex::Lock lock(memIndex, -1);
+    UNUSED_VALUE(lock);
+
     memIndex.ReadFeaturesRequest(m_featureInfo, featuresToRead);
   }
 
@@ -109,8 +116,13 @@ void TileInfo::ReadFeatures(MapDataProvider const & model, MemoryFeatureIndex & 
 void TileInfo::Cancel(MemoryFeatureIndex & memIndex)
 {
   m_isCanceled = true;
+
+  threads::MutexGuard lockInfo(m_featureInfoMutex);
+  UNUSED_VALUE(lockInfo);
+
   MemoryFeatureIndex::Lock lock(memIndex, -1);
   UNUSED_VALUE(lock);
+
   memIndex.RemoveFeatures(m_featureInfo);
 }
 
