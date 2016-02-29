@@ -40,10 +40,14 @@ public:
   void SetFeatureMinZoom(int minZoom) { m_minZoom = minZoom; }
   int GetFeatureMinZoom() const { return m_minZoom; }
 
+  void SetIsShared(bool isShared) { m_isShared = isShared; }
+  bool IsShared() { return m_isShared; }
+
 private:
   dp::FeatureGeometryId m_featureInfo;
   m2::RectD m_limitRect;
   int m_minZoom = 0;
+  bool m_isShared = false;
 };
 
 using TMapShapes = vector<drape_ptr<MapShape>>;

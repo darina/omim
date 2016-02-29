@@ -173,7 +173,7 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
           batcher->SetFeatureMinZoom(shape->GetFeatureMinZoom());
           bool const sharedFeature = shape->GetFeatureInfo().IsValid();
           if (sharedFeature)
-            batcher->StartFeatureRecord(shape->GetFeatureInfo(), shape->GetFeatureLimitRect());
+            batcher->StartFeatureRecord(shape->GetFeatureInfo(), shape->GetFeatureLimitRect(), shape->IsShared());
 
           shape->Draw(batcher, m_texMng);
 

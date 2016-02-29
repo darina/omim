@@ -51,27 +51,30 @@ public:
       todo(make_ref(h));
   }
 
-  bool IsShared() const { return !m_featuresGeometryInfo.empty(); }
-  void StartFeatureRecord(FeatureGeometryId feature, m2::RectD const & limitRect);
+  bool IsShared() const { return !m_featuresGeometryInfo.empty() && m_featuresGeometryInfo.begin()->second.m_isShared; }
+  void StartFeatureRecord(FeatureGeometryId feature, m2::RectD const & limitRect, bool isShared);
   void EndFeatureRecord(bool featureCompleted);
 
   void SetFeatureMinZoom(int minZoom);
   int GetMinZoom() const { return m_featuresMinZoom; }
 
   using TCheckFeaturesWaiting = function<bool(m2::RectD const &)>;
-  bool IsFeaturesWaiting(TCheckFeaturesWaiting isFeaturesWaiting);
+  bool IsFeaturesWaiting(TCheckFeaturesWaiting isFeaturesWaiting, set<FeatureGeometryId> const & features);
 
   void AddFeaturesInfo(RenderBucket const & bucket);
+  void UpdateFeaturesInfo(set<FeatureGeometryId> & features);
 
 private:
   struct FeatureGeometryInfo
   {
     FeatureGeometryInfo() = default;
-    FeatureGeometryInfo(m2::RectD const & limitRect)
+    FeatureGeometryInfo(m2::RectD const & limitRect, bool isShared)
       : m_limitRect(limitRect)
+      , m_isShared(isShared)
     {}
 
     m2::RectD m_limitRect;
+    bool m_isShared = false;
     bool m_featureCompleted = false;
   };
   using TFeaturesGeometryInfo = map<FeatureGeometryId, FeatureGeometryInfo>;

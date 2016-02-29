@@ -195,6 +195,15 @@ void FrontendRenderer::AfterDrawFrame()
 
 #endif
 
+void FrontendRenderer::UpdateFeaturesInfo()
+{
+  m_features.clear();
+  for (RenderLayer & layer : m_layers)
+    for (auto & group : layer.m_renderGroups)
+      if (!group->IsPendingOnDelete())
+        group->UpdateFeaturesInfo(m_features);
+}
+
 void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
 {
   switch (message->GetType())
@@ -857,6 +866,8 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   BeforeDrawFrame();
 #endif
 
+  UpdateFeaturesInfo();
+
   bool const waitFeatures = !m_notFinishedTiles.empty();
   m2::RectD const & screenRect = modelView.ClipRect();
   auto isFeaturesWaiting = [&screenRect, waitFeatures](m2::RectD const & rect)
@@ -867,7 +878,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   for (RenderLayer & layer : m_layers)
   {
     for (auto & group : layer.m_renderGroups)
-      layer.m_isDirty |= group->UpdateFeaturesWaitingStatus(isFeaturesWaiting, m_currentZoomLevel,
+      layer.m_isDirty |= group->UpdateFeaturesWaitingStatus(isFeaturesWaiting, m_features, m_currentZoomLevel,
                                                             make_ref(m_overlayTree), m_bucketsToDelete);
   }
 

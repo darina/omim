@@ -147,8 +147,7 @@ void BatchMergeHelper::MergeBatches(vector<drape_ptr<RenderGroup>> & batches,
         allocateFn(bucket, newBuffer);
       }
 
-      if (b->IsShared())
-        bucket->AddFeaturesInfo(*b);
+      bucket->AddFeaturesInfo(*b);
       bucket->SetFeatureMinZoom(b->GetMinZoom());
 
       uint32_t indexOffset = newBuffer->GetStartIndexValue();

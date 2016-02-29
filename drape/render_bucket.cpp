@@ -114,9 +114,9 @@ void RenderBucket::SetFeatureMinZoom(int minZoom)
     m_featuresMinZoom = minZoom;
 }
 
-void RenderBucket::StartFeatureRecord(FeatureGeometryId feature, const m2::RectD & limitRect)
+void RenderBucket::StartFeatureRecord(FeatureGeometryId feature, const m2::RectD & limitRect, bool isShared)
 {
-  m_featureInfo = make_pair(feature, FeatureGeometryInfo(limitRect));
+  m_featureInfo = make_pair(feature, FeatureGeometryInfo(limitRect, isShared));
   m_buffer->ResetChangingTracking();
 }
 
@@ -135,12 +135,25 @@ void RenderBucket::AddFeaturesInfo(RenderBucket const & bucket)
     m_featuresGeometryInfo.insert(info);
 }
 
-bool RenderBucket::IsFeaturesWaiting(TCheckFeaturesWaiting isFeaturesWaiting)
+void RenderBucket::UpdateFeaturesInfo(set<FeatureGeometryId> & features)
 {
-  ASSERT(IsShared(), ());
-  for (auto const & featureRange : m_featuresGeometryInfo)
-    if (isFeaturesWaiting(featureRange.second.m_limitRect))
+  for (auto const & info : m_featuresGeometryInfo)
+    if (info.second.m_featureCompleted)
+      features.insert(info.first);
+}
+
+bool RenderBucket::IsFeaturesWaiting(TCheckFeaturesWaiting isFeaturesWaiting, const set<FeatureGeometryId> & features)
+{
+  bool const isShared = IsShared();
+  for (auto const & feature : m_featuresGeometryInfo)
+  {
+    if (features.find(feature.first) != features.end())
+      continue;
+    if (!isShared)
       return true;
+    else if (isFeaturesWaiting(feature.second.m_limitRect))
+      return true;
+  }
   return false;
 }
 

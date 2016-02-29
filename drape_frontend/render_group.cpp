@@ -139,7 +139,7 @@ bool RenderGroup::IsLess(RenderGroup const & other) const
   return m_state < other.m_state;
 }
 
-bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWaiting,
+bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWaiting, const set<dp::FeatureGeometryId> & features,
                                               int currentZoom, ref_ptr<dp::OverlayTree> tree,
                                               deque<drape_ptr<dp::RenderBucket>> & bucketsToDelete)
 {
@@ -151,10 +151,15 @@ bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWa
 
   for (size_t i = 0; i < m_renderBuckets.size(); )
   {
-    bool visibleBucket = (m_renderBuckets[i]->GetMinZoom() <= currentZoom) &&
-        (m_renderBuckets[i]->IsShared() ? m_renderBuckets[i]->IsFeaturesWaiting(isFeaturesWaiting)
-                                        : isTileVisible);
-    if (!visibleBucket)
+    bool isBucketVisible = m_renderBuckets[i]->GetMinZoom() <= currentZoom;
+
+    if (isBucketVisible && !m_renderBuckets[i]->IsShared())
+      isBucketVisible = isTileVisible;
+
+    if (isBucketVisible)
+      isBucketVisible = m_renderBuckets[i]->IsFeaturesWaiting(isFeaturesWaiting, features);
+
+    if (!isBucketVisible)
     {
       m_renderBuckets[i]->RemoveOverlayHandles(tree);
       swap(m_renderBuckets[i], m_renderBuckets.back());
@@ -168,6 +173,12 @@ bool RenderGroup::UpdateFeaturesWaitingStatus(TCheckFeaturesWaiting isFeaturesWa
   }
   m_sharedFeaturesWaiting = !m_renderBuckets.empty();
   return m_renderBuckets.empty();
+}
+
+void RenderGroup::UpdateFeaturesInfo(set<dp::FeatureGeometryId> & features)
+{
+  for(drape_ptr<dp::RenderBucket> & renderBucket : m_renderBuckets)
+    renderBucket->UpdateFeaturesInfo(features);
 }
 
 bool RenderGroupComparator::operator()(drape_ptr<RenderGroup> const & l, drape_ptr<RenderGroup> const & r)

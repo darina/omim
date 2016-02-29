@@ -160,6 +160,7 @@ private:
   ScreenBase const & ProcessEvents(bool & modelViewChanged, bool & viewportChanged);
   void PrepareScene(ScreenBase const & modelView);
   void UpdateScene(ScreenBase const & modelView);
+  void UpdateFeaturesInfo();
 
   void EmitModelViewChanged(ScreenBase const & modelView) const;
 
@@ -275,6 +276,8 @@ private:
   TModelViewChanged m_modelViewChangedFn;
   TTapEventInfoFn m_tapEventInfoFn;
   TUserPositionChangedFn m_userPositionChangedFn;
+
+  set<dp::FeatureGeometryId> m_features;
 
   uint64_t m_tileRequestGeneration = 0;
   ScreenBase m_lastReadModelView;

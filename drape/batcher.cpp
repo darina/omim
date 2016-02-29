@@ -179,16 +179,17 @@ void Batcher::SetFeatureMinZoom(int minZoom)
     bucket.second->SetFeatureMinZoom(m_featureMinZoom);
 }
 
-void Batcher::StartFeatureRecord(FeatureGeometryId feature, m2::RectD const & limitRect)
+void Batcher::StartFeatureRecord(FeatureGeometryId feature, m2::RectD const & limitRect, bool isShared)
 {
   m_currentFeature = feature;
   m_featureLimitRect = limitRect;
+  m_isSharedFeature = isShared;
 
   if (!m_currentFeature.IsValid())
     return;
 
   for (auto const & bucket : m_buckets)
-    bucket.second->StartFeatureRecord(feature, limitRect);
+    bucket.second->StartFeatureRecord(feature, limitRect, isShared);
 }
 
 void Batcher::EndFeatureRecord()
@@ -213,7 +214,7 @@ void Batcher::ChangeBuffer(ref_ptr<CallbacksWrapper> wrapper)
 
 ref_ptr<RenderBucket> Batcher::GetBucket(GLState const & state)
 {
-  TBuckets::iterator it = m_buckets.find(BucketId(state, m_currentFeature.IsValid()));
+  TBuckets::iterator it = m_buckets.find(BucketId(state, m_currentFeature.IsValid() && m_isSharedFeature));
   if (it != m_buckets.end())
     return make_ref(it->second);
 
@@ -221,17 +222,17 @@ ref_ptr<RenderBucket> Batcher::GetBucket(GLState const & state)
   drape_ptr<RenderBucket> buffer = make_unique_dp<RenderBucket>(move(vao));
   ref_ptr<RenderBucket> result = make_ref(buffer);
   if (m_currentFeature.IsValid())
-    result->StartFeatureRecord(m_currentFeature, m_featureLimitRect);
+    result->StartFeatureRecord(m_currentFeature, m_featureLimitRect, m_isSharedFeature);
   result->SetFeatureMinZoom(m_featureMinZoom);
 
-  m_buckets.emplace(BucketId(state, m_currentFeature.IsValid()), move(buffer));
+  m_buckets.emplace(BucketId(state, m_currentFeature.IsValid() && m_isSharedFeature), move(buffer));
 
   return result;
 }
 
 void Batcher::FinalizeBucket(GLState const & state)
 {
-  BucketId bucketId(state, m_currentFeature.IsValid());
+  BucketId bucketId(state, m_currentFeature.IsValid() && m_isSharedFeature);
   TBuckets::iterator it = m_buckets.find(bucketId);
   ASSERT(it != m_buckets.end(), ("Have no bucket for finalize with given state"));
   drape_ptr<RenderBucket> bucket = move(it->second);

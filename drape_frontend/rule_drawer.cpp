@@ -145,11 +145,9 @@ void RuleDrawer::operator()(FeatureType const & f)
     ASSERT_LESS(index, m_mapShapes.size(), ());
 
     shape->SetFeatureMinZoom(minVisibleScale);
-    if (!tileRect.IsRectInside(limitRect))
-    {
-      shape->SetFeatureInfo(dp::FeatureGeometryId(f.GetID(), shapesCount));
-      shape->SetFeatureLimitRect(limitRect);
-    }
+    shape->SetIsShared(!tileRect.IsRectInside(limitRect));
+    shape->SetFeatureInfo(dp::FeatureGeometryId(f.GetID(), shapesCount));
+    shape->SetFeatureLimitRect(limitRect);
     m_mapShapes[index].push_back(move(shape));
     ++shapesCount;
   };
