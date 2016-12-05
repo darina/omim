@@ -21,10 +21,11 @@ class EngineContext
 {
 public:
   EngineContext(TileKey tileKey, ref_ptr<ThreadsCommutator> commutator,
-                ref_ptr<dp::TextureManager> texMng);
+                ref_ptr<dp::TextureManager> texMng,
+                TrafficKnownFeatures const & knownTrafficFeatures);
 
   TileKey const & GetTileKey() const { return m_tileKey; }
-
+  TrafficKnownFeatures const & GetKnownTrafficFeatures() const;
   ref_ptr<dp::TextureManager> GetTextureManager() const;
 
   void BeginReadTile();
@@ -39,6 +40,7 @@ private:
   TileKey m_tileKey;
   ref_ptr<ThreadsCommutator> m_commutator;
   ref_ptr<dp::TextureManager> m_texMng;
+  TrafficKnownFeatures const & m_knownTrafficFeatures;
 };
 
 } // namespace df

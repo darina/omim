@@ -27,7 +27,7 @@ namespace df
 BackendRenderer::BackendRenderer(Params const & params)
   : BaseRenderer(ThreadsCommutator::ResourceUploadThread, params)
   , m_model(params.m_model)
-  , m_readManager(make_unique_dp<ReadManager>(params.m_commutator, m_model,
+  , m_readManager(make_unique_dp<ReadManager>(params.m_commutator, m_model, m_trafficKnownFeatures,
                                               params.m_allow3dBuildings, params.m_trafficEnabled))
   , m_trafficGenerator(make_unique_dp<TrafficGenerator>(bind(&BackendRenderer::FlushTrafficRenderData, this, _1)))
   , m_requestedTiles(params.m_requestedTiles)
@@ -356,6 +356,7 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
     {
       ref_ptr<UpdateTrafficMessage> msg = message;
       bool const needInvalidate = m_trafficGenerator->UpdateColoring(msg->GetSegmentsColoring());
+      m_trafficKnownFeatures.Update(msg->GetSegmentsColoring());
       if (m_trafficGenerator->IsColorsCacheRefreshed())
       {
         auto texCoords = m_trafficGenerator->ProcessCacheRefreshing();

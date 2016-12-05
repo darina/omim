@@ -9,11 +9,18 @@ namespace df
 {
 
 EngineContext::EngineContext(TileKey tileKey, ref_ptr<ThreadsCommutator> commutator,
-                             ref_ptr<dp::TextureManager> texMng)
+                             ref_ptr<dp::TextureManager> texMng,
+                             TrafficKnownFeatures const & knownTrafficFeatures)
   : m_tileKey(tileKey)
   , m_commutator(commutator)
   , m_texMng(texMng)
+  , m_knownTrafficFeatures(knownTrafficFeatures)
 {}
+
+TrafficKnownFeatures const & EngineContext::GetKnownTrafficFeatures() const
+{
+  return m_knownTrafficFeatures;
+}
 
 ref_ptr<dp::TextureManager> EngineContext::GetTextureManager() const
 {

@@ -23,11 +23,13 @@ namespace df
 
 class MapDataProvider;
 class CoverageUpdateDescriptor;
+class TrafficKnownFeatures;
 
 class ReadManager
 {
 public:
   ReadManager(ref_ptr<ThreadsCommutator> commutator, MapDataProvider & model,
+              TrafficKnownFeatures const & knownTrafficFeatures,
               bool allow3dBuildings, bool trafficEnabled);
 
   void UpdateCoverage(ScreenBase const & screen, bool have3dBuildings,
@@ -53,6 +55,7 @@ private:
   ref_ptr<ThreadsCommutator> m_commutator;
 
   MapDataProvider & m_model;
+  TrafficKnownFeatures const & m_knownTrafficFeatures;
 
   drape_ptr<threads::ThreadPool> m_pool;
 

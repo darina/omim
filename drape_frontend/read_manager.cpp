@@ -37,9 +37,11 @@ struct LessCoverageCell
 } // namespace
 
 ReadManager::ReadManager(ref_ptr<ThreadsCommutator> commutator, MapDataProvider & model,
+                         TrafficKnownFeatures const & knownTrafficFeatures,
                          bool allow3dBuildings, bool trafficEnabled)
   : m_commutator(commutator)
   , m_model(model)
+  , m_knownTrafficFeatures(knownTrafficFeatures)
   , m_pool(make_unique_dp<threads::ThreadPool>(ReadCount(), bind(&ReadManager::OnTaskFinished, this, _1)))
   , m_have3dBuildings(false)
   , m_allow3dBuildings(allow3dBuildings)
@@ -202,7 +204,8 @@ bool ReadManager::MustDropAllTiles(ScreenBase const & screen) const
 void ReadManager::PushTaskBackForTileKey(TileKey const & tileKey, ref_ptr<dp::TextureManager> texMng)
 {
   shared_ptr<TileInfo> tileInfo(new TileInfo(make_unique_dp<EngineContext>(TileKey(tileKey, m_generationCounter),
-                                                                           m_commutator, texMng)));
+                                                                           m_commutator, texMng,
+                                                                           m_knownTrafficFeatures)));
   tileInfo->Set3dBuildings(m_have3dBuildings && m_allow3dBuildings);
   tileInfo->SetTrafficEnabled(m_trafficEnabled);
   m_tileInfos.insert(tileInfo);

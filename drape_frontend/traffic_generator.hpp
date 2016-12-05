@@ -162,6 +162,19 @@ private:
 
 using TrafficTexCoords = unordered_map<size_t, glsl::vec2>;
 
+class TrafficKnownFeatures
+{
+public:
+  TrafficKnownFeatures() = default;
+
+  void Update(TrafficSegmentsColoring & coloring);
+  bool IsFeatureKnown(FeatureID const & featureId) const;
+
+private:
+  mutable mutex m_mutex;
+  set<FeatureID> m_knownTrafficFeatures;
+};
+
 class TrafficGenerator final
 {
 public:

@@ -105,6 +105,8 @@ private:
   drape_ptr<DrapeApiBuilder> m_drapeApiBuilder;
   gui::LayerCacher m_guiCacher;
 
+  TrafficKnownFeatures m_trafficKnownFeatures;
+
   ref_ptr<RequestedTiles> m_requestedTiles;
 
   TOverlaysRenderData m_overlays;

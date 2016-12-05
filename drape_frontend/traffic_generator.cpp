@@ -180,6 +180,23 @@ m2::RectD const & TrafficHandle::GetBoundingBox() const
   return m_boundingBox;
 }
 
+void TrafficKnownFeatures::Update(TrafficSegmentsColoring & coloring)
+{
+  lock_guard<mutex> lock(m_mutex);
+
+  m_knownTrafficFeatures.clear();
+  for (auto const & mwmPair : coloring)
+    for (auto const & segmentPair : mwmPair.second)
+      m_knownTrafficFeatures.insert(FeatureID(mwmPair.first, segmentPair.first.m_fid));
+}
+
+bool TrafficKnownFeatures::IsFeatureKnown(FeatureID const & featureId) const
+{
+  lock_guard<mutex> lock(m_mutex);
+  return m_knownTrafficFeatures.empty() ||
+      m_knownTrafficFeatures.find(featureId) != m_knownTrafficFeatures.end();
+}
+
 void TrafficGenerator::Init()
 {
   int constexpr kBatchersCount = 3;

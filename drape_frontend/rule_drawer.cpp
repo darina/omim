@@ -316,7 +316,8 @@ void RuleDrawer::operator()(FeatureType const & f)
       s.ForEachRule(bind(&ApplyLineFeature::ProcessRule, &apply, _1));
     apply.Finish();
 
-    if (m_trafficEnabled && zoomLevel >= kRoadClass0ZoomLevel)
+    if (m_trafficEnabled && zoomLevel >= kRoadClass0ZoomLevel &&
+        m_context->GetKnownTrafficFeatures().IsFeatureKnown(f.GetID()))
     {
       struct Checker
       {
