@@ -18,6 +18,7 @@
 #include "base/logging.hpp"
 
 #include "std/algorithm.hpp"
+#include "std/atomic.hpp"
 
 namespace df
 {
@@ -182,19 +183,18 @@ m2::RectD const & TrafficHandle::GetBoundingBox() const
 
 void TrafficKnownFeatures::Update(TrafficSegmentsColoring & coloring)
 {
-  lock_guard<mutex> lock(m_mutex);
-
-  m_knownTrafficFeatures.clear();
+  auto tmp = make_shared<set<FeatureID>>();
   for (auto const & mwmPair : coloring)
     for (auto const & segmentPair : mwmPair.second)
-      m_knownTrafficFeatures.insert(FeatureID(mwmPair.first, segmentPair.first.m_fid));
+      tmp->insert(FeatureID(mwmPair.first, segmentPair.first.m_fid));
+
+  atomic_exchange(&m_knownTrafficFeatures, tmp);
 }
 
 bool TrafficKnownFeatures::IsFeatureKnown(FeatureID const & featureId) const
 {
-  lock_guard<mutex> lock(m_mutex);
-  return m_knownTrafficFeatures.empty() ||
-      m_knownTrafficFeatures.find(featureId) != m_knownTrafficFeatures.end();
+  auto tmp = atomic_load(&m_knownTrafficFeatures);
+  return tmp.get() == nullptr || tmp->find(featureId) != tmp->end();
 }
 
 void TrafficGenerator::Init()
