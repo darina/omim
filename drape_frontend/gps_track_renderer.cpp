@@ -164,7 +164,7 @@ dp::Color GpsTrackRenderer::CalculatePointColor(size_t pointIndex, m2::PointD co
 
   if ((end.m_timestamp - start.m_timestamp) > kUnknownDistanceTime)
   {
-    dp::Color const color = df::GetColorConstant(style, df::TrackUnknownDistance);
+    dp::Color const color = df::GetColorConstant(style, df::TrackUnknownDistance).m_color;
     return dp::Color(color.GetRed(), color.GetGreen(), color.GetBlue(), alpha);
   }
 
@@ -181,11 +181,11 @@ dp::Color GpsTrackRenderer::GetColorBySpeed(double speed) const
 {
   auto const style = GetStyleReader().GetCurrentStyle();
   if (speed > kHumanSpeed && speed <= kCarSpeed)
-    return df::GetColorConstant(style, df::TrackCarSpeed);
+    return df::GetColorConstant(style, df::TrackCarSpeed).m_color;
   else if (speed > kCarSpeed)
-    return df::GetColorConstant(style, df::TrackPlaneSpeed);
+    return df::GetColorConstant(style, df::TrackPlaneSpeed).m_color;
 
-  return df::GetColorConstant(style, df::TrackHumanSpeed);
+  return df::GetColorConstant(style, df::TrackHumanSpeed).m_color;
 }
 
 void GpsTrackRenderer::RenderTrack(ScreenBase const & screen, int zoomLevel,

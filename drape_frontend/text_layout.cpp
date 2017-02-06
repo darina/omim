@@ -25,7 +25,7 @@ class TextGeometryGenerator
 public:
   TextGeometryGenerator(dp::TextureManager::ColorRegion const & color,
                         gpu::TTextStaticVertexBuffer & buffer)
-    : m_colorCoord(glsl::ToVec2(color.GetTexRect().Center()))
+    : m_colorCoord(glsl::ToVec2(color.GetTexCoords()))
     , m_buffer(buffer)
   {
   }
@@ -101,8 +101,8 @@ public:
   TextOutlinedGeometryGenerator(dp::TextureManager::ColorRegion const & color,
                                 dp::TextureManager::ColorRegion const & outline,
                                 gpu::TTextOutlinedStaticVertexBuffer & buffer)
-    : m_colorCoord(glsl::ToVec2(color.GetTexRect().Center()))
-    , m_outlineCoord(glsl::ToVec2(outline.GetTexRect().Center()))
+    : m_colorCoord(glsl::ToVec2(color.GetTexCoords()))
+    , m_outlineCoord(glsl::ToVec2(outline.GetTexCoords()))
     , m_buffer(buffer)
   {
   }

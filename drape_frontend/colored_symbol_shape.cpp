@@ -30,11 +30,11 @@ void ColoredSymbolShape::Draw(ref_ptr<dp::Batcher> batcher, ref_ptr<dp::TextureM
 {
   dp::TextureManager::ColorRegion colorRegion;
   textures->GetColorRegion(m_params.m_color, colorRegion);
-  m2::PointF const & colorUv = colorRegion.GetTexRect().Center();
+  m2::PointF const & colorUv = colorRegion.GetTexCoords();
 
   dp::TextureManager::ColorRegion outlineColorRegion;
   textures->GetColorRegion(m_params.m_outlineColor, outlineColorRegion);
-  m2::PointF const & outlineUv = outlineColorRegion.GetTexRect().Center();
+  m2::PointF const & outlineUv = outlineColorRegion.GetTexCoords();
 
   using V = gpu::ColoredSymbolVertex;
   V::TTexCoord const uv(colorUv.x, colorUv.y, 0.0f, 0.0f);

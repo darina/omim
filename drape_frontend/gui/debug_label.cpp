@@ -57,7 +57,7 @@ void DebugInfoLabels::AddLabel(ref_ptr<dp::TextureManager> tex, string const & c
   params.m_alphabet = alphabet;
   params.m_maxLength = 100;
   params.m_font = DrapeGui::GetGuiTextFont();
-  params.m_font.m_color = dp::Color(0, 0, 255, 255);
+  params.m_font.m_color = dp::ColorInfo(dp::Color(0, 0, 255, 255));
   params.m_font.m_size *= 1.2;
   params.m_pivot = m_position.m_pixelPivot;
 

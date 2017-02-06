@@ -70,7 +70,7 @@ SelectionShape::SelectionShape(ref_ptr<dp::TextureManager> mng)
 
   dp::TextureManager::ColorRegion color;
   mng->GetColorRegion(df::GetColorConstant(GetStyleReader().GetCurrentStyle(), df::Selection), color);
-  glsl::vec2 colorCoord = glsl::ToVec2(color.GetTexRect().Center());
+  glsl::vec2 colorCoord = glsl::ToVec2(color.GetTexCoords());
 
   buffer_vector<Vertex, TriangleCount> buffer;
 

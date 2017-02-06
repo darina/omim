@@ -151,8 +151,8 @@ void StaticLabel::CacheStaticText(string const & text, char const * delim,
   mng->GetColorRegion(font.m_outlineColor, outline);
   ASSERT(color.GetTexture() == outline.GetTexture(), ());
 
-  glsl::vec2 colorTex = glsl::ToVec2(color.GetTexRect().Center());
-  glsl::vec2 outlineTex = glsl::ToVec2(outline.GetTexRect().Center());
+  glsl::vec2 colorTex = glsl::ToVec2(color.GetTexCoords());
+  glsl::vec2 outlineTex = glsl::ToVec2(outline.GetTexCoords());
 
   df::VisualParams const & vparams = df::VisualParams::Instance();
   float const textRatio = font.m_size * vparams.GetVisualScale() / vparams.GetGlyphBaseSize();
@@ -335,8 +335,8 @@ void MutableLabel::Precache(PrecacheParams const & params, PrecacheResult & resu
   mng->GetColorRegion(params.m_font.m_outlineColor, outlineColor);
   result.m_state.SetColorTexture(color.GetTexture());
 
-  glsl::vec2 colorTex = glsl::ToVec2(color.GetTexRect().Center());
-  glsl::vec2 outlineTex = glsl::ToVec2(outlineColor.GetTexRect().Center());
+  glsl::vec2 colorTex = glsl::ToVec2(color.GetTexCoords());
+  glsl::vec2 outlineTex = glsl::ToVec2(outlineColor.GetTexCoords());
 
   size_t vertexCount = 4 * m_maxLength;
   result.m_buffer.resize(vertexCount,

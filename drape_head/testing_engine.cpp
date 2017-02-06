@@ -84,7 +84,7 @@ public:
     gui::MutableLabel::PrecacheParams p;
     p.m_maxLength = 10;
     p.m_alphabet = m_text;
-    p.m_font = dp::FontDecl(dp::Color(0, 0, 0, 255), 14);
+    p.m_font = dp::FontDecl(dp::ColorInfo(dp::Color(0, 0, 0, 255)), 14);
 
     gui::MutableLabel::PrecacheResult staticData;
     textCacher.Precache(p, staticData, textures);
@@ -420,12 +420,12 @@ void TestingEngine::DrawImpl()
   dp::Batcher::TFlushFn flushFn = bind(&df::TestingEngine::OnFlushData, this, _1, _2);
   m_batcher->StartSession(flushFn);
   dp::FontDecl fd;
-  fd.m_color = dp::Color::Black();
-  fd.m_outlineColor = dp::Color::White();
+  fd.m_color = dp::ColorInfo(dp::Color::Black());
+  fd.m_outlineColor = dp::ColorInfo(dp::Color::White());
   fd.m_size = 32.0f;
   dp::FontDecl auxFd;
-  auxFd.m_color = dp::Color(0, 80, 240, 255);
-  auxFd.m_outlineColor = dp::Color::Transparent();
+  auxFd.m_color = dp::ColorInfo(dp::Color(0, 80, 240, 255));
+  auxFd.m_outlineColor = dp::ColorInfo(dp::Color::Transparent());
   auxFd.m_size = 20.0f;
 
   TextViewParams params;
@@ -456,7 +456,8 @@ void TestingEngine::DrawImpl()
   ptvp.m_minVisibleScale = 1;
   ptvp.m_rank = 0;
   ptvp.m_text = "Some text";
-  ptvp.m_textFont = dp::FontDecl(dp::Color::Black(), 40, true, dp::Color::Red());
+  ptvp.m_textFont = dp::FontDecl(dp::ColorInfo(dp::Color::Black()), 40, true,
+                                 dp::ColorInfo(dp::Color::Red()));
 
   PathTextShape(spline, ptvp, TileKey(), 0).Draw(make_ref(m_batcher), make_ref(m_textures));
   LineViewParams lvp;
@@ -465,7 +466,7 @@ void TestingEngine::DrawImpl()
   lvp.m_minVisibleScale = 1;
   lvp.m_rank = 0;
   lvp.m_cap = dp::SquareCap;
-  lvp.m_color = dp::Color::Red();
+  lvp.m_color = dp::ColorInfo(dp::Color::Red());
   lvp.m_width = 16.0f;
   lvp.m_join = dp::BevelJoin;
   LineShape(spline, lvp).Draw(make_ref(m_batcher), make_ref(m_textures));
@@ -500,7 +501,7 @@ void TestingEngine::DrawImpl()
     lvp.m_pattern = dp::TextureManager::TStipplePattern{8, 8};
     lvp.m_join = dp::RoundJoin;
     lvp.m_cap = dp::RoundCap;
-    lvp.m_color = dp::Color::Black();
+    lvp.m_color = dp::ColorInfo(dp::Color::Black());
     LineShape(spl1, lvp).Draw(make_ref(m_batcher), make_ref(m_textures));
   }
 
@@ -509,7 +510,7 @@ void TestingEngine::DrawImpl()
                             m2::PointD(110.0, 30.0), m2::PointD(112.0, 28.0), m2::PointD(110.0, 28.0) };
     df::BuildingOutline outline;
     AreaViewParams p;
-    p.m_color = dp::Color::White();
+    p.m_color = dp::ColorInfo(dp::Color::White());
     p.m_depth = 0.0f;
     params.m_minVisibleScale = 1;
     params.m_rank = 0;
@@ -550,7 +551,7 @@ void TestingEngine::DrawImpl()
       LineShape(spl, lvpl).Draw(make_ref(m_batcher), make_ref(m_textures));
     }
 
-    dp::FontDecl font(dp::Color::Black(), 14);
+    dp::FontDecl font(dp::ColorInfo(dp::Color::Black()), 14);
 
     DummyLabel(m2::PointF(110.0f, 25.0f), "Top\nText", dp::LeftTop, font)
         .Draw(make_ref(m_batcher), make_ref(m_textures));
@@ -571,7 +572,7 @@ void TestingEngine::DrawRects()
   lvp.m_rank = 0;
   lvp.m_cap = dp::RoundCap;
   lvp.m_join = dp::RoundJoin;
-  lvp.m_color = dp::Color::Red();
+  lvp.m_color = dp::ColorInfo(dp::Color::Red());
   lvp.m_width = 3.0f;
 
   auto drawRectFn = [&lvp, this](m2::RectD const & r)
@@ -595,7 +596,7 @@ void TestingEngine::DrawRects()
   for (m2::RectD const & r : m_boundRects)
     drawRectFn(r);
 
-  lvp.m_color = dp::Color::White();
+  lvp.m_color = dp::ColorInfo(dp::Color::White());
   lvp.m_depth = 10.0f;
   for (dp::OverlayHandle::Rects const & rr : m_rects)
   {

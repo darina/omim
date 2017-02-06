@@ -193,7 +193,7 @@ void Ruler::DrawRuler(m2::PointF & size, ShapeControl & control, ref_ptr<dp::Tex
   dp::TextureManager::ColorRegion reg;
   tex->GetColorRegion(DrapeGui::GetGuiTextFont().m_color, reg);
 
-  glsl::vec2 texCoord = glsl::ToVec2(reg.GetTexRect().Center());
+  glsl::vec2 texCoord = glsl::ToVec2(reg.GetTexCoords());
   float h = DrapeGui::GetRulerHelper().GetRulerHalfHeight();
   size += m2::PointF(DrapeGui::GetRulerHelper().GetMaxRulerPixelLength(), 2.0 * h);
 

@@ -71,7 +71,7 @@ class BaseLineBuilder : public ILineShapeInfo
 public:
   BaseLineBuilder(BaseBuilderParams const & params, size_t geomsSize, size_t joinsSize)
     : m_params(params)
-    , m_colorCoord(glsl::ToVec2(params.m_color.GetTexRect().Center()))
+    , m_colorCoord(glsl::ToVec2(params.m_color.GetTexCoords()))
   {
     m_geometry.reserve(geomsSize);
     m_joinGeom.reserve(joinsSize);

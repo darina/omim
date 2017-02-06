@@ -63,6 +63,20 @@ public:
   {
   public:
     ColorRegion() : BaseRegion() {}
+
+    void SetTexCoords(m2::PointF const & texCoords)
+    {
+      m_textureCoords = texCoords;
+    }
+
+    m2::PointF GetTexCoords() const
+    {
+      return m_info != nullptr ? m_info->GetTexRect().Center()
+                               : m_textureCoords;
+    }
+
+  private:
+    m2::PointF m_textureCoords = m2::PointF(0.0f, 0.0f);
   };
 
   struct Params
@@ -85,6 +99,7 @@ public:
   typedef buffer_vector<uint8_t, 8> TStipplePattern;
   void GetStippleRegion(TStipplePattern const & pen, StippleRegion & region);
   void GetColorRegion(Color const & color, ColorRegion & region);
+  void GetColorRegion(ColorInfo const & colorInfo, ColorRegion & region);
 
   typedef buffer_vector<strings::UniString, 4> TMultilineText;
   typedef buffer_vector<GlyphRegion, 128> TGlyphsBuffer;
@@ -103,6 +118,7 @@ public:
 
   ref_ptr<Texture> GetSymbolsTexture() const;
   ref_ptr<Texture> GetTrafficArrowTexture() const;
+  ref_ptr<Texture> GetStaticColorTexture() const;
 
 private:
   struct GlyphGroup
@@ -238,6 +254,7 @@ private:
   drape_ptr<Texture> m_symbolTexture;
   drape_ptr<Texture> m_stipplePenTexture;
   drape_ptr<Texture> m_colorTexture;
+  drape_ptr<Texture> m_staticColorTexture;
   list<drape_ptr<Texture>> m_glyphTextures;
 
   drape_ptr<Texture> m_trafficArrowTexture;

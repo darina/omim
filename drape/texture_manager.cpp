@@ -385,6 +385,9 @@ void TextureManager::Init(Params const & params)
   m_trafficArrowTexture = make_unique_dp<StaticTexture>("traffic-arrow", params.m_resPostfix,
                                                         make_ref(m_textureAllocator));
 
+  //m_staticColorTexture = make_unique_dp<StaticTexture>("static-colors", params.m_resPostfix,
+  //                                                     make_ref(m_textureAllocator));
+
   // initialize patterns
   buffer_vector<buffer_vector<uint8_t, 8>, 64> patterns;
   double const visualScale = params.m_visualScale;
@@ -478,6 +481,20 @@ void TextureManager::GetColorRegion(Color const & color, ColorRegion & region)
   GetRegionBase(make_ref(m_colorTexture), region, ColorKey(color));
 }
 
+void TextureManager::GetColorRegion(ColorInfo const & colorInfo, ColorRegion & region)
+{
+  if (colorInfo.m_type == ColorInfo::Type::Static)
+  {
+    region.SetTexCoords(colorInfo.m_texCoords);
+    region.SetTexture(make_ref(m_staticColorTexture));
+    region.SetResourceInfo(nullptr);
+  }
+  else
+  {
+    GetRegionBase(make_ref(m_colorTexture), region, ColorKey(colorInfo.m_color));
+  }
+}
+
 void TextureManager::GetGlyphRegions(TMultilineText const & text, int fixedHeight, TMultilineGlyphsBuffer & buffers)
 {
   CalcGlyphRegions<TMultilineText, TMultilineGlyphsBuffer>(text, fixedHeight, buffers);
@@ -521,6 +538,11 @@ ref_ptr<Texture> TextureManager::GetSymbolsTexture() const
 ref_ptr<Texture> TextureManager::GetTrafficArrowTexture() const
 {
   return make_ref(m_trafficArrowTexture);
+}
+
+ref_ptr<Texture> TextureManager::GetStaticColorTexture() const
+{
+  return make_ref(m_staticColorTexture);
 }
 
 constexpr size_t TextureManager::GetInvalidGlyphGroup()

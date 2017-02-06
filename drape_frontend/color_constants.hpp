@@ -1,6 +1,7 @@
 #pragma once
 
 #include "drape/color.hpp"
+#include "drape/drape_global.hpp"
 
 #include "indexer/map_style.hpp"
 
@@ -48,6 +49,6 @@ enum ColorConstant
   RoadShieldGreenBackground,
 };
 
-dp::Color GetColorConstant(MapStyle style, ColorConstant constant);
+dp::ColorInfo GetColorConstant(MapStyle style, ColorConstant constant);
 
 } // namespace df

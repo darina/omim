@@ -150,7 +150,7 @@ void MyPosition::CacheAccuracySector(ref_ptr<dp::TextureManager> mng)
 
   dp::TextureManager::ColorRegion color;
   mng->GetColorRegion(df::GetColorConstant(GetStyleReader().GetCurrentStyle(), df::MyPositionAccuracy), color);
-  glsl::vec2 colorCoord = glsl::ToVec2(color.GetTexRect().Center());
+  glsl::vec2 colorCoord = glsl::ToVec2(color.GetTexCoords());
 
   buffer_vector<Vertex, TriangleCount> buffer;
   glsl::vec2 startNormal(0.0f, 1.0f);

@@ -2,6 +2,8 @@
 
 #include "color.hpp"
 
+#include "geometry/point2d.hpp"
+
 #include "base/assert.hpp"
 
 namespace dp
@@ -60,10 +62,36 @@ enum LineJoin
   RoundJoin = 1,
 };
 
+struct ColorInfo
+{
+  enum class Type
+  {
+    Dynamic,
+    Static
+  };
+
+  ColorInfo() = default;
+
+  ColorInfo(Color const & color, m2::PointF const & colorCoords)
+    : m_type(Type::Static)
+    , m_texCoords(colorCoords)
+    , m_color(color)
+  {}
+
+  explicit ColorInfo(Color const & color)
+    : m_type(Type::Dynamic)
+    , m_color(color)
+  {}
+
+  Type m_type = Type::Dynamic;
+  m2::PointF m_texCoords = m2::PointF(0.0f, 0.0f);
+  Color m_color = Color::Transparent();
+};
+
 struct FontDecl
 {
   FontDecl() = default;
-  FontDecl(Color const & color, float size, bool isSdf = true, Color const & outlineColor = Color::Transparent())
+  FontDecl(ColorInfo const & color, float size, bool isSdf = true, ColorInfo const & outlineColor = ColorInfo())
     : m_color(color)
     , m_outlineColor(outlineColor)
     , m_size(size)
@@ -71,8 +99,8 @@ struct FontDecl
   {
   }
 
-  Color m_color = Color::Transparent();
-  Color m_outlineColor = Color::Transparent();
+  ColorInfo m_color;
+  ColorInfo m_outlineColor;
   float m_size = 0;
   bool m_isSdf = true;
 };

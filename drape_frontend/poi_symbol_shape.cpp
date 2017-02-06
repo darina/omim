@@ -66,7 +66,7 @@ void Batch<MV>(ref_ptr<dp::Batcher> batcher, drape_ptr<dp::OverlayHandle> && han
   m2::PointF const pixelSize = symbolRegion.GetPixelSize();
   m2::PointF const halfSize(pixelSize.x * 0.5f, pixelSize.y * 0.5f);
   m2::RectF const & texRect = symbolRegion.GetTexRect();
-  glsl::vec2 const maskColorCoords = glsl::ToVec2(colorRegion.GetTexRect().Center());
+  glsl::vec2 const maskColorCoords = glsl::ToVec2(colorRegion.GetTexCoords());
 
   MV vertexes[] =
   {

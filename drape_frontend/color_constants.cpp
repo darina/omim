@@ -94,7 +94,7 @@ unordered_map<int, unordered_map<int, dp::Color>> kColorConstants =
   },
 };
 
-dp::Color GetColorConstant(MapStyle style, ColorConstant constant)
+dp::ColorInfo GetColorConstant(MapStyle style, ColorConstant constant)
 {
   int const styleIndex = static_cast<int>(style);
   int const colorIndex = static_cast<int>(constant);
@@ -102,7 +102,7 @@ dp::Color GetColorConstant(MapStyle style, ColorConstant constant)
   ASSERT(kColorConstants.find(styleIndex) != kColorConstants.end(), ());
   ASSERT(kColorConstants[styleIndex].find(colorIndex) != kColorConstants[styleIndex].end(), ());
 
-  return kColorConstants[styleIndex][colorIndex];
+  return dp::ColorInfo(kColorConstants[styleIndex][colorIndex]);
 }
 
 } // namespace df

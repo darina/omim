@@ -38,7 +38,7 @@ private:
   math::Matrix<float, 4, 4> CalculateTransform(ScreenBase const & screen,
                                                float dz, float scaleFactor) const;
   void RenderArrow(ScreenBase const & screen, ref_ptr<dp::GpuProgram> program,
-                   dp::Color const & color, float dz,
+                   dp::ColorInfo const & color, float dz,
                    float scaleFactor, bool hasNormals);
 
   m2::PointD m_position;

@@ -88,7 +88,7 @@ void GenerateCapTriangles(glsl::vec3 const & pivot, vector<glsl::vec2> const & n
                           vector<TrafficStaticVertex> & staticGeometry)
 {
   float const kEps = 1e-5;
-  glsl::vec4 const uv = glsl::vec4(glsl::ToVec2(colorRegion.GetTexRect().Center()), 0.0f, 0.0f);
+  glsl::vec4 const uv = glsl::vec4(glsl::ToVec2(colorRegion.GetTexCoords()), 0.0f, 0.0f);
   size_t const trianglesCount = normals.size() / 3;
   for (int j = 0; j < trianglesCount; j++)
   {
@@ -258,7 +258,7 @@ void TrafficGenerator::GenerateSegment(dp::TextureManager::ColorRegion const & c
   glsl::vec2 lastPoint, lastTangent, lastLeftNormal, lastRightNormal;
   bool firstFilled = false;
 
-  glsl::vec4 const uvStart = glsl::vec4(glsl::ToVec2(colorRegion.GetTexRect().Center()), vOffset, 1.0f);
+  glsl::vec4 const uvStart = glsl::vec4(glsl::ToVec2(colorRegion.GetTexCoords()), vOffset, 1.0f);
   glsl::vec4 const uvEnd = glsl::vec4(uvStart.x, uvStart.y, uvStart.z, minU);
   for (size_t i = 1; i < path.size(); ++i)
   {
@@ -323,7 +323,7 @@ void TrafficGenerator::GenerateLineSegment(dp::TextureManager::ColorRegion const
   staticGeometry.reserve(staticGeometry.size() + kAverageSize);
 
   // Build geometry.
-  glsl::vec2 const uv = glsl::ToVec2(colorRegion.GetTexRect().Center());
+  glsl::vec2 const uv = glsl::ToVec2(colorRegion.GetTexCoords());
   for (size_t i = 0; i < path.size(); ++i)
   {
     glsl::vec2 const p = glsl::ToVec2(MapShape::ConvertToLocal(path[i], tileCenter, kShapeCoordScalar));

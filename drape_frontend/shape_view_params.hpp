@@ -38,7 +38,8 @@ struct PoiSymbolViewParams : CommonViewParams
 
 struct AreaViewParams : CommonViewParams
 {
-  dp::Color m_color;
+  dp::ColorInfo m_color;
+  m2::PointF m_texColorCoords;
   float m_minPosZ = 0.0f;
   float m_posZ = 0.0f;
   bool m_is3D = false;
@@ -46,7 +47,8 @@ struct AreaViewParams : CommonViewParams
 
 struct LineViewParams : CommonViewParams
 {
-  dp::Color m_color;
+  dp::ColorInfo m_color;
+  m2::PointF m_texColorCoords;
   float m_width = 0.0f;
   dp::LineCap m_cap;
   dp::LineJoin m_join;
@@ -103,8 +105,8 @@ struct ColoredSymbolViewParams : CommonViewParams
 
   FeatureID m_featureID;
   Shape m_shape = Shape::Circle;
-  dp::Color m_color;
-  dp::Color m_outlineColor;
+  dp::ColorInfo m_color;
+  dp::ColorInfo m_outlineColor;
   float m_radiusInPixels = 0.0f;
   m2::PointF m_sizeInPixels;
   float m_outlineWidth = 0.0f;

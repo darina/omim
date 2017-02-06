@@ -343,7 +343,7 @@ void PathTextShape::Draw(ref_ptr<dp::Batcher> batcher, ref_ptr<dp::TextureManage
   if (offsets.empty())
     return;
 
-  if (m_params.m_textFont.m_outlineColor == dp::Color::Transparent())
+  if (m_params.m_textFont.m_outlineColor.m_color == dp::Color::Transparent())
     DrawPathTextPlain(textures, batcher, move(layout), offsets);
   else
     DrawPathTextOutlined(textures, batcher, move(layout), offsets);

@@ -40,13 +40,15 @@ void AreaShape::Draw(ref_ptr<dp::Batcher> batcher, ref_ptr<dp::TextureManager> t
   dp::TextureManager::ColorRegion region;
   textures->GetColorRegion(m_params.m_color, region);
   dp::TextureManager::ColorRegion outlineRegion;
-  textures->GetColorRegion(m_params.m_color * colorFactor, outlineRegion);
+  dp::ColorInfo outlineColor = m_params.m_color;
+  outlineColor.m_color = m_params.m_color.m_color * colorFactor;
+  textures->GetColorRegion(outlineColor, outlineRegion);
   ASSERT_EQUAL(region.GetTexture(), outlineRegion.GetTexture(), ());
 
   if (m_params.m_is3D)
-    DrawArea3D(batcher, region.GetTexRect().Center(), outlineRegion.GetTexRect().Center(), region.GetTexture());
+    DrawArea3D(batcher, region.GetTexCoords(), outlineRegion.GetTexCoords(), region.GetTexture());
   else
-    DrawArea(batcher, region.GetTexRect().Center(), outlineRegion.GetTexRect().Center(), region.GetTexture());
+    DrawArea(batcher, region.GetTexCoords(), outlineRegion.GetTexCoords(), region.GetTexture());
 }
 
 void AreaShape::DrawArea(ref_ptr<dp::Batcher> batcher, m2::PointD const & colorUv, m2::PointD const & outlineUv,

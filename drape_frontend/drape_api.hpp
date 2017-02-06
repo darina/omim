@@ -1,6 +1,7 @@
 #pragma once
 
 #include "drape/color.hpp"
+#include "drape/drape_global.hpp"
 #include "drape/pointers.hpp"
 
 #include "geometry/point2d.hpp"
@@ -44,7 +45,7 @@ struct DrapeApiLineData
 
   vector<m2::PointD> m_points;
   float m_width = 1.0f;
-  dp::Color m_color;
+  dp::ColorInfo m_color;
 
   bool m_showPoints = false;
   bool m_markPoints = false;

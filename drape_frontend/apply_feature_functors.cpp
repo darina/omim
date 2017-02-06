@@ -46,9 +46,9 @@ double const kPathTextBaseTextIndex = 0;
 double const kPathTextBaseTextStep = 100;
 double const kShieldBaseTextIndex = 1000;
 
-dp::Color ToDrapeColor(uint32_t src)
+dp::ColorInfo ToDrapeColor(uint32_t src)
 {
-  return dp::Extract(src, 255 - (src >> 24));
+  return dp::ColorInfo(dp::Extract(src, 255 - (src >> 24)));
 }
 
 #ifdef CALC_FILTERED_POINTS
@@ -265,7 +265,7 @@ dp::FontDecl GetRoadShieldTextFont(MapStyle const & style, dp::FontDecl const & 
                                    ftypes::RoadShield const & shield)
 {
   dp::FontDecl f = baseFont;
-  f.m_outlineColor = dp::Color::Transparent();
+  f.m_outlineColor.m_color = dp::Color::Transparent();
 
   static std::unordered_map<int, df::ColorConstant> kColors = {
     {static_cast<int>(ftypes::RoadShieldType::UK_Motorway), df::RoadShieldBlueText},
@@ -283,8 +283,8 @@ dp::FontDecl GetRoadShieldTextFont(MapStyle const & style, dp::FontDecl const & 
   return f;
 }
 
-dp::Color GetRoadShieldColor(MapStyle const & style, dp::Color const & baseColor,
-                             ftypes::RoadShield const & shield)
+dp::ColorInfo GetRoadShieldColor(MapStyle const & style, dp::ColorInfo const & baseColor,
+                                 ftypes::RoadShield const & shield)
 {
   static std::unordered_map<int, df::ColorConstant> kColors = {
     {static_cast<int>(ftypes::RoadShieldType::UK_Motorway), df::RoadShieldBlueBackground},
@@ -445,8 +445,8 @@ void ApplyPointFeature::ProcessRule(Stylist::TRuleWrapper const & rule)
       params.m_primaryOptional = false;
       params.m_primaryTextFont.m_size *= 1.2;
       auto const style = GetStyleReader().GetCurrentStyle();
-      params.m_primaryTextFont.m_outlineColor = (style == MapStyle::MapStyleDark) ?
-                                                dp::Color(0, 0, 0, 153) : dp::Color(255, 255, 255, 153);
+      params.m_primaryTextFont.m_outlineColor = dp::ColorInfo((style == MapStyle::MapStyleDark) ? dp::Color(0, 0, 0, 153)
+                                                                                                : dp::Color(255, 255, 255, 153));
       params.m_secondaryTextFont = params.m_primaryTextFont;
       params.m_secondaryText = ExtractHotelInfo();
       params.m_secondaryOptional = false;
@@ -863,7 +863,7 @@ void ApplyLineFeature::GetRoadShieldsViewParams(ftypes::RoadShield const & shiel
     }
     symbolParams.m_sizeInPixels = m2::PointF(shieldWidth, shieldHeight);
     symbolParams.m_outlineWidth = GetRoadShieldOutlineWidth(symbolParams.m_outlineWidth, shield);
-    symbolParams.m_color = GetRoadShieldColor(style, symbolParams.m_color, shield);
+    symbolParams.m_color = dp::ColorInfo(GetRoadShieldColor(style, symbolParams.m_color, shield));
   }
 
   // Image symbol properties.

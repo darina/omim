@@ -116,10 +116,10 @@ void ConvertStyle(CaptionDefProto const * pSrc, double scale, dp::FontDecl & des
   if (pSrc->has_offset_y())
     offset.y = scale * pSrc->offset_y();
 
-  dest = dp::FontDecl(ConvertColor(pSrc->color()), h);
+  dest = dp::FontDecl(dp::ColorInfo(ConvertColor(pSrc->color())), h);
 
   if (pSrc->has_stroke_color())
-    dest.m_outlineColor = ConvertColor(pSrc->stroke_color());
+    dest.m_outlineColor = dp::ColorInfo(ConvertColor(pSrc->stroke_color()));
 }
 
 void ConvertStyle(ShieldRuleProto const * pSrc, double scale, dp::FontDecl & dest)
@@ -127,10 +127,10 @@ void ConvertStyle(ShieldRuleProto const * pSrc, double scale, dp::FontDecl & des
   // fonts smaller than 8px look "jumpy" on LDPI devices
   uint8_t const h = max(8, static_cast<int>(pSrc->height() * scale));
 
-  dest = dp::FontDecl(ConvertColor(pSrc->color()), h);
+  dest = dp::FontDecl(dp::ColorInfo(ConvertColor(pSrc->color())), h);
 
   if (pSrc->has_stroke_color())
-    dest.m_outlineColor = ConvertColor(pSrc->stroke_color());
+    dest.m_outlineColor = dp::ColorInfo(ConvertColor(pSrc->stroke_color()));
 }
 
 uint8_t GetFontSize(CaptionDefProto const * pSrc)

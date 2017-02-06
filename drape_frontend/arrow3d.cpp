@@ -136,18 +136,18 @@ void Arrow3d::Render(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> m
   if (screen.isPerspective())
   {
     ref_ptr<dp::GpuProgram> shadowProgram = mng->GetProgram(gpu::ARROW_3D_SHADOW_PROGRAM);
-    RenderArrow(screen, shadowProgram, dp::Color(60, 60, 60, 60), 0.05f /* dz */,
+    RenderArrow(screen, shadowProgram, dp::ColorInfo(dp::Color(60, 60, 60, 60)), 0.05f /* dz */,
                 routingMode ? kOutlineScale : 1.0f /* scaleFactor */, false /* hasNormals */);
   }
 
-  dp::Color const color = df::GetColorConstant(GetStyleReader().GetCurrentStyle(),
-                                               m_obsoletePosition ? df::Arrow3DObsolete : df::Arrow3D);
+  dp::ColorInfo const color = df::GetColorConstant(GetStyleReader().GetCurrentStyle(),
+                                                   m_obsoletePosition ? df::Arrow3DObsolete : df::Arrow3D);
 
   // Render outline.
   if (routingMode)
   {
     ref_ptr<dp::GpuProgram> outlineProgram = mng->GetProgram(gpu::ARROW_3D_OUTLINE_PROGRAM);
-    RenderArrow(screen, outlineProgram, dp::Color(255, 255, 255, color.GetAlfa()), 0.0f /* dz */,
+    RenderArrow(screen, outlineProgram, dp::ColorInfo(dp::Color(255, 255, 255, color.m_color.GetAlfa())), 0.0f /* dz */,
                 kOutlineScale /* scaleFactor */, false /* hasNormals */);
   }
 
@@ -160,7 +160,7 @@ void Arrow3d::Render(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> m
 }
 
 void Arrow3d::RenderArrow(ScreenBase const & screen, ref_ptr<dp::GpuProgram> program,
-                          dp::Color const & color, float dz, float scaleFactor, bool hasNormals)
+                          dp::ColorInfo const & color, float dz, float scaleFactor, bool hasNormals)
 {
   program->Bind();
 
@@ -183,7 +183,7 @@ void Arrow3d::RenderArrow(ScreenBase const & screen, ref_ptr<dp::GpuProgram> pro
   dp::UniformValuesStorage uniforms;
   math::Matrix<float, 4, 4> const modelTransform = CalculateTransform(screen, dz, scaleFactor);
   uniforms.SetMatrix4x4Value("u_transform", modelTransform.m_data);
-  glsl::vec4 const c = glsl::ToVec4(color);
+  glsl::vec4 const c = glsl::ToVec4(color.m_color);
   uniforms.SetFloatValue("u_color", c.r, c.g, c.b, c.a);
   dp::ApplyState(m_state, program);
   dp::ApplyUniforms(uniforms, program);
