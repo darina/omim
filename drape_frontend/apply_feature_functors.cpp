@@ -265,7 +265,7 @@ dp::FontDecl GetRoadShieldTextFont(MapStyle const & style, dp::FontDecl const & 
                                    ftypes::RoadShield const & shield)
 {
   dp::FontDecl f = baseFont;
-  f.m_outlineColor.m_color = dp::Color::Transparent();
+  f.m_outlineColor.m_value = dp::Color::Transparent();
 
   static std::unordered_map<int, df::ColorConstant> kColors = {
     {static_cast<int>(ftypes::RoadShieldType::UK_Motorway), df::RoadShieldBlueText},

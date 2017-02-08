@@ -41,7 +41,7 @@ void AreaShape::Draw(ref_ptr<dp::Batcher> batcher, ref_ptr<dp::TextureManager> t
   textures->GetColorRegion(m_params.m_color, region);
   dp::TextureManager::ColorRegion outlineRegion;
   dp::ColorInfo outlineColor = m_params.m_color;
-  outlineColor.m_color = m_params.m_color.m_color * colorFactor;
+  outlineColor.m_value = m_params.m_color.m_value * colorFactor;
   textures->GetColorRegion(outlineColor, outlineRegion);
   ASSERT_EQUAL(region.GetTexture(), outlineRegion.GetTexture(), ());
 

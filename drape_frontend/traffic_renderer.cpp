@@ -151,9 +151,9 @@ void TrafficRenderer::RenderTraffic(ScreenBase const & screen, int zoomLevel, fl
     return;
 
   auto const style = GetStyleReader().GetCurrentStyle();
-  dp::Color const lightArrowColor = df::GetColorConstant(style, df::TrafficArrowLight).m_color;
-  dp::Color const darkArrowColor = df::GetColorConstant(style, df::TrafficArrowDark).m_color;
-  dp::Color const outlineColor = df::GetColorConstant(style, df::TrafficOutline).m_color;
+  dp::Color const lightArrowColor = df::GetColorConstant(style, df::TrafficArrowLight).m_value;
+  dp::Color const darkArrowColor = df::GetColorConstant(style, df::TrafficArrowDark).m_value;
+  dp::Color const outlineColor = df::GetColorConstant(style, df::TrafficOutline).m_value;
 
   for (TrafficRenderData & renderData : m_renderData)
   {

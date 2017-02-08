@@ -75,17 +75,17 @@ struct ColorInfo
   ColorInfo(Color const & color, m2::PointF const & colorCoords)
     : m_type(Type::Static)
     , m_texCoords(colorCoords)
-    , m_color(color)
+    , m_value(color)
   {}
 
   explicit ColorInfo(Color const & color)
     : m_type(Type::Dynamic)
-    , m_color(color)
+    , m_value(color)
   {}
 
   Type m_type = Type::Dynamic;
   m2::PointF m_texCoords = m2::PointF(0.0f, 0.0f);
-  Color m_color = Color::Transparent();
+  Color m_value = Color::Transparent();
 };
 
 struct FontDecl

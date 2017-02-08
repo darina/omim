@@ -504,7 +504,7 @@ void TextureManager::GetColorRegion(ColorInfo const & colorInfo, ColorRegion & r
   }
   else
   {
-    GetRegionBase(make_ref(m_colorTexture), region, ColorKey(colorInfo.m_color));
+    GetRegionBase(make_ref(m_colorTexture), region, ColorKey(colorInfo.m_value));
   }
 }
 

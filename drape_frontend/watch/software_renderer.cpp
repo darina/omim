@@ -145,7 +145,7 @@ void AlignImage(m2::PointD & pt, dp::Anchor anchor, size_t width, size_t height)
 
 bool HasOutline(dp::FontDecl const & fontDecl)
 {
-  return fontDecl.m_outlineColor.m_color.GetAlfa() != 0;
+  return fontDecl.m_outlineColor.m_value.GetAlfa() != 0;
 }
 
 SoftwareRenderer::SoftwareRenderer(GlyphCache::Params const & glyphCacheParams, string const & resourcesPostfix)
@@ -357,7 +357,7 @@ void SoftwareRenderer::DrawText(m2::PointD const & pt, dp::Anchor anchor, dp::Fo
   AlignText(opt, anchor);
   l.warp(base, opt);
 
-  agg_symbol_renderer ren(m_baseRenderer, primFont.m_color.m_color, primFont.m_outlineColor.m_color);
+  agg_symbol_renderer ren(m_baseRenderer, primFont.m_color.m_value, primFont.m_outlineColor.m_value);
   if (HasOutline(primFont))
   {
     ren.outline(true);
@@ -386,7 +386,7 @@ void SoftwareRenderer::DrawText(m2::PointD const & pt, dp::Anchor anchor,
   prim.warp(base, opt);
   bounds = prim.calc_bounds(primFace);
 
-  agg_symbol_renderer ren(m_baseRenderer, primFont.m_color.m_color, primFont.m_outlineColor.m_color);
+  agg_symbol_renderer ren(m_baseRenderer, primFont.m_color.m_value, primFont.m_outlineColor.m_value);
   if (HasOutline(primFont))
   {
     ren.outline(true);
@@ -409,7 +409,7 @@ void SoftwareRenderer::DrawText(m2::PointD const & pt, dp::Anchor anchor,
   AlignText(secOpt, dp::Center);
   sec.warp(base, secOpt);
 
-  agg_symbol_renderer ren2(m_baseRenderer, secFont.m_color.m_color, secFont.m_outlineColor.m_color);
+  agg_symbol_renderer ren2(m_baseRenderer, secFont.m_color.m_value, secFont.m_outlineColor.m_value);
   if (HasOutline(secFont))
   {
     ren2.outline(true);
@@ -546,7 +546,7 @@ void SoftwareRenderer::DrawPathText(PathInfo const & geometry, dp::FontDecl cons
   AlignText(opt, dp::Center);
   l.warp(base, opt);
 
-  agg_symbol_renderer ren(m_baseRenderer, font.m_color.m_color, font.m_outlineColor.m_color);
+  agg_symbol_renderer ren(m_baseRenderer, font.m_color.m_value, font.m_outlineColor.m_value);
   if (HasOutline(font))
   {
     ren.outline(true);

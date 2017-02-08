@@ -429,7 +429,7 @@ void RouteShape::CacheRoute(ref_ptr<dp::TextureManager> textures, RouteData & ro
   for (auto const & speedGroup : routeData.m_traffic)
   {
     dp::Color const color =
-        df::GetColorConstant(style, TrafficGenerator::GetColorBySpeedGroup(speedGroup, true /* route */)).m_color;
+        df::GetColorConstant(style, TrafficGenerator::GetColorBySpeedGroup(speedGroup, true /* route */)).m_value;
     float const alpha = (speedGroup == traffic::SpeedGroup::G4 ||
                          speedGroup == traffic::SpeedGroup::G5 ||
                          speedGroup == traffic::SpeedGroup::Unknown) ? 0.0f : 1.0f;

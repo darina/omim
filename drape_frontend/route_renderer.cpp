@@ -119,7 +119,7 @@ dp::Color GetOutlineColor(df::ColorConstant routeColor)
   df::ColorConstant c = routeColor;
   if (routeColor == df::ColorConstant::Route)
     c = df::ColorConstant::RouteOutline;
-  return df::GetColorConstant(GetStyleReader().GetCurrentStyle(), c).m_color;
+  return df::GetColorConstant(GetStyleReader().GetCurrentStyle(), c).m_value;
 }
 
 } // namespace
@@ -250,7 +250,7 @@ void RouteRenderer::RenderRoute(ScreenBase const & screen, bool trafficShown,
     math::Matrix<float, 4, 4> mv = screen.GetModelView(m_routeData->m_pivot, kShapeCoordScalar);
     uniforms.SetMatrix4x4Value("modelView", mv.m_data);
     glsl::vec4 const color = glsl::ToVec4(df::GetColorConstant(GetStyleReader().GetCurrentStyle(),
-                                                               m_routeData->m_color).m_color);
+                                                               m_routeData->m_color).m_value);
     uniforms.SetFloatValue("u_color", color.r, color.g, color.b, color.a);
     double const screenScale = screen.GetScale();
     uniforms.SetFloatValue("u_routeParams", m_currentHalfWidth, m_currentHalfWidth * screenScale,

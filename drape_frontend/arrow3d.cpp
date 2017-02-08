@@ -147,7 +147,7 @@ void Arrow3d::Render(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> m
   if (routingMode)
   {
     ref_ptr<dp::GpuProgram> outlineProgram = mng->GetProgram(gpu::ARROW_3D_OUTLINE_PROGRAM);
-    RenderArrow(screen, outlineProgram, dp::ColorInfo(dp::Color(255, 255, 255, color.m_color.GetAlfa())), 0.0f /* dz */,
+    RenderArrow(screen, outlineProgram, dp::ColorInfo(dp::Color(255, 255, 255, color.m_value.GetAlfa())), 0.0f /* dz */,
                 kOutlineScale /* scaleFactor */, false /* hasNormals */);
   }
 
@@ -183,7 +183,7 @@ void Arrow3d::RenderArrow(ScreenBase const & screen, ref_ptr<dp::GpuProgram> pro
   dp::UniformValuesStorage uniforms;
   math::Matrix<float, 4, 4> const modelTransform = CalculateTransform(screen, dz, scaleFactor);
   uniforms.SetMatrix4x4Value("u_transform", modelTransform.m_data);
-  glsl::vec4 const c = glsl::ToVec4(color.m_color);
+  glsl::vec4 const c = glsl::ToVec4(color.m_value);
   uniforms.SetFloatValue("u_color", c.r, c.g, c.b, c.a);
   dp::ApplyState(m_state, program);
   dp::ApplyUniforms(uniforms, program);

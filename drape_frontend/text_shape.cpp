@@ -186,8 +186,8 @@ void TextShape::DrawSubString(StraightTextLayout const & layout, dp::FontDecl co
                               ref_ptr<dp::TextureManager> textures,
                               bool isPrimary, bool isOptional) const
 {
-  dp::Color outlineColor = isPrimary ? m_params.m_primaryTextFont.m_outlineColor.m_color
-                                     : m_params.m_secondaryTextFont.m_outlineColor.m_color;
+  dp::Color outlineColor = isPrimary ? m_params.m_primaryTextFont.m_outlineColor.m_value
+                                     : m_params.m_secondaryTextFont.m_outlineColor.m_value;
 
   if (outlineColor == dp::Color::Transparent())
   {
