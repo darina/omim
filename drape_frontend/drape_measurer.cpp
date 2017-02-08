@@ -14,7 +14,9 @@ void DrapeMeasurer::StartBenchmark()
   using namespace std::chrono;
   m_isEnabled = true;
 
+#if defined(GENERATING_STATISTIC) || defined(RENDER_STATISTIC) || defined(TRACK_GPU_MEM)
   auto currentTime = std::chrono::steady_clock::now();
+#endif
 
 #ifdef GENERATING_STATISTIC
   m_startScenePreparingTime = currentTime;

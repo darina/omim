@@ -202,6 +202,17 @@ uint32_t TextureManager::StippleRegion::GetPatternPixelLength() const
   return ref_ptr<StipplePenResourceInfo>(m_info)->GetPatternPixelLength();
 }
 
+void TextureManager::ColorRegion::SetTexCoords(m2::PointF const & texCoords)
+{
+  m_textureCoords = texCoords;
+}
+
+m2::PointF TextureManager::ColorRegion::GetTexCoords() const
+{
+  return m_info != nullptr ? m_info->GetTexRect().Center()
+                           : m_textureCoords;
+}
+
 void TextureManager::Release()
 {
   m_glyphGroups.clear();
@@ -382,11 +393,10 @@ void TextureManager::Init(Params const & params)
 
   m_symbolTexture = make_unique_dp<SymbolsTexture>(params.m_resPostfix, make_ref(m_textureAllocator));
 
-  m_trafficArrowTexture = make_unique_dp<StaticTexture>("traffic-arrow", params.m_resPostfix,
-                                                        make_ref(m_textureAllocator));
+  m_trafficArrowTexture = make_unique_dp<StaticResourceTexture>("traffic-arrow", params.m_resPostfix,
+                                                                make_ref(m_textureAllocator));
 
-  //m_staticColorTexture = make_unique_dp<StaticTexture>("static-colors", params.m_resPostfix,
-  //                                                     make_ref(m_textureAllocator));
+  //m_staticColorTexture = make_unique_dp<StaticColorTexture>(make_ref(m_textureAllocator));
 
   // initialize patterns
   buffer_vector<buffer_vector<uint8_t, 8>, 64> patterns;
@@ -462,8 +472,11 @@ void TextureManager::Invalidate(string const & resPostfix)
   symbolsTexture->Invalidate(resPostfix, make_ref(m_textureAllocator));
 
   ASSERT(m_trafficArrowTexture != nullptr, ());
-  ref_ptr<StaticTexture> staticTexture = make_ref(m_trafficArrowTexture);
+  ref_ptr<StaticResourceTexture> staticTexture = make_ref(m_trafficArrowTexture);
   staticTexture->Invalidate(resPostfix, make_ref(m_textureAllocator));
+
+  ref_ptr<StaticColorTexture> staticColorTexture = make_ref(m_staticColorTexture);
+  staticColorTexture->Invalidate(make_ref(m_textureAllocator));
 }
 
 void TextureManager::GetSymbolRegion(string const & symbolName, SymbolRegion & region)

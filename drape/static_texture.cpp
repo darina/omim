@@ -1,7 +1,5 @@
 #include "drape/static_texture.hpp"
 
-#include "indexer/map_style_reader.hpp"
-
 #include "platform/platform.hpp"
 
 #include "coding/reader.hpp"
@@ -23,7 +21,7 @@ namespace
 using TLoadingCompletion = function<void(unsigned char *, uint32_t, uint32_t)>;
 using TLoadingFailure = function<void(string const &)>;
 
-bool LoadData(string const & textureName, string const & skinPathName,
+bool LoadData(ReaderPtr<Reader> reader,
               TLoadingCompletion const & completionHandler,
               TLoadingFailure const & failureHandler)
 {
@@ -33,7 +31,6 @@ bool LoadData(string const & textureName, string const & skinPathName,
   vector<unsigned char> rawData;
   try
   {
-    ReaderPtr<Reader> reader = GetStyleReader().GetResourceReader(textureName + ".png", skinPathName);
     CHECK_LESS(reader.Size(), static_cast<uint64_t>(numeric_limits<size_t>::max()), ());
     size_t const size = static_cast<size_t>(reader.Size());
     rawData.resize(size);
@@ -68,15 +65,13 @@ public:
 
 } // namespace
 
-StaticTexture::StaticTexture(string const & textureName, string const & skinPathName,
-                             ref_ptr<HWTextureAllocator> allocator)
-  : m_textureName(textureName)
-  , m_info(make_unique_dp<StaticResourceInfo>())
+StaticTexture::StaticTexture()
+  : m_info(make_unique_dp<StaticResourceInfo>())
+  , m_isLoadingCorrect(false)
 {
-  m_isLoadingCorrect = Load(skinPathName, allocator);
 }
 
-bool StaticTexture::Load(string const & skinPathName, ref_ptr<HWTextureAllocator> allocator)
+bool StaticTexture::Load(ReaderPtr<Reader> reader, ref_ptr<HWTextureAllocator> allocator)
 {
   auto completionHandler = [this, &allocator](unsigned char * data, uint32_t width, uint32_t height)
   {
@@ -97,13 +92,8 @@ bool StaticTexture::Load(string const & skinPathName, ref_ptr<HWTextureAllocator
     Fail();
   };
 
-  return LoadData(m_textureName, skinPathName, completionHandler, failureHandler);
-}
-
-void StaticTexture::Invalidate(string const & skinPathName, ref_ptr<HWTextureAllocator> allocator)
-{
-  Destroy();
-  m_isLoadingCorrect = Load(skinPathName, allocator);
+  m_isLoadingCorrect = LoadData(reader, completionHandler, failureHandler);
+  return m_isLoadingCorrect;
 }
 
 ref_ptr<Texture::ResourceInfo> StaticTexture::FindResource(Texture::Key const & key, bool & newResource)
@@ -124,6 +114,36 @@ void StaticTexture::Fail()
   p.m_height = 1;
 
   Create(p, make_ref(&alfaTexture));
+}
+
+StaticResourceTexture::StaticResourceTexture(string const & textureName, string const & skinPathName,
+                                             ref_ptr<HWTextureAllocator> allocator)
+  : m_textureName(textureName)
+{
+  Load(skinPathName, allocator);
+}
+
+bool StaticResourceTexture::Load(string const & skinPathName, ref_ptr<HWTextureAllocator> allocator)
+{
+  ReaderPtr<Reader> reader = GetStyleReader().GetResourceReader(m_textureName + ".png", skinPathName);
+  return TBase::Load(reader, allocator);
+}
+
+void StaticResourceTexture::Invalidate(string const & skinPathName, ref_ptr<HWTextureAllocator> allocator)
+{
+  Destroy();
+  Load(skinPathName, allocator);
+}
+
+StaticColorTexture::StaticColorTexture(ref_ptr<HWTextureAllocator> allocator)
+{
+  Load(GetStyleReader().GetStaticColorsReader(), allocator);
+}
+
+void StaticColorTexture::Invalidate(ref_ptr<HWTextureAllocator> allocator)
+{
+  Destroy();
+  Load(GetStyleReader().GetStaticColorsReader(), allocator);
 }
 
 } // namespace dp

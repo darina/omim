@@ -16,6 +16,8 @@ public:
 
   ReaderPtr<Reader> GetResourceReader(string const & file, string const & density);
 
+  ReaderPtr<Reader> GetStaticColorsReader();
+
 private:
   MapStyle m_mapStyle;
 };

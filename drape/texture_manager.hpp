@@ -64,16 +64,8 @@ public:
   public:
     ColorRegion() : BaseRegion() {}
 
-    void SetTexCoords(m2::PointF const & texCoords)
-    {
-      m_textureCoords = texCoords;
-    }
-
-    m2::PointF GetTexCoords() const
-    {
-      return m_info != nullptr ? m_info->GetTexRect().Center()
-                               : m_textureCoords;
-    }
+    void SetTexCoords(m2::PointF const & texCoords);
+    m2::PointF GetTexCoords() const;
 
   private:
     m2::PointF m_textureCoords = m2::PointF(0.0f, 0.0f);

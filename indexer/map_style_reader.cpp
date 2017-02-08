@@ -61,6 +61,12 @@ ReaderPtr<Reader> StyleReader::GetResourceReader(string const & file, string con
   return GetPlatform().GetReader(my::JoinFoldersToPath(resourceDir, file));
 }
 
+ReaderPtr<Reader> StyleReader::GetStaticColorsReader()
+{
+  string const colorsFile = string("static_colors") + GetStyleSuffix(GetCurrentStyle()) + ".tex";
+  return GetPlatform().GetReader(colorsFile);
+}
+
 StyleReader & GetStyleReader()
 {
   static StyleReader instance;
