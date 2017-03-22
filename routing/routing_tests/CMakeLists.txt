@@ -52,6 +52,7 @@ omim_link_libraries(
   map
   pugixml
   stats_client
+  icu
   ${LIBZ}
 )
 
