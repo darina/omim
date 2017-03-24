@@ -466,21 +466,16 @@ Framework::Framework()
 
   m_trafficManager.SetCurrentDataVersion(m_storage.GetCurrentDataVersion());
 
-
-  std::string const zippedData = std::string(kICUDataFile) + ".zip";
 #ifdef OMIM_OS_ANDROID
   ZipFileReader::UnzipFile(GetPlatform().ResourcesDir(),
-                           "assets/" + zippedData,
-                           GetPlatform().WritableDir() + zippedData);
-  ZipFileReader::UnzipFile(GetPlatform().WritableDir() + zippedData,
-                           kICUDataFile,
+                           std::string("assets/") + kICUDataFile,
                            GetPlatform().WritableDir() + kICUDataFile);
-#else
-  ZipFileReader::UnzipFile(GetPlatform().ResourcesDir() + zippedData,
-                           kICUDataFile,
-                           GetPlatform().WritableDir() + kICUDataFile);
-#endif
+
   Transliteration::GetInstance().Init(GetPlatform().WritableDir());
+#else
+  Transliteration::GetInstance().Init(GetPlatform().ResourcesDir());
+#endif
+
 }
 
 Framework::~Framework()
