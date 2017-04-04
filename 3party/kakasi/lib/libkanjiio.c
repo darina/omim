@@ -551,7 +551,7 @@ getkanji(c)
 	    }
 	    utf8[0] = c1;
       for (i = 1; i < len; i++) {
-    utf8[i] = getchar();
+    utf8[i] = get1byte();
 	    }
 	    fromlen = len;
 	    if (fromutf8 == (iconv_t) -1)
