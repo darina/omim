@@ -4,7 +4,7 @@ ROOT_DIR = ../..
 
 DEPENDENCIES = generator routing traffic routing_common search storage indexer editor platform geometry \
                coding base freetype expat fribidi jansson protobuf osrm stats_client \
-               minizip succinct pugixml tess2 gflags oauthcpp icu
+               minizip succinct pugixml tess2 gflags oauthcpp icu kakasi
 include($$ROOT_DIR/common.pri)
 
 INCLUDEPATH *= $$ROOT_DIR/3party/gflags/src
@@ -15,6 +15,8 @@ TEMPLATE = app
 
 # needed for Platform::WorkingDir() and unicode combining
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   LIBS *= "-framework IOKit" "-framework SystemConfiguration"

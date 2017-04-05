@@ -4,12 +4,14 @@ CONFIG += console warn_on
 CONFIG -= app_bundle
 TEMPLATE = app
 
-DEPENDENCIES = drape_frontend drape platform indexer geometry coding base expat stats_client stb_image sdf_image icu
+DEPENDENCIES = drape_frontend drape platform indexer geometry coding base expat stats_client stb_image sdf_image icu kakasi
 
 ROOT_DIR = ../..
 include($$ROOT_DIR/common.pri)
 
 QT *= opengl
+
+LIBS *= -liconv
 
 macx-* {
   LIBS *= "-framework CoreLocation" "-framework Foundation" "-framework CoreWLAN" \

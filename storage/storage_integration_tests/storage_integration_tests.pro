@@ -9,13 +9,15 @@ ROOT_DIR = ../..
 DEPENDENCIES = map drape_frontend routing search storage tracking traffic routing_common indexer drape \
                partners_api platform_tests_support platform editor opening_hours geometry \
                coding base freetype expat fribidi jansson protobuf osrm stats_client \
-               minizip succinct pugixml oauthcpp stb_image sdf_image icu
+               minizip succinct pugixml oauthcpp stb_image sdf_image icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
 DEFINES *= OMIM_UNIT_TEST_WITH_QT_EVENT_LOOP
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets network # needed for QApplication with event loop, to test async events (downloader, etc.)

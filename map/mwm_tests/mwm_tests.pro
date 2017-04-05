@@ -7,11 +7,13 @@ TEMPLATE = app
 
 ROOT_DIR = ../..
 DEPENDENCIES = map traffic search storage indexer platform editor geometry coding base \
-               freetype fribidi expat protobuf jansson succinct pugixml stats_client icu
+               freetype fribidi expat protobuf jansson succinct pugixml stats_client icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

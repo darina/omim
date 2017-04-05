@@ -1,7 +1,7 @@
 # Head project for drape develop and debuging
 ROOT_DIR = ..
 DEPENDENCIES = map traffic drape_frontend drape indexer storage platform geometry coding base \
-               freetype expat protobuf jansson fribidi stats_client stb_image sdf_image icu
+               freetype expat protobuf jansson fribidi stats_client stb_image sdf_image icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
@@ -11,6 +11,8 @@ TARGET = DrapeHead
 TEMPLATE = app
 CONFIG += warn_on
 QT *= core gui widgets opengl
+
+LIBS *= -liconv
 
 win32* {
   LIBS += -lopengl32 -lws2_32 -liphlpapi

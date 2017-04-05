@@ -6,13 +6,15 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 ROOT_DIR = ../..
-DEPENDENCIES = search indexer platform editor geometry coding icu base protobuf jansson succinct pugixml stats_client
+DEPENDENCIES = search indexer platform editor geometry coding icu kakasi base protobuf jansson succinct pugixml stats_client
 
 include($$ROOT_DIR/common.pri)
 
 INCLUDEPATH += $$ROOT_DIR/3party/jansson/src
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

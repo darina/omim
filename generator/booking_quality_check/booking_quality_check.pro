@@ -26,6 +26,7 @@ DEPENDENCIES = \
     expat \
     protobuf \
     icu \
+    kakasi \
 
 include($$ROOT_DIR/common.pri)
 

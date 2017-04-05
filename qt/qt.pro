@@ -4,7 +4,7 @@ ROOT_DIR = ..
 DEPENDENCIES = qt_common map drape_frontend openlr routing search storage tracking traffic routing_common \
                indexer drape partners_api platform editor geometry \
                coding base freetype expat fribidi jansson protobuf osrm stats_client \
-               minizip succinct pugixml oauthcpp stb_image sdf_image icu
+               minizip succinct pugixml oauthcpp stb_image sdf_image icu kakasi
 
 DEPENDENCIES += opening_hours \
 
@@ -14,6 +14,8 @@ TARGET = MAPS.ME
 TEMPLATE = app
 CONFIG += warn_on
 QT *= core widgets gui opengl
+
+LIBS *= -liconv
 
 win32* {
   LIBS *= -lopengl32 -lws2_32 -liphlpapi
@@ -94,7 +96,10 @@ ICU_RES.files = ../data/icudt57l.dat
 MWM_RES.path = $$DATADIR
 MWM_RES.files = ../data/World.mwm ../data/WorldCoasts.mwm
 
-ALL_RESOURCES = OTHER_RES CLASSIFICATOR_RES MDPI_SKIN_RES XHDPI_SKIN_RES FONT_RES MWM_RES ICU_RES
+KAKASI_RES.path = $$DATADIR
+KAKASI_RES.files = ../data/itaijidict ../data/kanwadict
+
+ALL_RESOURCES = OTHER_RES CLASSIFICATOR_RES MDPI_SKIN_RES XHDPI_SKIN_RES FONT_RES MWM_RES ICU_RES KAKASI_RES
 #ALL_RESOURCES += DEFAULT_SKIN_RES
 
 linux* {

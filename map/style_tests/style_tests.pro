@@ -6,13 +6,15 @@ TEMPLATE = app
 INCLUDEPATH += ../../3party/protobuf/src
 
 ROOT_DIR = ../..
-DEPENDENCIES = map traffic indexer platform geometry coding base expat protobuf stats_client icu
+DEPENDENCIES = map traffic indexer platform geometry coding base expat protobuf stats_client icu kakasi
 
 macx-*: LIBS *= "-framework IOKit"
 
 include($$ROOT_DIR/common.pri)
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

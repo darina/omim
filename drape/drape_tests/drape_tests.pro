@@ -5,7 +5,7 @@ TEMPLATE = app
 DEFINES += OGL_TEST_ENABLED GTEST_DONT_DEFINE_TEST COMPILER_TESTS
 
 ROOT_DIR = ../..
-DEPENDENCIES = qt_tstfrm indexer platform coding geometry base gmock freetype fribidi expat stats_client stb_image sdf_image icu
+DEPENDENCIES = qt_tstfrm indexer platform coding geometry base gmock freetype fribidi expat stats_client stb_image sdf_image icu kakasi
 
 SHADER_COMPILE_ARGS = $$PWD/../shaders shader_index.txt shader_def
 include($$ROOT_DIR/common.pri)
@@ -16,6 +16,8 @@ DRAPE_DIR = ..
 include($$DRAPE_DIR/drape_common.pri)
 
 INCLUDEPATH *= $$ROOT_DIR/3party/gmock/include $$ROOT_DIR/3party/gmock/gtest/include
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

@@ -8,13 +8,15 @@ TEMPLATE = app
 
 ROOT_DIR = ../..
 DEPENDENCIES = generator map routing traffic routing_common storage indexer \
-               platform geometry coding base minizip succinct protobuf gflags stats_client icu
+               platform geometry coding base minizip succinct protobuf gflags stats_client icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
 INCLUDEPATH *= $$ROOT_DIR/3party/gflags/src
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
     LIBS *= "-framework IOKit" "-framework SystemConfiguration"

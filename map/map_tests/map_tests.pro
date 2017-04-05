@@ -8,7 +8,7 @@ TEMPLATE = app
 ROOT_DIR = ../..
 DEPENDENCIES = map drape_frontend routing traffic routing_common search storage tracking drape \
                indexer partners_api platform editor geometry coding base freetype fribidi expat \
-               protobuf jansson osrm stats_client minizip succinct pugixml stats_client stb_image sdf_image icu
+               protobuf jansson osrm stats_client minizip succinct pugixml stats_client stb_image sdf_image icu kakasi
 
 DEPENDENCIES *= opening_hours
 
@@ -17,6 +17,8 @@ include($$ROOT_DIR/common.pri)
 DEFINES *= OMIM_UNIT_TEST_WITH_QT_EVENT_LOOP
 
 QT *= core opengl
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets network # needed for QApplication with event loop, to test async events (downloader, etc.)

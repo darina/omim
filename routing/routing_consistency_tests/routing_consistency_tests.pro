@@ -8,11 +8,13 @@ TEMPLATE = app
 
 ROOT_DIR = ../..
 DEPENDENCIES = map routing traffic routing_common search storage indexer platform editor geometry coding base osrm \
-               jansson protobuf succinct stats_client generator gflags pugixml icu
+               jansson protobuf succinct stats_client generator gflags pugixml icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

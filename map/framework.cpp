@@ -98,6 +98,7 @@
 #include "api/src/c/api-client.h"
 
 #include "3party/Alohalytics/src/alohalytics.h"
+#include "3party/kakasi/lib/libkakasi.h"
 
 #define KMZ_EXTENSION ".kmz"
 
@@ -1443,6 +1444,20 @@ void Framework::InitTransliteration()
 #else
   Transliteration::Instance().Init(GetPlatform().ResourcesDir());
 #endif
+
+  kakasi_set_kanwadict_path((GetPlatform().ResourcesDir() + "/kanwadict").c_str());
+  kakasi_set_itaijidict_path((GetPlatform().ResourcesDir() + "/itaijidict").c_str());
+
+  char * kakasi_argv[9] = {"kakasi", "-iutf8", "-outf8", "-Ja","-Ha","-Ka","-Ea","-s", "-C"};
+  kakasi_getopt_argv(9, kakasi_argv);
+
+  char * out = kakasi_do("東京");
+  if (out != nullptr)
+  {
+    std::string transliterated(out);
+    LOG(LWARNING, ("KAKASI OUT:", transliterated));
+    kakasi_free(out);
+  }
 }
 
 storage::TCountryId Framework::GetCountryIndex(m2::PointD const & pt) const

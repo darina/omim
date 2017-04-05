@@ -7,13 +7,15 @@ TEMPLATE = app
 
 ROOT_DIR = ../..
 
-DEPENDENCIES = map indexer platform editor geometry coding base gflags protobuf succinct pugixml stats_client icu
+DEPENDENCIES = map indexer platform editor geometry coding base gflags protobuf succinct pugixml stats_client icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
 INCLUDEPATH *= $$ROOT_DIR/3party/gflags/src
 
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   QT *= gui widgets # needed for QApplication with event loop, to test async events (downloader, etc.)

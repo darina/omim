@@ -3,7 +3,7 @@
 ROOT_DIR = ../..
 
 DEPENDENCIES = openlr routing routing_common search storage indexer editor \
-               platform geometry coding base protobuf osrm stats_client pugixml jansson succinct gflags icu
+               platform geometry coding base protobuf osrm stats_client pugixml jansson succinct gflags icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
@@ -15,6 +15,8 @@ TEMPLATE = app
 
 # needed for Platform::WorkingDir() and unicode combining
 QT *= core
+
+LIBS *= -liconv
 
 macx-* {
   LIBS *= "-framework IOKit" "-framework SystemConfiguration"

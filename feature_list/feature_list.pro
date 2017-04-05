@@ -2,7 +2,7 @@
 
 ROOT_DIR = ..
 DEPENDENCIES = map traffic search_tests_support search search_quality storage indexer platform editor geometry \
-               coding base jansson protobuf stats_client succinct opening_hours pugixml icu
+               coding base jansson protobuf stats_client succinct opening_hours pugixml icu kakasi
 
 include($$ROOT_DIR/common.pri)
 
@@ -12,6 +12,8 @@ TEMPLATE = app
 
 # needed for Platform::WorkingDir() and unicode combining
 QT *= core network
+
+LIBS *= -liconv
 
 macx-* {
   LIBS *= "-framework IOKit" "-framework SystemConfiguration"
