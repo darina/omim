@@ -305,6 +305,7 @@ void add_jisyo(filename)
 #ifdef LIBRARY
 FILE *kanwadict = NULL;
 unsigned short dict_endian_mark;
+static char kanwadict_path[4096] = {0};
 #else
 static FILE *kanwadict;
 static unsigned short dict_endian_mark;
@@ -325,6 +326,12 @@ fix_dict_endian_int(int *v)
     *v = i;
 }
 
+void set_kanwadict_path(char const * path)
+{
+  if (path != (char*)NULL && strlen(path) < sizeof(kanwadict_path))
+    strcpy(kanwadict_path, path);
+}
+
 void init_kanwa()
 {
     int i, j;
@@ -333,12 +340,19 @@ void init_kanwa()
     char magic[6];
     int kanwa_offset;
 
-    kanwadictpath = (char*)getenv("KANWADICTPATH");
-    if (kanwadictpath == (char*)NULL)
-	kanwadictpath = (char*)getenv("KANWADICT");
-    if (kanwadictpath == (char*)NULL)
-	kanwadictpath = KANWADICT;
-
+    if (strlen(kanwadict_path) > 0)
+    {
+      kanwadictpath = kanwadict_path;
+    }
+    else
+    {
+      if (kanwadictpath == (char*)NULL)
+        kanwadictpath = (char*)getenv("KANWADICTPATH");
+      if (kanwadictpath == (char*)NULL)
+        kanwadictpath = (char*)getenv("KANWADICT");
+      if (kanwadictpath == (char*)NULL)
+        kanwadictpath = KANWADICT;
+    }
     if ((kanwadict = fopen(kanwadictpath,"rb")) == NULL) {
 	perror(kanwadictpath);
 	exit(2);

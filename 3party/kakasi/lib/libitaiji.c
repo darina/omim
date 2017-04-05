@@ -34,6 +34,13 @@
 
 static unsigned char ittbl1[0x80][0x80], ittbl2[0x80][0x80];
 static int itaijitbl_made=0;
+static char itaijidict_path[4096] = {0};
+
+void set_itaijidict_path(char const * path)
+{
+  if (path != (char*)NULL && strlen(path) < sizeof(itaijidict_path))
+    strcpy(itaijidict_path, path);
+}
 
 void
 mkitaijitbl()
@@ -44,11 +51,18 @@ mkitaijitbl()
     unsigned char n1, n2, o1, o2;
     char *itaijidictpath;
     
-    itaijidictpath = (char*)getenv("ITAIJIDICTPATH");
-    if (itaijidictpath == (char*)NULL)
-	itaijidictpath = (char*)getenv("ITAIJIDICT");
-    if (itaijidictpath == (char*)NULL)
-	itaijidictpath = ITAIJIDICT;
+    if (strlen(itaijidict_path) > 0)
+    {
+      itaijidictpath = itaijidict_path;
+    }
+    else
+    {
+      itaijidictpath = (char*)getenv("ITAIJIDICTPATH");
+      if (itaijidictpath == (char*)NULL)
+        itaijidictpath = (char*)getenv("ITAIJIDICT");
+      if (itaijidictpath == (char*)NULL)
+        itaijidictpath = ITAIJIDICT;
+    }
 
     if ((fp = fopen(itaijidictpath, "rb")) == NULL) {
 	fprintf(stderr, "Can't open Kanji itaijidict file ");

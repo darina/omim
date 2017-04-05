@@ -34,6 +34,8 @@
 extern "C" {
 #endif
 
+void kakasi_set_itaijidict_path(char const * path);
+void kakasi_set_kanwadict_path(char const * path);
 int kakasi_getopt_argv PARAMS((int argc, char **argv));
 char *kakasi_do PARAMS((char *str));
 int kakasi_close_kanwadict PARAMS((void));

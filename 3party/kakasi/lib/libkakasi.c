@@ -319,6 +319,16 @@ digest_shift(c, s)
     }
 }
 
+void kakasi_set_itaijidict_path(char const * path)
+{
+  set_itaijidict_path(path);
+}
+
+void kakasi_set_kanwadict_path(char const * path)
+{
+  set_kanwadict_path(path);
+}
+
 #ifndef LIBRARY
 int
 main(argc, argv)
