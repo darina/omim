@@ -268,6 +268,7 @@ void Framework::OnViewportChanged(ScreenBase const & screen)
   GetBookmarkManager().UpdateViewport(m_currentModelView);
   m_trafficManager.UpdateViewport(m_currentModelView);
   m_localAdsManager.UpdateViewport(m_currentModelView);
+  m_transitManager.UpdateViewport(m_currentModelView);
 
   if (m_viewportChanged != nullptr)
     m_viewportChanged(screen);
@@ -355,15 +356,18 @@ Framework::Framework(FrameworkParams const & params)
   , m_storage(platform::migrate::NeedMigrate() ? COUNTRIES_OBSOLETE_FILE : COUNTRIES_FILE)
   , m_enabledDiffs(params.m_enableDiffs)
   , m_isRenderingEnabled(true)
+  , m_transitManager(m_model.GetIndex(),
+                     [this](FeatureCallback const & fn,
+                            vector<FeatureID> const & features)
+                     {
+                       return m_model.ReadFeatures(fn, features);
+                     },
+                     bind(&Framework::GetMwmsByRect, this, _1, false /* rough */)
+    )
   , m_routingManager(RoutingManager::Callbacks([this]() -> Index & { return m_model.GetIndex(); },
                                                [this]() -> storage::CountryInfoGetter & { return GetCountryInfoGetter(); },
                                                [this](string const & id) -> string {
                                                  return m_storage.GetParentIdFor(id);
-                                               },
-                                               [this](RoutingManager::Callbacks::FeatureCallback const & fn,
-                                                      vector<FeatureID> const & features)
-                                               {
-                                                 return m_model.ReadFeatures(fn, features);
                                                },
                                                [this]() -> StringsBundle const & { return m_stringsBundle; }),
                      static_cast<RoutingManager::Delegate &>(*this))
@@ -432,6 +436,8 @@ Framework::Framework(FrameworkParams const & params)
 
   m_bmManager->SetInvalidTokenHandler([this] { m_user.ResetAccessToken(); });
   m_user.AddSubscriber(m_bmManager->GetUserSubscriber());
+
+  m_routingManager.SetTransitManager(&m_transitManager);
 
   InitCityFinder();
   InitDiscoveryManager();
@@ -1757,6 +1763,7 @@ void Framework::CreateDrapeEngine(ref_ptr<dp::OGLContextFactory> contextFactory,
   m_drapeApi.SetDrapeEngine(make_ref(m_drapeEngine));
   m_routingManager.SetDrapeEngine(make_ref(m_drapeEngine), allow3d);
   m_trafficManager.SetDrapeEngine(make_ref(m_drapeEngine));
+  m_transitManager.SetDrapeEngine(make_ref(m_drapeEngine));
   m_localAdsManager.SetDrapeEngine(make_ref(m_drapeEngine));
   m_searchMarks.SetDrapeEngine(make_ref(m_drapeEngine));
 
@@ -1799,6 +1806,7 @@ void Framework::DestroyDrapeEngine()
     m_drapeApi.SetDrapeEngine(nullptr);
     m_routingManager.SetDrapeEngine(nullptr, false);
     m_trafficManager.SetDrapeEngine(nullptr);
+    m_transitManager.SetDrapeEngine(nullptr);
     m_localAdsManager.SetDrapeEngine(nullptr);
     m_searchMarks.SetDrapeEngine(nullptr);
     GetBookmarkManager().SetDrapeEngine(nullptr);

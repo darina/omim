@@ -12,7 +12,7 @@ set(
   transit_speed_limits.hpp
   transit_types.cpp
   transit_types.hpp
-)
+        transit_display_info.hpp transit_display_info.cpp)
 
 add_library(${PROJECT_NAME} ${SRC})
 omim_add_test_subdirectory(transit_tests)

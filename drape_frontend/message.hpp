@@ -86,6 +86,10 @@ public:
     PostUserEvent,
     FinishTexturesInitialization,
     EnableUGCRendering,
+    UpdateTransitScheme,
+    RegenerateTransitScheme,
+    FlushTransitScheme,
+    FlushTransitMarkers,
   };
 
   virtual ~Message() {}

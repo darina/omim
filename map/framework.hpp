@@ -16,6 +16,7 @@
 #include "map/search_mark.hpp"
 #include "map/track.hpp"
 #include "map/traffic_manager.hpp"
+#include "map/transit/transit_reader.hpp"
 #include "map/user.hpp"
 
 #include "drape_frontend/gui/skin.hpp"
@@ -203,6 +204,8 @@ protected:
   df::DrapeApi m_drapeApi;
 
   bool m_isRenderingEnabled;
+
+  TransitReadManager m_transitManager;
 
   // Note. |m_routingManager| should be declared before |m_trafficManager|
   RoutingManager m_routingManager;

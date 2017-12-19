@@ -218,7 +218,7 @@ set(
   user_marks_provider.hpp
   visual_params.cpp
   visual_params.hpp
-)
+        transit_scheme_builder.hpp transit_scheme_builder.cpp transit_scheme_renderer.hpp transit_scheme_renderer.cpp)
 
 add_library(${PROJECT_NAME} ${SRC})
 

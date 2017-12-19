@@ -220,7 +220,6 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
   , m_delegate(delegate)
   , m_trackingReporter(platform::CreateSocket(), TRACKING_REALTIME_HOST, TRACKING_REALTIME_PORT,
                        tracking::Reporter::kPushDelayMs)
-  , m_transitReadManager(m_callbacks.m_indexGetter(), m_callbacks.m_readFeaturesFn)
 {
   auto const routingStatisticsFn = [](map<string, string> const & statistics) {
     alohalytics::LogEvent("Routing_CalculatingRoute", statistics);
@@ -269,6 +268,11 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
 void RoutingManager::SetBookmarkManager(BookmarkManager * bmManager)
 {
   m_bmManager = bmManager;
+}
+
+void RoutingManager::SetTransitManager(TransitReadManager * transitManager)
+{
+  m_transitReadManager = transitManager;
 }
 
 void RoutingManager::OnBuildRouteReady(Route const & route, IRouter::ResultCode code)
@@ -446,7 +450,7 @@ void RoutingManager::InsertRoute(Route const & route)
     {
       return m_callbacks.m_indexGetter().GetMwmIdByCountryFile(numMwmIds->GetFile(numMwmId));
     };
-    transitRouteDisplay = make_shared<TransitRouteDisplay>(m_transitReadManager, getMwmId,
+    transitRouteDisplay = make_shared<TransitRouteDisplay>(*m_transitReadManager, getMwmId,
                                                            m_callbacks.m_stringsBundleGetter,
                                                            m_bmManager, m_transitSymbolSizes);
   }

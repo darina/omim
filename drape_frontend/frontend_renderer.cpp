@@ -121,6 +121,7 @@ FrontendRenderer::FrontendRenderer(Params && params)
   : BaseRenderer(ThreadsCommutator::RenderThread, params)
   , m_gpuProgramManager(new dp::GpuProgramManager())
   , m_trafficRenderer(new TrafficRenderer())
+  , m_transitSchemeRenderer(new TransitSchemeRenderer())
   , m_drapeApiRenderer(new DrapeApiRenderer())
   , m_overlayTree(new dp::OverlayTree(VisualParams::Instance().GetVisualScale()))
   , m_enablePerspectiveInNavigation(false)
@@ -461,6 +462,22 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       break;
     }
 
+    case Message::FlushTransitScheme:
+    {
+      ref_ptr<FlushTransitSchemeMessage > msg = message;
+      auto renderData = msg->AcceptRenderData();
+      m_transitSchemeRenderer->AddRenderData(make_ref(m_gpuProgramManager), std::move(renderData));
+      break;
+    }
+
+    case Message::FlushTransitMarkers:
+    {
+      ref_ptr<FlushTransitMarkersMessage > msg = message;
+      auto renderData = msg->AcceptRenderData();
+      m_transitSchemeRenderer->AddMarkersRenderData(make_ref(m_gpuProgramManager), std::move(renderData));
+      break;
+    }
+
   case Message::FlushSubrouteArrows:
     {
       ref_ptr<FlushSubrouteArrowsMessage> msg = message;
@@ -760,7 +777,21 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       m_forceUpdateScene = true;
       break;
     }
+  case Message::RegenerateTransitScheme:
+    {
+      // Remove old scheme.
+      auto removePredicate = [this](drape_ptr<RenderGroup> const & group)
+      {
+        return GetDepthLayer(group->GetState()) == RenderState::TransitSchemeLayer;
+      };
+      for (RenderLayer & layer : m_layers)
+        layer.m_isDirty |= RemoveGroups(removePredicate, layer.m_renderGroups, make_ref(m_overlayTree));
 
+      m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
+                                make_unique_dp<RegenerateTransitMessage>(),
+                                MessagePriority::Normal);
+      break;
+    }
   case Message::InvalidateUserMarks:
     {
       m_forceUpdateUserMarks = true;
@@ -1184,6 +1215,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
     if (!HasTransitData())
       RenderRouteLayer(modelView);
   }
+  RenderTransitSchemeLayer(modelView);
 
   GLFunctions::glDisable(gl_const::GLDepthTest);
   GLFunctions::glClear(gl_const::GLDepthBit);
@@ -1323,6 +1355,18 @@ void FrontendRenderer::RenderNavigationOverlayLayer(ScreenBase const & modelView
 bool FrontendRenderer::HasTransitData()
 {
   return m_routeRenderer->HasTransitData();
+}
+
+void FrontendRenderer::RenderTransitSchemeLayer(ScreenBase const & modelView)
+{
+  GLFunctions::glClear(gl_const::GLDepthBit);
+  GLFunctions::glEnable(gl_const::GLDepthTest);
+  if (m_transitSchemeRenderer->HasRenderData())
+  {
+    m_transitSchemeRenderer->RenderTransit(modelView, m_currentZoomLevel,
+                                           make_ref(m_gpuProgramManager), m_generalUniforms);
+  }
+  GLFunctions::glDisable(gl_const::GLDepthTest);
 }
 
 void FrontendRenderer::RenderTrafficLayer(ScreenBase const & modelView)
@@ -2018,6 +2062,7 @@ void FrontendRenderer::ReleaseResources()
   m_buildingsFramebuffer.reset();
   m_screenQuadRenderer.reset();
   m_trafficRenderer.reset();
+  m_transitSchemeRenderer.reset();
   m_postprocessRenderer.reset();
   m_transitBackground.reset();
 
