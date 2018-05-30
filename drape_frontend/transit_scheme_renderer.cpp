@@ -3,19 +3,14 @@
 #include "drape_frontend/shape_view_params.hpp"
 #include "drape_frontend/visual_params.hpp"
 
+#include "drape/overlay_tree.hpp"
 #include "drape/vertex_array_buffer.hpp"
+#include "shader_def.hpp"
 
 namespace df
 {
 namespace
 {
-std::vector<float> const kLineWidthInPixel =
-{
-  // 1   2     3     4     5     6     7     8     9    10
-  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-  //11  12    13    14    15    16    17    18    19     20
-  1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 5.0f, 5.5f, 6.0f, 6.0f
-};
 
 float CalculateHalfWidth(ScreenBase const & screen)
 {
@@ -24,7 +19,7 @@ float CalculateHalfWidth(ScreenBase const & screen)
   float lerpCoef = 0.0f;
   ExtractZoomFactors(screen, zoom, index, lerpCoef);
 
-  return InterpolateByZoomLevels(index, lerpCoef, kLineWidthInPixel)
+  return InterpolateByZoomLevels(index, lerpCoef, kTransitLinesWidthInPixel)
     * static_cast<float>(VisualParams::Instance().GetVisualScale());
 }
 }  // namespace
@@ -37,6 +32,11 @@ TransitSchemeRenderer::TransitSchemeRenderer()
 TransitSchemeRenderer::~TransitSchemeRenderer()
 {
 
+}
+
+bool TransitSchemeRenderer::HasRenderData(int zoomLevel) const
+{
+  return !(m_renderData.empty() || zoomLevel < kTransitSchemeMinZoomLevel);
 }
 
 void TransitSchemeRenderer::AddRenderData(ref_ptr<dp::GpuProgramManager> mng,
@@ -78,17 +78,39 @@ void TransitSchemeRenderer::AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> 
     bucket->GetBuffer()->Build(program);
 }
 
+void TransitSchemeRenderer::AddTextRenderData(ref_ptr<dp::GpuProgramManager> mng,
+                                              TransitTextRenderData && renderData)
+{
+  auto & data = (renderData.m_state.GetProgramIndex() == gpu::TEXT_OUTLINED_PROGRAM) ? m_textRenderData
+                                                                                     : m_colorSymbolRenderData;
+
+  // Remove obsolete render data.
+  data.erase(remove_if(data.begin(), data.end(),
+                      [&renderData](TransitTextRenderData const & rd)
+                      {
+                        return rd.m_mwmId == renderData.m_mwmId;
+                      }), data.end());
+
+  // Add new render data.
+  data.emplace_back(std::move(renderData));
+  TransitTextRenderData & rd = data.back();
+
+  ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
+  program->Bind();
+  for (auto const & bucket : rd.m_buckets)
+    bucket->GetBuffer()->Build(program);
+}
+
 void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLevel,
                                           ref_ptr<dp::GpuProgramManager> mng,
                                           dp::UniformValuesStorage const & commonUniforms)
 {
-  if (m_renderData.empty() || zoomLevel < kTransitSchemeMinZoomLevel)
+  if (!HasRenderData(zoomLevel))
     return;
 
-  for (TransitRenderData & renderData : m_renderData)
+  for (auto & renderData : m_renderData)
   {
-    float const pixelHalfWidth =
-      CalculateHalfWidth(screen);
+    float const pixelHalfWidth = CalculateHalfWidth(screen);
 
     ref_ptr<dp::GpuProgram> program = mng->GetProgram(renderData.m_state.GetProgramIndex());
     program->Bind();
@@ -103,10 +125,9 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
     for (auto const & bucket : renderData.m_buckets)
       bucket->Render(false /* draw as line */);
   }
-  for (TransitMarkersRenderData & renderData : m_markersRenderData)
+  for (auto & renderData : m_markersRenderData)
   {
-    float const pixelHalfWidth =
-      CalculateHalfWidth(screen);
+    float const pixelHalfWidth = CalculateHalfWidth(screen);
 
     ref_ptr<dp::GpuProgram> program = mng->GetProgram(renderData.m_state.GetProgramIndex());
     program->Bind();
@@ -120,6 +141,87 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
 
     for (auto const & bucket : renderData.m_buckets)
       bucket->Render(false /* draw as line */);
+  }
+
+  auto const & params = df::VisualParams::Instance().GetGlyphVisualParams();
+  for (auto & renderData : m_textRenderData)
+  {
+    ref_ptr<dp::GpuProgram> program = mng->GetProgram(renderData.m_state.GetProgramIndex());
+    program->Bind();
+    dp::ApplyState(renderData.m_state, program);
+
+    for (auto const & bucket : renderData.m_buckets)
+    {
+      bucket->Update(screen);
+      bucket->GetBuffer()->Build(program);
+    }
+
+    dp::UniformValuesStorage uniforms = commonUniforms;
+    math::Matrix<float, 4, 4> mv = screen.GetModelView(renderData.m_pivot, kShapeCoordScalar);
+    uniforms.SetMatrix4x4Value("modelView", mv.m_data);
+    uniforms.SetFloatValue("u_opacity", 1.0);
+
+    uniforms.SetFloatValue("u_contrastGamma", params.m_outlineContrast, params.m_outlineGamma);
+    uniforms.SetFloatValue("u_isOutlinePass", 1.0f);
+    dp::ApplyUniforms(uniforms, program);
+
+    for (auto const & bucket : renderData.m_buckets)
+      bucket->Render(false /* draw as line */);
+
+    uniforms.SetFloatValue("u_contrastGamma", params.m_contrast, params.m_gamma);
+    uniforms.SetFloatValue("u_isOutlinePass", 0.0f);
+    dp::ApplyUniforms(uniforms, program);
+
+    for (auto const & bucket : renderData.m_buckets)
+      bucket->Render(false /* draw as line */);
+  }
+
+  for (auto & renderData : m_colorSymbolRenderData)
+  {
+    ref_ptr<dp::GpuProgram> program = mng->GetProgram(renderData.m_state.GetProgramIndex());
+    program->Bind();
+    dp::ApplyState(renderData.m_state, program);
+
+    for (auto const & bucket : renderData.m_buckets)
+    {
+      bucket->Update(screen);
+      bucket->GetBuffer()->Build(program);
+    }
+
+    dp::UniformValuesStorage uniforms = commonUniforms;
+    math::Matrix<float, 4, 4> mv = screen.GetModelView(renderData.m_pivot, kShapeCoordScalar);
+    uniforms.SetMatrix4x4Value("modelView", mv.m_data);
+    uniforms.SetFloatValue("u_opacity", 1.0);
+    dp::ApplyUniforms(uniforms, program);
+
+    GLFunctions::glEnable(gl_const::GLDepthTest);
+    for (auto const & bucket : renderData.m_buckets)
+      bucket->Render(false /* draw as line */);
+  }
+}
+
+void TransitSchemeRenderer::CollectOverlays(ref_ptr<dp::OverlayTree> tree, ScreenBase const & modelView)
+{
+  for (auto & renderData : m_textRenderData)
+  {
+    for (auto const & bucket : renderData.m_buckets)
+    {
+      if (tree->IsNeedUpdate())
+        bucket->CollectOverlayHandles(tree);
+      else
+        bucket->Update(modelView);
+    }
+  }
+
+  for (auto & renderData : m_colorSymbolRenderData)
+  {
+    for (auto const & bucket : renderData.m_buckets)
+    {
+      if (tree->IsNeedUpdate())
+        bucket->CollectOverlayHandles(tree);
+      else
+        bucket->Update(modelView);
+    }
   }
 }
 

@@ -33,7 +33,8 @@ BackendRenderer::BackendRenderer(Params && params)
                                               params.m_allow3dBuildings, params.m_trafficEnabled,
                                               std::move(params.m_isUGCFn)))
   , m_transitBuilder(make_unique_dp<TransitSchemeBuilder>(bind(&BackendRenderer::FlushTransitRenderData, this, _1),
-                                                          bind(&BackendRenderer::FlushTransitMarkersRenderData, this, _1)))
+                                                          bind(&BackendRenderer::FlushTransitMarkersRenderData, this, _1),
+                                                          bind(&BackendRenderer::FlushTransitTextRenderData, this, _1)))
   , m_trafficGenerator(make_unique_dp<TrafficGenerator>(bind(&BackendRenderer::FlushTrafficRenderData, this, _1)))
   , m_userMarkGenerator(make_unique_dp<UserMarkGenerator>(bind(&BackendRenderer::FlushUserMarksRenderData, this, _1)))
   , m_requestedTiles(params.m_requestedTiles)
@@ -446,7 +447,7 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
 
   case Message::RegenerateTransitScheme:
     {
-      m_transitBuilder->BuildScheme();
+      m_transitBuilder->BuildScheme(m_texMng);
       break;
     }
 
@@ -656,6 +657,14 @@ void BackendRenderer::FlushTransitMarkersRenderData(TransitMarkersRenderData && 
                             make_unique_dp<FlushTransitMarkersMessage>(move(renderData)),
                             MessagePriority::Normal);
 }
+
+void BackendRenderer::FlushTransitTextRenderData(TransitTextRenderData && renderData)
+{
+  m_commutator->PostMessage(ThreadsCommutator::RenderThread,
+                            make_unique_dp<FlushTransitTextMessage>(move(renderData)),
+                            MessagePriority::Normal);
+}
+
 
 void BackendRenderer::FlushTrafficRenderData(TrafficRenderData && renderData)
 {

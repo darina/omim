@@ -90,6 +90,7 @@ public:
     RegenerateTransitScheme,
     FlushTransitScheme,
     FlushTransitMarkers,
+    FlushTransitText,
   };
 
   virtual ~Message() {}

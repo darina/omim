@@ -1050,6 +1050,9 @@ using FlushTransitSchemeMessage = FlushRenderDataMessage<TransitRenderData,
 using FlushTransitMarkersMessage = FlushRenderDataMessage<TransitMarkersRenderData,
                                                           Message::FlushTransitMarkers>;
 
+using FlushTransitTextMessage = FlushRenderDataMessage<TransitTextRenderData,
+                                                       Message::FlushTransitText>;
+
 class DrapeApiAddLinesMessage : public Message
 {
 public:

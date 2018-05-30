@@ -167,6 +167,7 @@ private:
   void RenderTrafficLayer(ScreenBase const & modelView);
   void RenderRouteLayer(ScreenBase const & modelView);
   void RenderSearchMarksLayer(ScreenBase const & modelView);
+  void RenderTransitBackground();
 
   bool HasTransitData();
 

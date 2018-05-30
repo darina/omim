@@ -178,11 +178,17 @@ void TransitReadManager::UpdateViewport(ScreenBase const & screen)
   for (auto const & mwmId : mwms)
   {
     if (mwmId.IsAlive() && m_transitDisplayCache.find(mwmId) == m_transitDisplayCache.end())
+    {
       displayInfos[mwmId] = {};
+      m_transitDisplayCache[mwmId] = nullptr;
+    }
   }
   GetTransitDisplayInfo(displayInfos);
-  m_drapeEngine.SafeCall(&df::DrapeEngine::UpdateTransitScheme,
-                         std::move(displayInfos), mwms);
+  if (!displayInfos.empty())
+  {
+    m_drapeEngine.SafeCall(&df::DrapeEngine::UpdateTransitScheme,
+                           std::move(displayInfos), mwms);
+  }
 }
 
 bool TransitReadManager::GetTransitDisplayInfo(TransitDisplayInfos & transitDisplayInfos)

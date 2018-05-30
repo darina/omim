@@ -462,7 +462,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       break;
     }
 
-    case Message::FlushTransitScheme:
+  case Message::FlushTransitScheme:
     {
       ref_ptr<FlushTransitSchemeMessage > msg = message;
       auto renderData = msg->AcceptRenderData();
@@ -470,11 +470,19 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       break;
     }
 
-    case Message::FlushTransitMarkers:
+  case Message::FlushTransitMarkers:
     {
       ref_ptr<FlushTransitMarkersMessage > msg = message;
       auto renderData = msg->AcceptRenderData();
       m_transitSchemeRenderer->AddMarkersRenderData(make_ref(m_gpuProgramManager), std::move(renderData));
+      break;
+    }
+
+  case Message::FlushTransitText:
+    {
+      ref_ptr<FlushTransitTextMessage > msg = message;
+      auto renderData = msg->AcceptRenderData();
+      m_transitSchemeRenderer->AddTextRenderData(make_ref(m_gpuProgramManager), std::move(renderData));
       break;
     }
 
@@ -1361,8 +1369,10 @@ void FrontendRenderer::RenderTransitSchemeLayer(ScreenBase const & modelView)
 {
   GLFunctions::glClear(gl_const::GLDepthBit);
   GLFunctions::glEnable(gl_const::GLDepthTest);
-  if (m_transitSchemeRenderer->HasRenderData())
+  if (m_transitSchemeRenderer->HasRenderData(m_currentZoomLevel))
   {
+    RenderTransitBackground();
+    GLFunctions::glEnable(gl_const::GLDepthTest);
     m_transitSchemeRenderer->RenderTransit(modelView, m_currentZoomLevel,
                                            make_ref(m_gpuProgramManager), m_generalUniforms);
   }
@@ -1381,22 +1391,28 @@ void FrontendRenderer::RenderTrafficLayer(ScreenBase const & modelView)
   GLFunctions::glDisable(gl_const::GLDepthTest);
 }
 
+void FrontendRenderer::RenderTransitBackground()
+{
+  if (!m_finishTexturesInitialization)
+    return;
+
+  GLFunctions::glDisable(gl_const::GLDepthTest);
+
+  dp::TextureManager::ColorRegion region;
+  m_texMng->GetColorRegion(df::GetColorConstant(kTransitBackgroundColor), region);
+  if (!m_transitBackground->IsInitialized())
+  {
+    auto prg = m_gpuProgramManager->GetProgram(gpu::SCREEN_QUAD_PROGRAM);
+    m_transitBackground->SetTextureRect(region.GetTexRect(), prg);
+  }
+  m_transitBackground->RenderTexture(make_ref(m_gpuProgramManager),
+                                     static_cast<uint32_t>(region.GetTexture()->GetID()), 1.0f);
+}
+
 void FrontendRenderer::RenderRouteLayer(ScreenBase const & modelView)
 {
-  if (m_finishTexturesInitialization && HasTransitData())
-  {
-    GLFunctions::glDisable(gl_const::GLDepthTest);
-
-    dp::TextureManager::ColorRegion region;
-    m_texMng->GetColorRegion(df::GetColorConstant(kTransitBackgroundColor), region);
-    if (!m_transitBackground->IsInitialized())
-    {
-      auto prg = m_gpuProgramManager->GetProgram(gpu::SCREEN_QUAD_PROGRAM);
-      m_transitBackground->SetTextureRect(region.GetTexRect(), prg);
-    }
-    m_transitBackground->RenderTexture(make_ref(m_gpuProgramManager),
-                                       static_cast<uint32_t>(region.GetTexture()->GetID()), 1.0f);
-  }
+  if (HasTransitData())
+    RenderTransitBackground();
 
   GLFunctions::glClear(gl_const::GLDepthBit);
   GLFunctions::glEnable(gl_const::GLDepthTest);
@@ -1456,6 +1472,8 @@ void FrontendRenderer::BuildOverlayTree(ScreenBase const & modelView)
     for (drape_ptr<RenderGroup> & group : overlay.m_renderGroups)
       UpdateOverlayTree(modelView, group);
   }
+  if (m_transitSchemeRenderer->HasRenderData(m_currentZoomLevel))
+    m_transitSchemeRenderer->CollectOverlays(make_ref(m_overlayTree), modelView);
   EndUpdateOverlayTree();
 }
 
