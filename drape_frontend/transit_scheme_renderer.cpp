@@ -45,7 +45,8 @@ void TransitSchemeRenderer::AddRenderData(ref_ptr<dp::GpuProgramManager> mng,
   // Remove obsolete render data.
   m_renderData.erase(remove_if(m_renderData.begin(), m_renderData.end(), [&renderData](TransitRenderData const & rd)
   {
-    return rd.m_mwmId == renderData.m_mwmId && renderData.m_shapeId == rd.m_shapeId;
+    return rd.m_mwmId == renderData.m_mwmId && renderData.m_shapeId == rd.m_shapeId
+      && renderData.m_lineId == rd.m_lineId;
   }), m_renderData.end());
 
   // Add new render data.
@@ -108,6 +109,7 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
   if (!HasRenderData(zoomLevel))
     return;
 
+  GLFunctions::glDisable(gl_const::GLDepthTest);
   for (auto & renderData : m_renderData)
   {
     float const pixelHalfWidth = CalculateHalfWidth(screen);
@@ -125,6 +127,7 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
     for (auto const & bucket : renderData.m_buckets)
       bucket->Render(false /* draw as line */);
   }
+  GLFunctions::glEnable(gl_const::GLDepthTest);
   for (auto & renderData : m_markersRenderData)
   {
     float const pixelHalfWidth = CalculateHalfWidth(screen);

@@ -33,7 +33,7 @@ struct BaseTransitRenderData
 struct TransitRenderData : public BaseTransitRenderData
 {
   routing::transit::ShapeId m_shapeId;
-
+  routing::transit::LineId m_lineId;
   explicit TransitRenderData(dp::GLState const & state) : BaseTransitRenderData(state) {}
 };
 
@@ -81,7 +81,8 @@ private:
 
   struct ShapeParams
   {
-    std::set<routing::transit::LineId> m_lines;
+    std::vector<routing::transit::LineId> m_forwardLines;
+    std::vector<routing::transit::LineId> m_backwardLines;
     std::vector<m2::PointD> m_polyline;
   };
 
@@ -103,6 +104,8 @@ private:
     std::map<routing::transit::TransferId, StopParams> m_transfers;
   };
 
+  //void GenerateMarker(m2::PointD const & pivot, float depth, float innerDepth, float outerRadius, float innerRadius,
+  //                    dp::Color const & outerColor, dp::Color const & innerColor, TGeometryBuffer & geometry);
   void GenerateTitles(StopParams const & params, m2::PointD const & pivot, vector<m2::PointF> const & markerSizes,
                       ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher);
 

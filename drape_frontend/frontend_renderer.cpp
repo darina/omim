@@ -1223,7 +1223,6 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
     if (!HasTransitData())
       RenderRouteLayer(modelView);
   }
-  RenderTransitSchemeLayer(modelView);
 
   GLFunctions::glDisable(gl_const::GLDepthTest);
   GLFunctions::glClear(gl_const::GLDepthBit);
@@ -1271,6 +1270,8 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
     RenderUserMarksLayer(modelView, RenderState::RoutingMarkLayer);
     RenderSearchMarksLayer(modelView);
   }
+
+  RenderTransitSchemeLayer(modelView);
 
   m_myPositionController->Render(modelView, m_currentZoomLevel, make_ref(m_gpuProgramManager),
                                  m_generalUniforms);
