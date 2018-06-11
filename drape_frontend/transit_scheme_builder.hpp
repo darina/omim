@@ -49,6 +49,39 @@ struct TransitTextRenderData : public BaseTransitRenderData
 
 using TTransitRenderData = std::vector<TransitRenderData>;
 
+struct LineParams
+{
+  LineParams() = default;
+  LineParams(string const & color, float depth)
+    : m_color(color), m_depth(depth)
+  {}
+  std::string m_color;
+  float m_depth;
+};
+
+struct ShapeParams
+{
+  std::vector<routing::transit::LineId> m_forwardLines;
+  std::vector<routing::transit::LineId> m_backwardLines;
+  std::vector<m2::PointD> m_polyline;
+  bool m_isForward = true;
+};
+
+struct ShapeInfo
+{
+  m2::PointD m_direction;
+  size_t m_linesCount;
+};
+
+struct StopParams
+{
+  m2::PointD m_pivot;
+  std::map<routing::transit::ShapeId, ShapeInfo> m_shapes;
+  std::set<routing::transit::LineId> m_lines;
+  std::set<std::string> m_names;
+  FeatureID m_featureId;
+};
+
 class TransitSchemeBuilder
 {
 public:
@@ -69,31 +102,6 @@ public:
   void BuildScheme(ref_ptr<dp::TextureManager> textures);
 
 private:
-  struct LineParams
-  {
-    LineParams() = default;
-    LineParams(string const & color, float depth)
-        : m_color(color), m_depth(depth)
-    {}
-    std::string m_color;
-    float m_depth;
-  };
-
-  struct ShapeParams
-  {
-    std::vector<routing::transit::LineId> m_forwardLines;
-    std::vector<routing::transit::LineId> m_backwardLines;
-    std::vector<m2::PointD> m_polyline;
-  };
-
-  struct StopParams
-  {
-    m2::PointD m_pivot;
-    std::set<routing::transit::LineId> m_lines;
-    std::set<std::string> m_names;
-    FeatureID m_featureId;
-  };
-
   struct MwmSchemeData
   {
     m2::PointD m_pivot;
