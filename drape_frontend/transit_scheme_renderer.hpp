@@ -21,10 +21,10 @@ public:
                      TransitRenderData && renderData);
 
   void AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> mng,
-                            TransitMarkersRenderData && renderData);
+                            TransitRenderData && renderData);
 
   void AddTextRenderData(ref_ptr<dp::GpuProgramManager> mng,
-                         TransitTextRenderData && renderData);
+                         TransitRenderData && renderData);
 
   void RenderTransit(ScreenBase const & screen, int zoomLevel,
                      ref_ptr<dp::GpuProgramManager> mng,
@@ -35,9 +35,10 @@ public:
   void CollectOverlays(ref_ptr<dp::OverlayTree> tree, ScreenBase const & modelView);
 
 private:
+  uint32_t m_lastRecacheId;
   std::vector<TransitRenderData> m_renderData;
-  std::vector<TransitMarkersRenderData> m_markersRenderData;
-  std::vector<TransitTextRenderData> m_textRenderData;
-  std::vector<TransitTextRenderData> m_colorSymbolRenderData;
+  std::vector<TransitRenderData> m_markersRenderData;
+  std::vector<TransitRenderData> m_textRenderData;
+  std::vector<TransitRenderData> m_colorSymbolRenderData;
 };
 }  // namespace df

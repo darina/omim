@@ -7,6 +7,7 @@ uniform mat4 projection;
 uniform mat4 pivotTransform;
 
 uniform float u_transitParams;
+uniform vec2 u_angleCosSin;
 
 varying vec4 v_offsets;
 varying vec4 v_color;
@@ -15,7 +16,9 @@ varying float v_scale;
 void main()
 {
   vec4 pos = vec4(a_position.xy, 0, 1) * modelView;
-  vec2 shiftedPos = a_normal.xy * u_transitParams + pos.xy;
+  vec2 normal = vec2(a_normal.x * u_angleCosSin.x - a_normal.y * u_angleCosSin.y,
+                     a_normal.x * u_angleCosSin.y + a_normal.y * u_angleCosSin.x);
+  vec2 shiftedPos = normal * u_transitParams + pos.xy;
   pos = vec4(shiftedPos, a_position.z, 1.0) * projection;
   gl_Position = applyPivotTransform(pos, pivotTransform, 0.0);
   vec2 offsets = abs(a_normal.zw);

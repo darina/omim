@@ -18,33 +18,22 @@ int constexpr kTransitSchemeMinZoomLevel = 10;
 
 extern std::vector<float> const kTransitLinesWidthInPixel;
 
-struct BaseTransitRenderData
+struct TransitRenderData
 {
   dp::GLState m_state;
-  std::vector<drape_ptr<dp::RenderBucket>> m_buckets;
+  uint32_t m_recacheId;
   MwmSet::MwmId m_mwmId;
   m2::PointD m_pivot;
+  std::vector<drape_ptr<dp::RenderBucket>> m_buckets;
 
-  explicit BaseTransitRenderData(dp::GLState const & state) : m_state(state) {}
-  BaseTransitRenderData(BaseTransitRenderData &&) = default;
-  BaseTransitRenderData & operator=(BaseTransitRenderData &&) = default;
-};
-
-struct TransitRenderData : public BaseTransitRenderData
-{
-  routing::transit::ShapeId m_shapeId;
-  routing::transit::LineId m_lineId;
-  explicit TransitRenderData(dp::GLState const & state) : BaseTransitRenderData(state) {}
-};
-
-struct TransitMarkersRenderData : public BaseTransitRenderData
-{
-  explicit TransitMarkersRenderData(dp::GLState const & state) : BaseTransitRenderData(state) {}
-};
-
-struct TransitTextRenderData : public BaseTransitRenderData
-{
-  explicit TransitTextRenderData(dp::GLState const & state) : BaseTransitRenderData(state) {}
+  TransitRenderData(dp::GLState const & state, uint32_t recacheId, MwmSet::MwmId const & mwmId, m2::PointD const pivot)
+    : m_state(state)
+    , m_recacheId(recacheId)
+    , m_mwmId(mwmId)
+    , m_pivot(pivot)
+  {}
+  TransitRenderData(TransitRenderData &&) = default;
+  TransitRenderData & operator=(TransitRenderData &&) = default;
 };
 
 using TTransitRenderData = std::vector<TransitRenderData>;
@@ -64,7 +53,6 @@ struct ShapeParams
   std::vector<routing::transit::LineId> m_forwardLines;
   std::vector<routing::transit::LineId> m_backwardLines;
   std::vector<m2::PointD> m_polyline;
-  bool m_isForward = true;
 };
 
 struct ShapeInfo
@@ -73,25 +61,34 @@ struct ShapeInfo
   size_t m_linesCount;
 };
 
-struct StopParams
+struct StopInfo
 {
-  m2::PointD m_pivot;
-  std::map<routing::transit::ShapeId, ShapeInfo> m_shapes;
-  std::set<routing::transit::LineId> m_lines;
-  std::set<std::string> m_names;
+  StopInfo() = default;
+  StopInfo(std::string const & name, FeatureID const & featureId)
+    : m_name(name)
+    , m_featureId(featureId)
+  {}
+
+  std::string m_name;
   FeatureID m_featureId;
+};
+
+struct StopNodeParams
+{
+  bool m_isTransfer = false;
+  m2::PointD m_pivot;
+  std::map<routing::transit::ShapeId, ShapeInfo> m_shapesInfo;
+  std::map<routing::transit::LineId, StopInfo> m_stopsInfo;
 };
 
 class TransitSchemeBuilder
 {
 public:
   using TFlushRenderDataFn = function<void (TransitRenderData && renderData)>;
-  using TFlushMarkersRenderDataFn = function<void (TransitMarkersRenderData && renderData)>;
-  using TFlushTextRenderDataFn = function<void (TransitTextRenderData && renderData)>;
 
-  explicit TransitSchemeBuilder(TFlushRenderDataFn const & flushFn,
-                                TFlushMarkersRenderDataFn const & flushMarkersFn,
-                                TFlushTextRenderDataFn const & flushTextFn)
+  TransitSchemeBuilder(TFlushRenderDataFn const & flushFn,
+                       TFlushRenderDataFn const & flushMarkersFn,
+                       TFlushRenderDataFn const & flushTextFn)
     : m_flushRenderDataFn(flushFn)
     , m_flushMarkersRenderDataFn(flushMarkersFn)
     , m_flushTextRenderDataFn(flushTextFn)
@@ -108,13 +105,31 @@ private:
 
     std::map<routing::transit::LineId, LineParams> m_lines;
     std::map<routing::transit::ShapeId, ShapeParams> m_shapes;
-    std::map<routing::transit::StopId, StopParams> m_stops;
-    std::map<routing::transit::TransferId, StopParams> m_transfers;
+    std::map<routing::transit::StopId, StopNodeParams> m_stops;
+    std::map<routing::transit::TransferId, StopNodeParams> m_transfers;
   };
 
-  //void GenerateMarker(m2::PointD const & pivot, float depth, float innerDepth, float outerRadius, float innerRadius,
-  //                    dp::Color const & outerColor, dp::Color const & innerColor, TGeometryBuffer & geometry);
-  void GenerateTitles(StopParams const & params, m2::PointD const & pivot, vector<m2::PointF> const & markerSizes,
+  void CollectStops(TransitDisplayInfo const & transitDisplayInfo,
+                    MwmSet::MwmId const & mwmId, MwmSchemeData & scheme);
+  void CollectLines(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme);
+  void CollectShapes(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme);
+  void PrepareScheme(MwmSchemeData & scheme);
+
+  void GenerateShapes(MwmSet::MwmId const & mwmId);
+  void GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp::TextureManager> textures);
+
+  void GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot, dp::Color const & colorConst,
+                    float lineOffset, float lineHalfWidth, float depth, dp::Batcher & batcher);
+
+  void GenerateMarker(m2::PointD const & pt, m2::PointD widthDir, float linesCountWidth, float linesCountHeight,
+                      float scaleWidth, float scaleHeight, float depth, dp::Color const & color, dp::Batcher & batcher);
+
+  void GenerateTransfer(StopNodeParams const & params, m2::PointD const & pivot, dp::Batcher & batcher);
+
+  void GenerateStop(StopNodeParams const & params, m2::PointD const & pivot,
+                    std::map<routing::transit::LineId, LineParams> const & lines, dp::Batcher & batcher);
+
+  void GenerateTitles(StopNodeParams const & params, m2::PointD const & pivot, vector<m2::PointF> const & markerSizes,
                       ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher);
 
   void AddShape(TransitDisplayInfo const & transitDisplayInfo, routing::transit::StopId stop1Id,
@@ -124,7 +139,9 @@ private:
   TransitSchemes m_schemes;
   std::vector<MwmSet::MwmId> m_visibleMwms;
   TFlushRenderDataFn m_flushRenderDataFn;
-  TFlushMarkersRenderDataFn m_flushMarkersRenderDataFn;
-  TFlushTextRenderDataFn m_flushTextRenderDataFn;
+  TFlushRenderDataFn m_flushMarkersRenderDataFn;
+  TFlushRenderDataFn m_flushTextRenderDataFn;
+
+  uint32_t m_recacheId = 0;
 };
 }  // namespace df

@@ -18,18 +18,25 @@
 
 using namespace std;
 
+#define TRANSIT_SCHEME_DEBUG_INFO
+
 namespace df
 {
 
 std::vector<float> const kTransitLinesWidthInPixel =
-{
-  // 1   2     3     4     5     6     7     8     9    10
-  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-  //11  12    13    14    15    16    17    18    19     20
-  1.5f, 1.8f, 2.2f, 2.8f, 3.2f, 3.8f, 4.8f, 5.2f, 5.8f, 5.8f
-};
+  {
+    // 1   2     3     4     5     6     7     8     9    10
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    //11  12    13    14    15    16    17    18    19     20
+    1.5f, 1.8f, 2.2f, 2.8f, 3.2f, 3.8f, 4.8f, 5.2f, 5.8f, 5.8f
+  };
 
+namespace
+{
+float const kBaseLineDepth = 0.0f;
+float const kDepthPerLine = 1.0f;
 float const kBaseMarkerDepth = 300.0f;
+float const kBaseTitleDepth = 400.0f;
 
 float const kOuterMarkerDepth = kBaseMarkerDepth + 0.5f;
 float const kInnerMarkerDepth = kBaseMarkerDepth + 1.0f;
@@ -43,18 +50,22 @@ struct TransitLineStaticVertex
   TransitLineStaticVertex() = default;
   TransitLineStaticVertex(TPosition const & position, TNormal const & normal,
                           TColor const & color)
-  : m_position(position)
-  , m_normal(normal)
-  , m_color(color)
-  {}
+    : m_position(position), m_normal(normal), m_color(color) {}
 
   TPosition m_position;
   TNormal m_normal;
   TColor m_color;
 };
 
-using TV = TransitLineStaticVertex;
-using TGeometryBuffer = vector<TV>;
+struct SchemeSegment
+{
+  glsl::vec2 m_p1;
+  glsl::vec2 m_p2;
+  glsl::vec2 m_tangent;
+  glsl::vec2 m_leftNormal;
+  glsl::vec2 m_rightNormal;
+};
+using TGeometryBuffer = std::vector<TransitLineStaticVertex>;
 
 dp::BindingInfo const & GetTransitStaticBindingInfo()
 {
@@ -76,8 +87,11 @@ void SubmitStaticVertex(glsl::vec3 const & pivot, glsl::vec2 const & normal, flo
   geometry.emplace_back(pivot, TransitLineStaticVertex::TNormal(normal, side, 0.0), color);
 }
 
-void GenerateJoinsTriangles(glsl::vec3 const & pivot, std::vector<glsl::vec2> const & normals, glsl::vec2 const & offset,
-                            glsl::vec4 const & color, TGeometryBuffer & joinsGeometry)
+void GenerateJoinsTriangles(glsl::vec3 const & pivot,
+                            std::vector<glsl::vec2> const & normals,
+                            glsl::vec2 const & offset,
+                            glsl::vec4 const & color,
+                            TGeometryBuffer & joinsGeometry)
 {
   float const kEps = 1e-5;
   size_t const trianglesCount = normals.size() / 3;
@@ -88,6 +102,25 @@ void GenerateJoinsTriangles(glsl::vec3 const & pivot, std::vector<glsl::vec2> co
     SubmitStaticVertex(pivot, normals[3 * j + 2] + offset, 1.0f, color, joinsGeometry);
   }
 }
+
+vector<m2::PointF> GetTransitMarkerSizes(float markerScale, float maxRouteWidth)
+{
+  auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
+  vector<m2::PointF> markerSizes;
+  markerSizes.reserve(df::kTransitLinesWidthInPixel.size());
+  for (auto const halfWidth : df::kTransitLinesWidthInPixel)
+  {
+    float const d = 2.0f * std::min(halfWidth * vs, maxRouteWidth * 0.5f) * markerScale;
+    markerSizes.push_back(m2::PointF(d, d));
+  }
+  return markerSizes;
+}
+
+uint32_t GetRouteId(routing::transit::LineId lineId)
+{
+  return static_cast<uint32_t>(lineId >> 4);
+}
+}  // namespace
 
 void TransitSchemeBuilder::SetVisibleMwms(std::vector<MwmSet::MwmId> const & visibleMwms)
 {
@@ -137,15 +170,14 @@ void TransitSchemeBuilder::AddShape(TransitDisplayInfo const & transitDisplayInf
     else
       scheme.m_shapes[shapeId].m_backwardLines.push_back(lineId);
     scheme.m_shapes[shapeId].m_polyline = polyline;
-    scheme.m_shapes[shapeId].m_isForward = isForward;
   }
   else
   {
     for (auto id : itScheme->second.m_forwardLines)
-      if (id >> 4 == lineId >> 4)
+      if (GetRouteId(id) == GetRouteId(lineId))
         return;
     for (auto id : itScheme->second.m_backwardLines)
-      if (id >> 4 == lineId >> 4)
+      if (GetRouteId(id) == GetRouteId(lineId))
         return;
 
     if (isForward)
@@ -155,6 +187,178 @@ void TransitSchemeBuilder::AddShape(TransitDisplayInfo const & transitDisplayInf
   }
 }
 
+void TransitSchemeBuilder::CollectStops(TransitDisplayInfo const & transitDisplayInfo,
+                                        MwmSet::MwmId const & mwmId, MwmSchemeData & scheme)
+{
+  for (auto const & line : transitDisplayInfo.m_lines)
+  {
+    auto const lineId = line.second.GetId();
+    auto const & stopsRanges = line.second.GetStopIds();
+    for (auto const & stops : stopsRanges)
+    {
+      for (size_t i = 0; i < stops.size(); ++i)
+      {
+        auto const & stopInfo = transitDisplayInfo.m_stops.at(stops[i]);
+
+        FeatureID featureId;
+        std::string title;
+        if (stopInfo.GetFeatureId() != routing::transit::kInvalidFeatureId)
+        {
+          featureId = FeatureID(mwmId, stopInfo.GetFeatureId());
+          title = transitDisplayInfo.m_features.at(featureId).m_title;
+        }
+
+        auto const transferId = stopInfo.GetTransferId();
+        if (transferId != routing::transit::kInvalidTransferId)
+        {
+          auto & stopNode = scheme.m_transfers[transferId];
+          stopNode.m_isTransfer = true;
+          stopNode.m_pivot = transitDisplayInfo.m_transfers.at(transferId).GetPoint();
+          stopNode.m_stopsInfo[lineId] = StopInfo(title, featureId);
+        }
+        else
+        {
+          auto & stopNode = scheme.m_stops[stopInfo.GetId()];
+          stopNode.m_isTransfer = false;
+          stopNode.m_pivot = stopInfo.GetPoint();
+          stopNode.m_stopsInfo[lineId] = StopInfo(title, featureId);
+        }
+      }
+    }
+  }
+}
+
+void TransitSchemeBuilder::CollectLines(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme)
+{
+  std::multimap<size_t, routing::transit::LineId> linesLengths;
+  for (auto const & line : transitDisplayInfo.m_lines)
+  {
+    auto const lineId = line.second.GetId();
+    size_t stopsCount = 0;
+    auto const & stopsRanges = line.second.GetStopIds();
+    for (auto const & stops : stopsRanges)
+    {
+      for (size_t i = 0; i < stops.size(); ++i)
+      {
+        ++stopsCount;
+      }
+    }
+    linesLengths.insert(std::make_pair(stopsCount, lineId));
+  }
+  float depth = kBaseLineDepth;
+  for (auto const & pair : linesLengths)
+  {
+    auto const lineId = pair.second;
+    scheme.m_lines[lineId] = LineParams(transitDisplayInfo.m_lines.at(lineId).GetColor(), depth);
+    depth += kDepthPerLine;
+  }
+}
+
+void TransitSchemeBuilder::CollectShapes(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme)
+{
+  std::map<uint32_t, std::vector<routing::transit::LineId>> roads;
+  for (auto const & line : transitDisplayInfo.m_lines)
+  {
+    auto const lineId = line.second.GetId();
+    auto const roadId = GetRouteId(lineId);
+    roads[roadId].push_back(lineId);
+  }
+
+  for (auto const & line : transitDisplayInfo.m_lines)
+  {
+    auto const lineId = line.second.GetId();
+    auto const roadId = GetRouteId(lineId);
+
+    auto const & stopsRanges = line.second.GetStopIds();
+    for (auto const & stops : stopsRanges)
+    {
+      for (size_t i = 0; i < stops.size(); ++i)
+      {
+        if (i + 1 < stops.size())
+        {
+          bool shapeAdded = false;
+
+          auto const & sameLines = roads[roadId];
+          for (auto const & sameLineId : sameLines)
+          {
+            if (sameLineId == lineId)
+              continue;
+
+            auto const & sameLine = transitDisplayInfo.m_lines.at(sameLineId);
+            auto const & sameStopsRanges = sameLine.GetStopIds();
+            for (auto const & sameStops : sameStopsRanges)
+            {
+              size_t stop1Ind = std::numeric_limits<size_t>::max();
+              size_t stop2Ind = std::numeric_limits<size_t>::max();
+
+              for (size_t stopInd = 0; stopInd < sameStops.size(); ++stopInd)
+              {
+                if (sameStops[stopInd] == stops[i])
+                  stop1Ind = stopInd;
+                else if (sameStops[stopInd] == stops[i + 1])
+                  stop2Ind = stopInd;
+              }
+
+              if (stop1Ind < sameStops.size() || stop2Ind < sameStops.size())
+              {
+                if (stop1Ind > stop2Ind)
+                  swap(stop1Ind, stop2Ind);
+
+                if (stop1Ind < sameStops.size() && stop2Ind < sameStops.size() && stop2Ind - stop1Ind > 1)
+                {
+                  for (size_t stopInd = stop1Ind; stopInd < stop2Ind; ++stopInd)
+                  {
+                    shapeAdded = true;
+                    AddShape(transitDisplayInfo, sameStops[stopInd], sameStops[stopInd + 1], lineId, scheme);
+                  }
+                }
+                break;
+              }
+            }
+
+            if (shapeAdded)
+              break;
+          }
+
+          if (!shapeAdded)
+            AddShape(transitDisplayInfo, stops[i], stops[i + 1], lineId, scheme);
+        }
+      }
+    }
+  }
+}
+
+void TransitSchemeBuilder::PrepareScheme(MwmSchemeData & scheme)
+{
+  m2::RectD boundingRect;
+  for (auto const & shape : scheme.m_shapes)
+  {
+    auto const stop1 = shape.first.GetStop1Id();
+    auto const stop2 = shape.first.GetStop2Id();
+    StopNodeParams & params1 = (scheme.m_stops.find(stop1) == scheme.m_stops.end()) ? scheme.m_transfers[stop1]
+                                                                                    : scheme.m_stops[stop1];
+    StopNodeParams & params2 = (scheme.m_stops.find(stop2) == scheme.m_stops.end()) ? scheme.m_transfers[stop2]
+                                                                                    : scheme.m_stops[stop2];
+
+    auto const linesCount = shape.second.m_forwardLines.size() + shape.second.m_backwardLines.size();
+
+    auto const sz = shape.second.m_polyline.size();
+
+    auto const dir1 = (shape.second.m_polyline[1] - shape.second.m_polyline[0]).Normalize();
+    auto const dir2 = (shape.second.m_polyline[sz - 2] - shape.second.m_polyline[sz - 1]).Normalize();
+
+    params1.m_shapesInfo[shape.first].m_linesCount = linesCount;
+    params1.m_shapesInfo[shape.first].m_direction = dir1;
+
+    params2.m_shapesInfo[shape.first].m_linesCount = linesCount;
+    params2.m_shapesInfo[shape.first].m_direction = dir2;
+
+    for (auto const & pt : shape.second.m_polyline)
+      boundingRect.Add(pt);
+  }
+  scheme.m_pivot = boundingRect.Center();
+}
+
 void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDisplayInfos)
 {
   for (auto const & mwmInfo : transitDisplayInfos)
@@ -162,209 +366,141 @@ void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDispl
     auto const & mwmId = mwmInfo.first;
     if (!mwmInfo.second)
       continue;
-    auto const & transitDisplayInfo = *mwmInfo.second.get();
 
+    auto const & transitDisplayInfo = *mwmInfo.second.get();
     MwmSchemeData & scheme = m_schemes[mwmId];
 
-    std::multimap<size_t, routing::transit::LineId> linesLengths;
+    CollectStops(transitDisplayInfo, mwmId, scheme);
+    CollectLines(transitDisplayInfo, scheme);
+    CollectShapes(transitDisplayInfo, scheme);
 
-    std::map<uint32_t, std::vector<routing::transit::LineId>> roads;
+    PrepareScheme(scheme);
+  }
+}
 
-    for (auto const & line : transitDisplayInfo.m_lines)
+void TransitSchemeBuilder::BuildScheme(ref_ptr<dp::TextureManager> textures)
+{
+  ++m_recacheId;
+  for (auto const & mwmId : m_visibleMwms)
+  {
+    GenerateShapes(mwmId);
+    GenerateStops(mwmId, textures);
+  }
+}
+
+void TransitSchemeBuilder::GenerateShapes(MwmSet::MwmId const & mwmId)
+{
+  MwmSchemeData const & scheme = m_schemes[mwmId];
+
+  auto const state = CreateGLState(gpu::TRANSIT_PROGRAM, RenderState::TransitSchemeLayer);
+  TransitRenderData renderData(state, m_recacheId, mwmId, scheme.m_pivot);
+
+  uint32_t const kBatchSize = 5000;
+  dp::Batcher batcher(kBatchSize, kBatchSize);
+  {
+    dp::SessionGuard guard(batcher, [&renderData](dp::GLState const & state, drape_ptr<dp::RenderBucket> && b)
     {
-      auto const lineId = line.second.GetId();
-      auto const roadId = static_cast<uint32_t>(lineId >> 4);
-      roads[roadId].push_back(lineId);
-    }
+      renderData.m_buckets.push_back(std::move(b));
+    });
 
-    for (auto const & line : transitDisplayInfo.m_lines)
-    {
-      auto const lineId = line.second.GetId();
-      auto const roadId = static_cast<uint32_t>(lineId >> 4);
-
-      scheme.m_lines[lineId] = LineParams(line.second.GetColor(), 0.0f /* depth */);
-
-      std::map<routing::transit::StopId, std::string> stopTitles;
-
-      auto const & stopsRanges = line.second.GetStopIds();
-      for (auto const & stops : stopsRanges)
-      {
-        for (size_t i = 0; i < stops.size(); ++i)
-        {
-          auto const stopIt = transitDisplayInfo.m_stops.find(stops[i]);
-          ASSERT(stopIt != transitDisplayInfo.m_stops.end(), ());
-
-          FeatureID featureId;
-          string title;
-
-          auto const fid = stopIt->second.GetFeatureId();
-          if (fid != routing::transit::kInvalidFeatureId)
-          {
-            featureId = FeatureID(mwmId, fid);
-            title = transitDisplayInfo.m_features.at(featureId).m_title;
-          }
-
-          auto const transferId = stopIt->second.GetTransferId();
-          if (transferId != routing::transit::kInvalidTransferId)
-          {
-            auto & transfer = scheme.m_transfers[transferId];
-            transfer.m_pivot = transitDisplayInfo.m_transfers.at(transferId).GetPoint();
-            transfer.m_lines.insert(lineId);
-            transfer.m_names.insert(title);
-            transfer.m_featureId = featureId;
-          }
-          else
-          {
-            auto & stop = scheme.m_stops[stopIt->second.GetId()];
-            stop.m_pivot = stopIt->second.GetPoint();
-            stop.m_lines.insert(lineId);
-            stop.m_names.insert(title);
-            stop.m_featureId = featureId;
-          }
-          stopTitles[stopIt->second.GetId()] = title;
-        }
-      }
-
-      size_t stopsCount = 0;
-      for (auto const & stops : stopsRanges)
-      {
-        for (size_t i = 0; i < stops.size(); ++i)
-        {
-          ++stopsCount;
-          if (i + 1 < stops.size())
-          {
-            bool shapeAdded = false;
-
-            auto const & sameLines = roads[roadId];
-            for (auto const & sameLineId : sameLines)
-            {
-              if (sameLineId == lineId)
-                continue;
-
-              auto const & sameLine = transitDisplayInfo.m_lines.at(sameLineId);
-              auto const & sameStopsRanges = sameLine.GetStopIds();
-              for (auto const & sameStops : sameStopsRanges)
-              {
-                size_t stop1Ind = std::numeric_limits<size_t>::max();
-                size_t stop2Ind = std::numeric_limits<size_t>::max();
-
-                for (size_t stopInd = 0; stopInd < sameStops.size(); ++stopInd)
-                {
-                  if (sameStops[stopInd] == stops[i])
-                    stop1Ind = stopInd;
-                  else if (sameStops[stopInd] == stops[i + 1])
-                    stop2Ind = stopInd;
-                }
-
-                if (stop1Ind < sameStops.size() || stop2Ind < sameStops.size())
-                {
-                  if (stop1Ind > stop2Ind)
-                    swap(stop1Ind, stop2Ind);
-
-                  if (stop1Ind < sameStops.size() && stop2Ind < sameStops.size() && stop2Ind - stop1Ind > 1)
-                  {
-
-
-                    for (size_t stopInd = stop1Ind; stopInd < stop2Ind; ++stopInd)
-                    {
-                      shapeAdded = true;
-/*
-                      LOG(LWARNING, ("!!! Use shape lineId",
-                        lineId, line.second.GetTitle(),
-                        "stop1", stops[i], stopTitles[stops[i]],
-                        "stop2", stops[i + 1], stopTitles[stops[i + 1]],
-                        "sameLineId", sameLineId, sameLine.GetTitle(),
-                        "sameStop1", sameStops[stopInd], stopTitles[sameStops[stopInd]],
-                        "sameStop2", sameStops[stopInd + 1], stopTitles[sameStops[stopInd + 1]]));
-*/
-                      AddShape(transitDisplayInfo, sameStops[stopInd], sameStops[stopInd + 1], lineId, scheme);
-                    }
-                  }
-                  break;
-                }
-              }
-
-              if (shapeAdded)
-                break;
-            }
-
-            if (!shapeAdded)
-            {
-              AddShape(transitDisplayInfo, stops[i], stops[i + 1], lineId, scheme);
-            }
-            else
-            {
-              LOG(LWARNING, ("Skip shape for line", lineId, line.second.GetTitle(),
-                "stop1", stops[i], stopTitles[stops[i]], "stop2", stops[i + 1], stopTitles[stops[i + 1]]));
-            }
-          }
-        }
-      }
-
-      linesLengths.insert(std::make_pair(stopsCount, lineId));
-    }
-
-    m2::RectD boundingRect;
     for (auto const & shape : scheme.m_shapes)
     {
-      auto const stop1 = shape.first.GetStop1Id();
-      auto const stop2 = shape.first.GetStop2Id();
-      StopParams & params1 = (scheme.m_stops.find(stop1) == scheme.m_stops.end()) ? scheme.m_transfers[stop1]
-                                                                                  : scheme.m_stops[stop1];
-      StopParams & params2 = (scheme.m_stops.find(stop2) == scheme.m_stops.end()) ? scheme.m_transfers[stop2]
-                                                                                  : scheme.m_stops[stop2];
-
       auto const linesCount = shape.second.m_forwardLines.size() + shape.second.m_backwardLines.size();
+      auto shapeOffset = -static_cast<float>(linesCount / 2) * 2.0f - 1.0f * static_cast<float>(linesCount % 2) + 1.0f;
+      auto const shapeOffsetIncrement = 2.0f;
+      auto const lineHalfWidth = 0.8f;
 
-      auto const sz = shape.second.m_polyline.size();
+      std::vector<std::pair<dp::Color, routing::transit::LineId>> coloredLines;
+      for (auto lineId : shape.second.m_forwardLines)
+      {
+        auto const colorName = df::GetTransitColorName(scheme.m_lines.at(lineId).m_color);
+        auto const color = GetColorConstant(colorName);
+        coloredLines.push_back(std::make_pair(color, lineId));
+      }
+      for (auto it = shape.second.m_backwardLines.rbegin(); it != shape.second.m_backwardLines.rend(); ++it)
+      {
+        auto const colorName = df::GetTransitColorName(scheme.m_lines.at(*it).m_color);
+        auto const color = GetColorConstant(colorName);
+        coloredLines.push_back(std::make_pair(color, *it));
+      }
 
-      auto dir1 = (shape.second.m_polyline[1] - shape.second.m_polyline[0]).Normalize();
-      auto dir2 = (shape.second.m_polyline[sz - 2] - shape.second.m_polyline[sz - 1]).Normalize();
+      for (auto const & coloredLine : coloredLines)
+      {
+        auto const & colorConst = coloredLine.first;
+        auto const & lineId = coloredLine.second;
+        auto const depth = scheme.m_lines.at(lineId).m_depth;
 
-      params1.m_shapes[shape.first].m_linesCount = linesCount;
-
-      //if (!shape.second.m_isForward)
-      //{
-      //  dir1.y = -dir1.y;
-      //  dir2.y = -dir2.y;
-      //}
-      params1.m_shapes[shape.first].m_direction = shape.second.m_isForward ? dir1 : dir1;
-
-      params2.m_shapes[shape.first].m_linesCount = linesCount;
-      params2.m_shapes[shape.first].m_direction = shape.second.m_isForward ? dir2 : dir2;
-
-      for (auto const & pt : shape.second.m_polyline)
-        boundingRect.Add(pt);
-    }
-    scheme.m_pivot = boundingRect.Center();
-
-    float const kDepthPerLine = 1.0f;
-    float depth = 0.0f;
-    for (auto const & pair : linesLengths)
-    {
-      depth += kDepthPerLine;
-      scheme.m_lines[pair.second].m_depth = depth;
+        GenerateLine(shape.second.m_polyline, scheme.m_pivot, colorConst, shapeOffset, lineHalfWidth, depth, batcher);
+        shapeOffset += shapeOffsetIncrement;
+      }
     }
   }
+  m_flushRenderDataFn(std::move(renderData));
 }
 
-vector<m2::PointF> GetTransitMarkerSizes(float markerScale, float maxRouteWidth)
+void TransitSchemeBuilder::GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp::TextureManager> textures)
 {
-  auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
-  vector<m2::PointF> markerSizes;
-  markerSizes.reserve(df::kTransitLinesWidthInPixel.size());
-  for (auto const halfWidth : df::kTransitLinesWidthInPixel)
+  MwmSchemeData const & scheme = m_schemes[mwmId];
+
+  auto stateMarkers = CreateGLState(gpu::TRANSIT_MARKER_PROGRAM, RenderState::TransitSchemeLayer);
+  auto stateText = CreateGLState(gpu::TEXT_OUTLINED_PROGRAM, RenderState::TransitSchemeLayer);
+  TransitRenderData colorSymbolRenderData(stateText, m_recacheId, mwmId, scheme.m_pivot);
+  TransitRenderData markersRenderData(stateMarkers, m_recacheId, mwmId, scheme.m_pivot);
+  TransitRenderData textRenderData(stateText, m_recacheId, mwmId, scheme.m_pivot);
+
+  uint32_t const kBatchSize = 5000;
+  dp::Batcher batcher(kBatchSize, kBatchSize);
   {
-    float const d = 2.0f * std::min(halfWidth * vs, maxRouteWidth * 0.5f) * markerScale;
-    markerSizes.push_back(m2::PointF(d, d));
+    dp::SessionGuard guard(batcher,
+                           [&markersRenderData, &textRenderData, &colorSymbolRenderData](dp::GLState const & state,
+                                                                                         drape_ptr<dp::RenderBucket> && b)
+                           {
+                             if (state.GetProgramIndex() == markersRenderData.m_state.GetProgramIndex())
+                             {
+                               markersRenderData.m_state = state;
+                               markersRenderData.m_buckets.push_back(std::move(b));
+                             }
+                             else if (state.GetProgramIndex() == textRenderData.m_state.GetProgramIndex())
+                             {
+                               textRenderData.m_state = state;
+                               textRenderData.m_buckets.push_back(std::move(b));
+                             }
+                             else
+                             {
+                               colorSymbolRenderData.m_state = state;
+                               colorSymbolRenderData.m_buckets.push_back(std::move(b));
+                             }
+                           });
+
+    float const kStopScale = 2.5f;
+    float const kTransferScale = 3.0f;
+
+    std::vector<m2::PointF> const transferMarkerSizes = GetTransitMarkerSizes(kTransferScale, 1000);
+    std::vector<m2::PointF> const stopMarkerSizes = GetTransitMarkerSizes(kStopScale, 1000);
+
+    for (auto const & stop : scheme.m_stops)
+    {
+      GenerateStop(stop.second, scheme.m_pivot, scheme.m_lines, batcher);
+      GenerateTitles(stop.second, scheme.m_pivot, stopMarkerSizes, textures, batcher);
+    }
+    for (auto const & transfer : scheme.m_transfers)
+    {
+      GenerateTransfer(transfer.second, scheme.m_pivot, batcher);
+      GenerateTitles(transfer.second, scheme.m_pivot, transferMarkerSizes, textures, batcher);
+    }
   }
-  return markerSizes;
+  m_flushMarkersRenderDataFn(std::move(markersRenderData));
+  m_flushTextRenderDataFn(std::move(colorSymbolRenderData));
+  m_flushTextRenderDataFn(std::move(textRenderData));
 }
 
-void GenerateMarker(m2::PointD const & pt, m2::PointD widthDir,
-                    float linesCountWidth, float linesCountHeight, float scaleWidth, float scaleHeight,
-                    float depth, dp::Color const & color, TGeometryBuffer & geometry)
+void TransitSchemeBuilder::GenerateMarker(m2::PointD const & pt, m2::PointD widthDir,
+                                          float linesCountWidth, float linesCountHeight,
+                                          float scaleWidth, float scaleHeight,
+                                          float depth, dp::Color const & color, dp::Batcher & batcher)
 {
+  using TV = TransitLineStaticVertex;
+
   scaleWidth = (scaleWidth - 1.0f) / linesCountWidth + 1.0f;
   scaleHeight = (scaleHeight - 1.0f) / linesCountHeight + 1.0f;
 
@@ -379,15 +515,22 @@ void GenerateMarker(m2::PointD const & pt, m2::PointD widthDir,
   glsl::vec3 const pos(pt.x, pt.y, depth);
   auto const colorVal = glsl::vec4(color.GetRedF(), color.GetGreenF(), color.GetBlueF(), 1.0f /* alpha */ );
 
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v1.x, v1.y, -linesCountWidth, -linesCountHeight), colorVal);
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v2.x, v2.y, linesCountWidth, -linesCountHeight), colorVal);
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v3.x, v3.y, linesCountWidth, linesCountHeight), colorVal);
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v1.x, v1.y, -linesCountWidth, -linesCountHeight), colorVal);
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v3.x, v3.y, linesCountWidth, linesCountHeight), colorVal);
-  geometry.emplace_back(pos, TransitLineStaticVertex::TNormal(v4.x, v4.y, -linesCountWidth, linesCountHeight), colorVal);
+  TGeometryBuffer geometry;
+  geometry.reserve(6);
+  geometry.emplace_back(pos, TV::TNormal(v1.x, v1.y, -linesCountWidth, -linesCountHeight), colorVal);
+  geometry.emplace_back(pos, TV::TNormal(v2.x, v2.y, linesCountWidth, -linesCountHeight), colorVal);
+  geometry.emplace_back(pos, TV::TNormal(v3.x, v3.y, linesCountWidth, linesCountHeight), colorVal);
+  geometry.emplace_back(pos, TV::TNormal(v1.x, v1.y, -linesCountWidth, -linesCountHeight), colorVal);
+  geometry.emplace_back(pos, TV::TNormal(v3.x, v3.y, linesCountWidth, linesCountHeight), colorVal);
+  geometry.emplace_back(pos, TV::TNormal(v4.x, v4.y, -linesCountWidth, linesCountHeight), colorVal);
+
+  dp::AttributeProvider provider(1 /* stream count */, static_cast<uint32_t>(geometry.size()));
+  provider.InitStream(0 /* stream index */, GetTransitStaticBindingInfo(), make_ref(geometry.data()));
+  auto state = CreateGLState(gpu::TRANSIT_MARKER_PROGRAM, RenderState::TransitSchemeLayer);
+  batcher.InsertTriangleList(state, make_ref(&provider));
 }
 
-void GenerateTransfer(StopParams const & params, m2::PointD const & pivot, TGeometryBuffer & geometry)
+void TransitSchemeBuilder::GenerateTransfer(StopNodeParams const & params, m2::PointD const & pivot, dp::Batcher & batcher)
 {
   float const kInnerScale = 1.0f;
   float const kOuterScale = 1.5f;
@@ -399,7 +542,7 @@ void GenerateTransfer(StopParams const & params, m2::PointD const & pivot, TGeom
 
   size_t maxLinesCount = 0;
   m2::PointD dir;
-  for (auto const & shapeInfo : params.m_shapes)
+  for (auto const & shapeInfo : params.m_shapesInfo)
   {
     if (shapeInfo.second.m_linesCount > maxLinesCount)
     {
@@ -409,27 +552,30 @@ void GenerateTransfer(StopParams const & params, m2::PointD const & pivot, TGeom
   }
 
   float const widthLinesCount = maxLinesCount > 3 ? 1.6f : 1.0f;
+  float const innerScale = maxLinesCount == 1 ? 1.0f : kInnerScale;
+  float const outerScale = maxLinesCount == 1 ? 1.0f : kOuterScale;
 
-  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, kOuterScale, kOuterScale,
-                 kOuterMarkerDepth, outerColor, geometry);
+  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, outerScale, outerScale,
+                 kOuterMarkerDepth, outerColor, batcher);
 
-  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, kInnerScale, kInnerScale,
-                 kInnerMarkerDepth, innerColor, geometry);
+  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, innerScale, innerScale,
+                 kInnerMarkerDepth, innerColor, batcher);
 }
 
-void GenerateStop(StopParams const & params, m2::PointD const & pivot,
-                  std::map<routing::transit::LineId, LineParams> const & lines, TGeometryBuffer & geometry)
+void TransitSchemeBuilder::GenerateStop(StopNodeParams const & params, m2::PointD const & pivot,
+                                        std::map<routing::transit::LineId, LineParams> const & lines,
+                                        dp::Batcher & batcher)
 {
   bool severalRoads = false;
-  auto const roadId = *params.m_lines.begin() >> 4;
-  for (auto const & lineId : params.m_lines)
+  auto const roadId = GetRouteId(params.m_stopsInfo.begin()->first);
+  for (auto const & stopInfo : params.m_stopsInfo)
   {
-    severalRoads |= lineId >> 4 != roadId;
+    severalRoads |= GetRouteId(stopInfo.first) != roadId;
   }
 
   if (severalRoads)
   {
-    GenerateTransfer(params, pivot, geometry);
+    GenerateTransfer(params, pivot, batcher);
     return;
   }
 
@@ -438,250 +584,38 @@ void GenerateStop(StopParams const & params, m2::PointD const & pivot,
 
   dp::Color innerColor = dp::Color::White();
 
-  auto const colorName = df::GetTransitColorName(lines.at(*params.m_lines.begin()).m_color);
+  auto const colorName = df::GetTransitColorName(lines.at(params.m_stopsInfo.begin()->first).m_color);
   dp::Color outerColor = GetColorConstant(colorName);
 
   m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
 
-  m2::PointD dir = params.m_shapes.begin()->second.m_direction;
+  m2::PointD dir = params.m_shapesInfo.begin()->second.m_direction;
 
   GenerateMarker(pt, dir, 1.0f, 1.0f, kOuterScale, kOuterScale,
-                 kOuterMarkerDepth, outerColor, geometry);
+                 kOuterMarkerDepth, outerColor, batcher);
 
   GenerateMarker(pt, dir, 1.0f, 1.0f, kInnerScale, kInnerScale,
-                 kInnerMarkerDepth, innerColor, geometry);
+                 kInnerMarkerDepth, innerColor, batcher);
 }
 
-void TransitSchemeBuilder::BuildScheme(ref_ptr<dp::TextureManager> textures)
-{
-  auto state = CreateGLState(gpu::TRANSIT_PROGRAM, RenderState::TransitSchemeLayer);
-  auto stateMarkers = CreateGLState(gpu::TRANSIT_MARKER_PROGRAM, RenderState::TransitSchemeLayer);
-  auto stateText = CreateGLState(gpu::TEXT_OUTLINED_PROGRAM, RenderState::TransitSchemeLayer);
-
-  for (auto const & mwmId : m_visibleMwms)
-  {
-    MwmSchemeData & scheme = m_schemes[mwmId];
-    m2::PointD pivot = scheme.m_pivot;
-
-    TransitMarkersRenderData markersRenderData(stateMarkers);
-    markersRenderData.m_mwmId = mwmId;
-    markersRenderData.m_pivot = pivot;
-
-    TransitTextRenderData textRenderData(stateText);
-    textRenderData.m_mwmId = mwmId;
-    textRenderData.m_pivot = pivot;
-
-    TransitTextRenderData colorSymbolRenderData(stateText);
-    colorSymbolRenderData.m_mwmId = mwmId;
-    colorSymbolRenderData.m_pivot = pivot;
-
-    for (auto const & shape : scheme.m_shapes)
-    {
-      auto const linesCount = shape.second.m_forwardLines.size() + shape.second.m_backwardLines.size();
-
-      auto offset = -static_cast<float>(linesCount / 2) * 2.0f - 1.0f * (linesCount % 2) + 1.0f;
-
-      std::vector<std::pair<std::string, routing::transit::LineId>> colorsNames;
-      for (auto lineId : shape.second.m_forwardLines)
-      {
-        auto const colorName = df::GetTransitColorName(scheme.m_lines[lineId].m_color);
-        colorsNames.push_back(std::make_pair(colorName, lineId));
-      }
-      for (auto it = shape.second.m_backwardLines.rbegin(); it != shape.second.m_backwardLines.rend(); ++it)
-      {
-        auto const colorName = df::GetTransitColorName(scheme.m_lines[*it].m_color);
-        colorsNames.push_back(std::make_pair(colorName, *it));
-      }
-
-      for (auto const & colorName : colorsNames)
-      {
-        dp::Color const colorConst = GetColorConstant(colorName.first);
-        auto const color = glsl::vec4(colorConst.GetRedF(), colorConst.GetGreenF(), colorConst.GetBlueF(),
-                                      1.0f /* alpha */);
-
-        auto const lineId = (!shape.second.m_forwardLines.empty()) ? shape.second.m_forwardLines.front()
-                                                                   : shape.second.m_backwardLines.front();
-        auto const depth = scheme.m_lines[lineId].m_depth;
-
-        TGeometryBuffer geometry;
-        TGeometryBuffer joinsGeometry;
-
-        auto const & path = shape.second.m_polyline;
-
-        size_t const kAverageSize = path.size() * 4;
-        size_t const kAverageCapSize = 12;
-
-        geometry.reserve(kAverageSize + kAverageCapSize * 2);
-
-        struct SchemeSegment
-        {
-          glsl::vec2 m_p1;
-          glsl::vec2 m_p2;
-          glsl::vec2 m_tangent;
-          glsl::vec2 m_leftNormal;
-          glsl::vec2 m_rightNormal;
-        };
-
-        std::vector<SchemeSegment> segments;
-        segments.reserve(path.size() - 1);
-
-        float const halfWidth = 0.8f;
-
-        for (size_t i = 1; i < path.size(); ++i)
-        {
-          if (path[i].EqualDxDy(path[i - 1], 1.0E-5))
-            continue;
-
-          SchemeSegment segment;
-          segment.m_p1 = glsl::ToVec2(MapShape::ConvertToLocal(path[i - 1], pivot, kShapeCoordScalar));
-          segment.m_p2 = glsl::ToVec2(MapShape::ConvertToLocal(path[i], pivot, kShapeCoordScalar));
-          CalculateTangentAndNormals(segment.m_p1, segment.m_p2, segment.m_tangent,
-                                     segment.m_leftNormal, segment.m_rightNormal);
-
-          glsl::vec3 const startPivot = glsl::vec3(segment.m_p1, depth);
-          glsl::vec3 const endPivot = glsl::vec3(segment.m_p2, depth);
-
-          SubmitStaticVertex(startPivot, segment.m_rightNormal * halfWidth - offset * segment.m_rightNormal, -halfWidth, color, geometry);
-          SubmitStaticVertex(startPivot, segment.m_leftNormal * halfWidth - offset * segment.m_rightNormal, halfWidth, color, geometry);
-          SubmitStaticVertex(endPivot, segment.m_rightNormal * halfWidth - offset * segment.m_rightNormal, -halfWidth, color, geometry);
-          SubmitStaticVertex(endPivot, segment.m_rightNormal * halfWidth - offset * segment.m_rightNormal, -halfWidth, color, geometry);
-          SubmitStaticVertex(startPivot, segment.m_leftNormal * halfWidth - offset * segment.m_rightNormal, halfWidth, color, geometry);
-          SubmitStaticVertex(endPivot, segment.m_leftNormal * halfWidth - offset * segment.m_rightNormal, halfWidth, color, geometry);
-
-          segments.push_back(segment);
-        }
-
-        for (size_t i = 0; i < segments.size(); ++i)
-        {
-          int const kSegmentsCount = 4;
-          vector<glsl::vec2> normals;
-          normals.reserve(kAverageCapSize);
-          GenerateCapNormals(dp::RoundCap, segments[i].m_leftNormal, segments[i].m_rightNormal, segments[i].m_tangent,
-                             halfWidth, false /* isStart */, normals, kSegmentsCount);
-          GenerateJoinsTriangles(glsl::vec3(segments[i].m_p2, depth), normals, -offset * segments[i].m_rightNormal,
-                                 color, joinsGeometry);
-        }
-
-        auto const geomSize = static_cast<uint32_t>(geometry.size());
-        auto const joinsGeomSize = static_cast<uint32_t>(joinsGeometry.size());
-
-        uint32_t const kBatchSize = 5000;
-        dp::Batcher batcher(kBatchSize, kBatchSize);
-
-        TransitRenderData renderData(state);
-        renderData.m_mwmId = mwmId;
-        renderData.m_shapeId = shape.first;
-        renderData.m_lineId = colorName.second;
-        renderData.m_pivot = pivot;
-        {
-          dp::SessionGuard guard(batcher, [&renderData](dp::GLState const & state, drape_ptr<dp::RenderBucket> && b)
-          {
-            renderData.m_buckets.push_back(std::move(b));
-          });
-
-          if (geomSize != 0)
-          {
-            dp::AttributeProvider provider(1 /* stream count */, geomSize);
-            provider.InitStream(0 /* stream index */, GetTransitStaticBindingInfo(), make_ref(geometry.data()));
-            batcher.InsertTriangleList(state, make_ref(&provider));
-          }
-
-          if (joinsGeomSize != 0)
-          {
-            dp::AttributeProvider joinsProvider(1 /* stream count */, joinsGeomSize);
-            joinsProvider.InitStream(0 /* stream index */,
-                                     GetTransitStaticBindingInfo(),
-                                     make_ref(joinsGeometry.data()));
-            batcher.InsertTriangleList(state, make_ref(&joinsProvider));
-          }
-        }
-        m_flushRenderDataFn(std::move(renderData));
-
-        offset += 2.0f;
-      }
-    }
-
-    float const kStopScale = 2.5f;
-    float const kTransferScale = 3.0f;
-
-    std::vector<m2::PointF> const transferMarkerSizes = GetTransitMarkerSizes(kTransferScale, 1000);
-    std::vector<m2::PointF> const stopMarkerSizes = GetTransitMarkerSizes(kStopScale, 1000);
-
-    TGeometryBuffer geometry;
-
-    uint32_t const kBatchSize = 5000;
-    dp::Batcher batcher(kBatchSize, kBatchSize);
-
-    {
-      dp::SessionGuard guard(batcher,
-                             [&markersRenderData, &textRenderData, &colorSymbolRenderData](dp::GLState const & state,
-                                                                                           drape_ptr<dp::RenderBucket> && b)
-      {
-        if (state.GetProgramIndex() == gpu::TRANSIT_MARKER_PROGRAM)
-        {
-          markersRenderData.m_state = state;
-          markersRenderData.m_buckets.push_back(std::move(b));
-        }
-        else if (state.GetProgramIndex() == gpu::TEXT_OUTLINED_PROGRAM)
-        {
-          textRenderData.m_state = state;
-          textRenderData.m_buckets.push_back(std::move(b));
-        }
-        else
-        {
-          colorSymbolRenderData.m_state = state;
-          colorSymbolRenderData.m_buckets.push_back(std::move(b));
-        }
-      });
-
-      for (auto const & stop : scheme.m_stops)
-      {
-        GenerateStop(stop.second, pivot, scheme.m_lines, geometry);
-        GenerateTitles(stop.second, pivot, stopMarkerSizes, textures, batcher);
-      }
-      for (auto const & transfer : scheme.m_transfers)
-      {
-        GenerateTransfer(transfer.second, pivot, geometry);
-        GenerateTitles(transfer.second, pivot, transferMarkerSizes, textures, batcher);
-      }
-
-      auto const geomSize = static_cast<uint32_t>(geometry.size());
-      if (geomSize != 0)
-      {
-        dp::AttributeProvider provider(1 /* stream count */, geomSize);
-        provider.InitStream(0 /* stream index */, GetTransitStaticBindingInfo(), make_ref(geometry.data()));
-        batcher.InsertTriangleList(stateMarkers, make_ref(&provider));
-      }
-    }
-
-    m_flushMarkersRenderDataFn(std::move(markersRenderData));
-    m_flushTextRenderDataFn(std::move(colorSymbolRenderData));
-    m_flushTextRenderDataFn(std::move(textRenderData));
-  }
-}
-
-void TransitSchemeBuilder::GenerateTitles(StopParams const & stopParams, m2::PointD const & pivot,
+void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2::PointD const & pivot,
                                           vector<m2::PointF> const & markerSizes,
                                           ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher)
 {
-  if (stopParams.m_names.empty() || stopParams.m_names.begin()->empty())
+  auto const & stopInfo = stopParams.m_stopsInfo.begin()->second;
+  if (stopInfo.m_name.empty())
     return;
 
   auto const vs = df::VisualParams::Instance().GetVisualScale();
-
-  float const kBaseTitleDepth = 400.0f;
 
   // TODO(@darina) Use separate colors.
   std::string const kTransitMarkText = "RouteMarkPrimaryText";
   std::string const kTransitMarkTextOutline = "RouteMarkPrimaryTextOutline";
 
-  float const kRouteMarkPrimaryTextSize = 11.0f;
-  float const kRouteMarkSecondaryTextSize = 10.0f;
-  float const kRouteMarkSecondaryOffsetY = 2.0f;
   float const kTransitMarkTextSize = 12.0f;
 
   dp::TitleDecl titleDecl;
-  titleDecl.m_primaryText = *stopParams.m_names.begin();
+  titleDecl.m_primaryText = stopInfo.m_name;
   titleDecl.m_primaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
   titleDecl.m_primaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
   titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize;
@@ -692,7 +626,7 @@ void TransitSchemeBuilder::GenerateTitles(StopParams const & stopParams, m2::Poi
   titleDecl.m_primaryOffset = m2::PointF(1.0f * vs, 0.0f);
 
   TextViewParams params;
-  params.m_featureID = stopParams.m_featureId;
+  params.m_featureID = stopInfo.m_featureId;
   params.m_tileCenter = pivot;
   params.m_titleDecl = titleDecl;
 
@@ -717,7 +651,7 @@ void TransitSchemeBuilder::GenerateTitles(StopParams const & stopParams, m2::Poi
   //params.m_specialPriority = ;
   params.m_startOverlayRank = dp::OverlayRank1;
 
-  m2::PointF symbolOffset(0.0f, 0.0f);
+  m2::PointF const symbolOffset(0.0f, 0.0f);
 
   TileKey tileKey;
   TextShape(stopParams.m_pivot, params, tileKey, markerSizes, symbolOffset, dp::Center, overlayIndex)
@@ -727,7 +661,7 @@ void TransitSchemeBuilder::GenerateTitles(StopParams const & stopParams, m2::Poi
   colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
 
   colorParams.m_color = dp::Color::Transparent();
-  colorParams.m_featureID = stopParams.m_featureId;
+  colorParams.m_featureID = stopInfo.m_featureId;
   colorParams.m_tileCenter = pivot;
   colorParams.m_depth = kBaseTitleDepth;
   colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
@@ -739,4 +673,58 @@ void TransitSchemeBuilder::GenerateTitles(StopParams const & stopParams, m2::Poi
     .Draw(&batcher, textures);
 }
 
+void TransitSchemeBuilder::GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot,
+                                        dp::Color const & colorConst, float lineOffset, float lineHalfWidth,
+                                        float depth, dp::Batcher & batcher)
+{
+  TGeometryBuffer geometry;
+  auto const color = glsl::vec4(colorConst.GetRedF(), colorConst.GetGreenF(), colorConst.GetBlueF(), 1.0f /* alpha */);
+  size_t const kAverageSize = path.size() * 6;
+  size_t const kAverageCapSize = 12;
+  geometry.reserve(kAverageSize + kAverageCapSize * 2);
+
+  std::vector<SchemeSegment> segments;
+  segments.reserve(path.size() - 1);
+
+  for (size_t i = 1; i < path.size(); ++i)
+  {
+    if (path[i].EqualDxDy(path[i - 1], 1.0E-5))
+      continue;
+
+    SchemeSegment segment;
+    segment.m_p1 = glsl::ToVec2(MapShape::ConvertToLocal(path[i - 1], pivot, kShapeCoordScalar));
+    segment.m_p2 = glsl::ToVec2(MapShape::ConvertToLocal(path[i], pivot, kShapeCoordScalar));
+    CalculateTangentAndNormals(segment.m_p1, segment.m_p2, segment.m_tangent,
+                               segment.m_leftNormal, segment.m_rightNormal);
+
+    auto const startPivot = glsl::vec3(segment.m_p1, depth);
+    auto const endPivot = glsl::vec3(segment.m_p2, depth);
+    auto const offset = lineOffset * segment.m_rightNormal;
+
+    SubmitStaticVertex(startPivot, segment.m_rightNormal * lineHalfWidth - offset, -lineHalfWidth, color, geometry);
+    SubmitStaticVertex(startPivot, segment.m_leftNormal * lineHalfWidth - offset, lineHalfWidth, color, geometry);
+    SubmitStaticVertex(endPivot, segment.m_rightNormal * lineHalfWidth - offset, -lineHalfWidth, color, geometry);
+    SubmitStaticVertex(endPivot, segment.m_rightNormal * lineHalfWidth - offset, -lineHalfWidth, color, geometry);
+    SubmitStaticVertex(startPivot, segment.m_leftNormal * lineHalfWidth - offset, lineHalfWidth, color, geometry);
+    SubmitStaticVertex(endPivot, segment.m_leftNormal * lineHalfWidth - offset, lineHalfWidth, color, geometry);
+
+    segments.emplace_back(std::move(segment));
+  }
+
+  for (size_t i = 0; i < segments.size(); ++i)
+  {
+    int const kSegmentsCount = 4;
+    vector<glsl::vec2> normals;
+    normals.reserve(kAverageCapSize);
+    GenerateCapNormals(dp::RoundCap, segments[i].m_leftNormal, segments[i].m_rightNormal, segments[i].m_tangent,
+                       lineHalfWidth, false /* isStart */, normals, kSegmentsCount);
+    GenerateJoinsTriangles(glsl::vec3(segments[i].m_p2, depth), normals, -lineOffset * segments[i].m_rightNormal,
+                           color, geometry);
+  }
+
+  dp::AttributeProvider provider(1 /* stream count */, static_cast<uint32_t>(geometry.size()));
+  provider.InitStream(0 /* stream index */, GetTransitStaticBindingInfo(), make_ref(geometry.data()));
+  auto state = CreateGLState(gpu::TRANSIT_PROGRAM, RenderState::TransitSchemeLayer);
+  batcher.InsertTriangleList(state, make_ref(&provider));
+}
 }  // namespace df

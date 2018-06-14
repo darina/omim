@@ -651,14 +651,14 @@ void BackendRenderer::FlushTransitRenderData(TransitRenderData && renderData)
                             MessagePriority::Normal);
 }
 
-void BackendRenderer::FlushTransitMarkersRenderData(TransitMarkersRenderData && renderData)
+void BackendRenderer::FlushTransitMarkersRenderData(TransitRenderData && renderData)
 {
   m_commutator->PostMessage(ThreadsCommutator::RenderThread,
                             make_unique_dp<FlushTransitMarkersMessage>(move(renderData)),
                             MessagePriority::Normal);
 }
 
-void BackendRenderer::FlushTransitTextRenderData(TransitTextRenderData && renderData)
+void BackendRenderer::FlushTransitTextRenderData(TransitRenderData && renderData)
 {
   m_commutator->PostMessage(ThreadsCommutator::RenderThread,
                             make_unique_dp<FlushTransitTextMessage>(move(renderData)),

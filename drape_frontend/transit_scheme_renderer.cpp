@@ -43,11 +43,13 @@ void TransitSchemeRenderer::AddRenderData(ref_ptr<dp::GpuProgramManager> mng,
                                           TransitRenderData && renderData)
 {
   // Remove obsolete render data.
-  m_renderData.erase(remove_if(m_renderData.begin(), m_renderData.end(), [&renderData](TransitRenderData const & rd)
+  m_renderData.erase(remove_if(m_renderData.begin(), m_renderData.end(),
+                               [this, &renderData](TransitRenderData const & rd)
   {
-    return rd.m_mwmId == renderData.m_mwmId && renderData.m_shapeId == rd.m_shapeId
-      && renderData.m_lineId == rd.m_lineId;
+    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
   }), m_renderData.end());
+
+  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
 
   // Add new render data.
   m_renderData.emplace_back(std::move(renderData));
@@ -60,18 +62,20 @@ void TransitSchemeRenderer::AddRenderData(ref_ptr<dp::GpuProgramManager> mng,
 }
 
 void TransitSchemeRenderer::AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> mng,
-                                                 TransitMarkersRenderData && renderData)
+                                                 TransitRenderData && renderData)
 {
   // Remove obsolete render data.
   m_markersRenderData.erase(remove_if(m_markersRenderData.begin(), m_markersRenderData.end(),
-                                      [&renderData](TransitMarkersRenderData const & rd)
+                                      [this, &renderData](TransitRenderData const & rd)
   {
-    return rd.m_mwmId == renderData.m_mwmId;
+    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
   }), m_markersRenderData.end());
+
+  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
 
   // Add new render data.
   m_markersRenderData.emplace_back(std::move(renderData));
-  TransitMarkersRenderData & rd = m_markersRenderData.back();
+  TransitRenderData & rd = m_markersRenderData.back();
 
   ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
   program->Bind();
@@ -80,21 +84,22 @@ void TransitSchemeRenderer::AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> 
 }
 
 void TransitSchemeRenderer::AddTextRenderData(ref_ptr<dp::GpuProgramManager> mng,
-                                              TransitTextRenderData && renderData)
+                                              TransitRenderData && renderData)
 {
   auto & data = (renderData.m_state.GetProgramIndex() == gpu::TEXT_OUTLINED_PROGRAM) ? m_textRenderData
                                                                                      : m_colorSymbolRenderData;
 
   // Remove obsolete render data.
-  data.erase(remove_if(data.begin(), data.end(),
-                      [&renderData](TransitTextRenderData const & rd)
-                      {
-                        return rd.m_mwmId == renderData.m_mwmId;
-                      }), data.end());
+  data.erase(remove_if(data.begin(), data.end(), [this, &renderData](TransitRenderData const & rd)
+  {
+    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
+  }), data.end());
+
+  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
 
   // Add new render data.
   data.emplace_back(std::move(renderData));
-  TransitTextRenderData & rd = data.back();
+  TransitRenderData & rd = data.back();
 
   ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
   program->Bind();
@@ -140,6 +145,9 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
     math::Matrix<float, 4, 4> mv = screen.GetModelView(renderData.m_pivot, kShapeCoordScalar);
     uniforms.SetMatrix4x4Value("modelView", mv.m_data);
     uniforms.SetFloatValue("u_transitParams", pixelHalfWidth);
+    uniforms.SetFloatValue("u_angleCosSin",
+                           static_cast<float>(cos(screen.GetAngle())),
+                           static_cast<float>(sin(screen.GetAngle())));
     dp::ApplyUniforms(uniforms, program);
 
     for (auto const & bucket : renderData.m_buckets)
