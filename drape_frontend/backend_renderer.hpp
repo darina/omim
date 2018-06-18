@@ -103,6 +103,7 @@ private:
   void FlushTransitRenderData(TransitRenderData && renderData);
   void FlushTransitMarkersRenderData(TransitRenderData && renderData);
   void FlushTransitTextRenderData(TransitRenderData && renderData);
+  void FlushTransitStubsRenderData(TransitRenderData && renderData);
 
   void FlushTrafficRenderData(TrafficRenderData && renderData);
   void FlushUserMarksRenderData(TUserMarksRenderData && renderData);

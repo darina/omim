@@ -71,6 +71,7 @@ struct StopInfo
 
   std::string m_name;
   FeatureID m_featureId;
+  std::set<routing::transit::LineId> m_lines;
 };
 
 struct StopNodeParams
@@ -78,20 +79,31 @@ struct StopNodeParams
   bool m_isTransfer = false;
   m2::PointD m_pivot;
   std::map<routing::transit::ShapeId, ShapeInfo> m_shapesInfo;
-  std::map<routing::transit::LineId, StopInfo> m_stopsInfo;
+  std::map<uint32_t, StopInfo> m_stopsInfo;
 };
 
 class TransitSchemeBuilder
 {
 public:
+  enum class Priority: uint16_t
+  {
+    Default = 0,
+    StopMin = 1,
+    StopMax = 30,
+    TransferMin = 31,
+    TransferMax = 60
+  };
+
   using TFlushRenderDataFn = function<void (TransitRenderData && renderData)>;
 
   TransitSchemeBuilder(TFlushRenderDataFn const & flushFn,
                        TFlushRenderDataFn const & flushMarkersFn,
-                       TFlushRenderDataFn const & flushTextFn)
+                       TFlushRenderDataFn const & flushTextFn,
+                       TFlushRenderDataFn const & flushStubsFn)
     : m_flushRenderDataFn(flushFn)
     , m_flushMarkersRenderDataFn(flushMarkersFn)
     , m_flushTextRenderDataFn(flushTextFn)
+    , m_flushStubsRenderDataFn(flushStubsFn)
   {}
 
   void SetVisibleMwms(std::vector<MwmSet::MwmId> const & visibleMwms);
@@ -138,9 +150,11 @@ private:
   using TransitSchemes = std::map<MwmSet::MwmId, MwmSchemeData>;
   TransitSchemes m_schemes;
   std::vector<MwmSet::MwmId> m_visibleMwms;
+
   TFlushRenderDataFn m_flushRenderDataFn;
   TFlushRenderDataFn m_flushMarkersRenderDataFn;
   TFlushRenderDataFn m_flushTextRenderDataFn;
+  TFlushRenderDataFn m_flushStubsRenderDataFn;
 
   uint32_t m_recacheId = 0;
 };

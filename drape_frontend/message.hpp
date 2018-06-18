@@ -91,6 +91,7 @@ public:
     FlushTransitScheme,
     FlushTransitMarkers,
     FlushTransitText,
+    FlushTransitStubs,
   };
 
   virtual ~Message() {}

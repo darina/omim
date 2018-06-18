@@ -187,44 +187,56 @@ void TransitSchemeBuilder::AddShape(TransitDisplayInfo const & transitDisplayInf
   }
 }
 
+void FillStopParams(TransitDisplayInfo const & transitDisplayInfo, MwmSet::MwmId const & mwmId,
+                    routing::transit::Stop const & stop, StopNodeParams & stopParams)
+{
+  FeatureID featureId;
+  std::string title;
+  if (stop.GetFeatureId() != routing::transit::kInvalidFeatureId)
+  {
+    featureId = FeatureID(mwmId, stop.GetFeatureId());
+    title = transitDisplayInfo.m_features.at(featureId).m_title;
+  }
+  stopParams.m_isTransfer = false;
+  stopParams.m_pivot = stop.GetPoint();
+  for (auto lineId : stop.GetLineIds())
+  {
+    StopInfo & info = stopParams.m_stopsInfo[GetRouteId(lineId)];
+    info.m_featureId = featureId;
+    info.m_name = title;
+    info.m_lines.insert(lineId);
+  }
+}
+
 void TransitSchemeBuilder::CollectStops(TransitDisplayInfo const & transitDisplayInfo,
                                         MwmSet::MwmId const & mwmId, MwmSchemeData & scheme)
 {
-  for (auto const & line : transitDisplayInfo.m_lines)
+  for (auto const & stopInfo : transitDisplayInfo.m_stops)
   {
-    auto const lineId = line.second.GetId();
-    auto const & stopsRanges = line.second.GetStopIds();
-    for (auto const & stops : stopsRanges)
+    routing::transit::Stop const & stop = stopInfo.second;
+    if (stop.GetTransferId() != routing::transit::kInvalidTransferId)
+      continue;
+    auto & stopNode = scheme.m_stops[stop.GetId()];
+    FillStopParams(transitDisplayInfo, mwmId, stop, stopNode);
+  }
+
+  for (auto const & stopInfo : transitDisplayInfo.m_transfers)
+  {
+    routing::transit::Transfer const & transfer = stopInfo.second;
+    auto & stopNode = scheme.m_transfers[transfer.GetId()];
+
+    for (auto stopId : transfer.GetStopIds())
     {
-      for (size_t i = 0; i < stops.size(); ++i)
+      if (transitDisplayInfo.m_stops.find(stopId) == transitDisplayInfo.m_stops.end())
       {
-        auto const & stopInfo = transitDisplayInfo.m_stops.at(stops[i]);
-
-        FeatureID featureId;
-        std::string title;
-        if (stopInfo.GetFeatureId() != routing::transit::kInvalidFeatureId)
-        {
-          featureId = FeatureID(mwmId, stopInfo.GetFeatureId());
-          title = transitDisplayInfo.m_features.at(featureId).m_title;
-        }
-
-        auto const transferId = stopInfo.GetTransferId();
-        if (transferId != routing::transit::kInvalidTransferId)
-        {
-          auto & stopNode = scheme.m_transfers[transferId];
-          stopNode.m_isTransfer = true;
-          stopNode.m_pivot = transitDisplayInfo.m_transfers.at(transferId).GetPoint();
-          stopNode.m_stopsInfo[lineId] = StopInfo(title, featureId);
-        }
-        else
-        {
-          auto & stopNode = scheme.m_stops[stopInfo.GetId()];
-          stopNode.m_isTransfer = false;
-          stopNode.m_pivot = stopInfo.GetPoint();
-          stopNode.m_stopsInfo[lineId] = StopInfo(title, featureId);
-        }
+        LOG(LWARNING, ("!!!Invalid stop", stopId, "in transfer", transfer.GetId()));
+        continue;
       }
+      routing::transit::Stop const & stop = transitDisplayInfo.m_stops.at(stopId);
+      FillStopParams(transitDisplayInfo, mwmId, stop, stopNode);
     }
+    stopNode.m_isTransfer = true;
+    stopNode.m_pivot = transfer.GetPoint();
   }
 }
 
@@ -237,12 +249,7 @@ void TransitSchemeBuilder::CollectLines(TransitDisplayInfo const & transitDispla
     size_t stopsCount = 0;
     auto const & stopsRanges = line.second.GetStopIds();
     for (auto const & stops : stopsRanges)
-    {
-      for (size_t i = 0; i < stops.size(); ++i)
-      {
-        ++stopsCount;
-      }
-    }
+      stopsCount += stops.size();
     linesLengths.insert(std::make_pair(stopsCount, lineId));
   }
   float depth = kBaseLineDepth;
@@ -363,11 +370,12 @@ void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDispl
 {
   for (auto const & mwmInfo : transitDisplayInfos)
   {
-    auto const & mwmId = mwmInfo.first;
     if (!mwmInfo.second)
       continue;
 
+    auto const & mwmId = mwmInfo.first;
     auto const & transitDisplayInfo = *mwmInfo.second.get();
+
     MwmSchemeData & scheme = m_schemes[mwmId];
 
     CollectStops(transitDisplayInfo, mwmId, scheme);
@@ -442,39 +450,30 @@ void TransitSchemeBuilder::GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp
 {
   MwmSchemeData const & scheme = m_schemes[mwmId];
 
-  auto stateMarkers = CreateGLState(gpu::TRANSIT_MARKER_PROGRAM, RenderState::TransitSchemeLayer);
-  auto stateText = CreateGLState(gpu::TEXT_OUTLINED_PROGRAM, RenderState::TransitSchemeLayer);
-  TransitRenderData colorSymbolRenderData(stateText, m_recacheId, mwmId, scheme.m_pivot);
-  TransitRenderData markersRenderData(stateMarkers, m_recacheId, mwmId, scheme.m_pivot);
-  TransitRenderData textRenderData(stateText, m_recacheId, mwmId, scheme.m_pivot);
-
   uint32_t const kBatchSize = 5000;
   dp::Batcher batcher(kBatchSize, kBatchSize);
   {
     dp::SessionGuard guard(batcher,
-                           [&markersRenderData, &textRenderData, &colorSymbolRenderData](dp::GLState const & state,
-                                                                                         drape_ptr<dp::RenderBucket> && b)
+                           [this, &mwmId, &scheme](dp::GLState const & state, drape_ptr<dp::RenderBucket> && b)
                            {
-                             if (state.GetProgramIndex() == markersRenderData.m_state.GetProgramIndex())
+                             TransitRenderData renderData(state, m_recacheId, mwmId, scheme.m_pivot);
+                             renderData.m_buckets.emplace_back(std::move(b));
+                             if (state.GetProgramIndex() == gpu::TRANSIT_MARKER_PROGRAM)
                              {
-                               markersRenderData.m_state = state;
-                               markersRenderData.m_buckets.push_back(std::move(b));
+                               m_flushMarkersRenderDataFn(std::move(renderData));
                              }
-                             else if (state.GetProgramIndex() == textRenderData.m_state.GetProgramIndex())
+                             else if (state.GetProgramIndex() == gpu::TEXT_OUTLINED_PROGRAM)
                              {
-                               textRenderData.m_state = state;
-                               textRenderData.m_buckets.push_back(std::move(b));
+                               m_flushTextRenderDataFn(std::move(renderData));
                              }
                              else
                              {
-                               colorSymbolRenderData.m_state = state;
-                               colorSymbolRenderData.m_buckets.push_back(std::move(b));
+                               m_flushStubsRenderDataFn(std::move(renderData));
                              }
                            });
 
     float const kStopScale = 2.5f;
     float const kTransferScale = 3.0f;
-
     std::vector<m2::PointF> const transferMarkerSizes = GetTransitMarkerSizes(kTransferScale, 1000);
     std::vector<m2::PointF> const stopMarkerSizes = GetTransitMarkerSizes(kStopScale, 1000);
 
@@ -489,9 +488,6 @@ void TransitSchemeBuilder::GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp
       GenerateTitles(transfer.second, scheme.m_pivot, transferMarkerSizes, textures, batcher);
     }
   }
-  m_flushMarkersRenderDataFn(std::move(markersRenderData));
-  m_flushTextRenderDataFn(std::move(colorSymbolRenderData));
-  m_flushTextRenderDataFn(std::move(textRenderData));
 }
 
 void TransitSchemeBuilder::GenerateMarker(m2::PointD const & pt, m2::PointD widthDir,
@@ -532,12 +528,6 @@ void TransitSchemeBuilder::GenerateMarker(m2::PointD const & pt, m2::PointD widt
 
 void TransitSchemeBuilder::GenerateTransfer(StopNodeParams const & params, m2::PointD const & pivot, dp::Batcher & batcher)
 {
-  float const kInnerScale = 1.0f;
-  float const kOuterScale = 1.5f;
-
-  dp::Color const outerColor = dp::Color::Black();
-  dp::Color const innerColor = dp::Color::White();
-
   m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
 
   size_t maxLinesCount = 0;
@@ -551,9 +541,15 @@ void TransitSchemeBuilder::GenerateTransfer(StopNodeParams const & params, m2::P
     }
   }
 
+  float const kInnerScale = 1.0f;
+  float const kOuterScale = 1.5f;
+
+  dp::Color const outerColor = dp::Color::Black();
+  dp::Color const innerColor = dp::Color::White();
+
   float const widthLinesCount = maxLinesCount > 3 ? 1.6f : 1.0f;
-  float const innerScale = maxLinesCount == 1 ? 1.0f : kInnerScale;
-  float const outerScale = maxLinesCount == 1 ? 1.0f : kOuterScale;
+  float const innerScale = maxLinesCount == 1 ? 1.4f : kInnerScale;
+  float const outerScale = maxLinesCount == 1 ? 1.9f : kOuterScale;
 
   GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, outerScale, outerScale,
                  kOuterMarkerDepth, outerColor, batcher);
@@ -566,12 +562,7 @@ void TransitSchemeBuilder::GenerateStop(StopNodeParams const & params, m2::Point
                                         std::map<routing::transit::LineId, LineParams> const & lines,
                                         dp::Batcher & batcher)
 {
-  bool severalRoads = false;
-  auto const roadId = GetRouteId(params.m_stopsInfo.begin()->first);
-  for (auto const & stopInfo : params.m_stopsInfo)
-  {
-    severalRoads |= GetRouteId(stopInfo.first) != roadId;
-  }
+  bool severalRoads = params.m_stopsInfo.size() > 1;
 
   if (severalRoads)
   {
@@ -584,7 +575,8 @@ void TransitSchemeBuilder::GenerateStop(StopNodeParams const & params, m2::Point
 
   dp::Color innerColor = dp::Color::White();
 
-  auto const colorName = df::GetTransitColorName(lines.at(params.m_stopsInfo.begin()->first).m_color);
+  auto const lineId = *params.m_stopsInfo.begin()->second.m_lines.begin();
+  auto const colorName = df::GetTransitColorName(lines.at(lineId).m_color);
   dp::Color outerColor = GetColorConstant(colorName);
 
   m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
@@ -602,75 +594,76 @@ void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2:
                                           vector<m2::PointF> const & markerSizes,
                                           ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher)
 {
-  auto const & stopInfo = stopParams.m_stopsInfo.begin()->second;
-  if (stopInfo.m_name.empty())
+  std::set<std::string> uniqueNames;
+  for (auto const & stopInfo : stopParams.m_stopsInfo)
+  {
+    if (!stopInfo.second.m_name.empty())
+      uniqueNames.insert(stopInfo.second.m_name);
+  }
+
+  if (uniqueNames.empty())
     return;
 
   auto const vs = df::VisualParams::Instance().GetVisualScale();
+  auto const featureId = stopParams.m_stopsInfo.begin()->second.m_featureId;
 
   // TODO(@darina) Use separate colors.
   std::string const kTransitMarkText = "RouteMarkPrimaryText";
   std::string const kTransitMarkTextOutline = "RouteMarkPrimaryTextOutline";
-
   float const kTransitMarkTextSize = 12.0f;
 
   dp::TitleDecl titleDecl;
-  titleDecl.m_primaryText = stopInfo.m_name;
   titleDecl.m_primaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
   titleDecl.m_primaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
-  titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize;
+  titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize * vs;
   titleDecl.m_secondaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
   titleDecl.m_secondaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
-  titleDecl.m_secondaryTextFont.m_size = kTransitMarkTextSize;
+  titleDecl.m_secondaryTextFont.m_size = kTransitMarkTextSize * vs;
   titleDecl.m_anchor = dp::Left;
   titleDecl.m_primaryOffset = m2::PointF(1.0f * vs, 0.0f);
 
-  TextViewParams params;
-  params.m_featureID = stopInfo.m_featureId;
-  params.m_tileCenter = pivot;
-  params.m_titleDecl = titleDecl;
+  uint32_t overlayIndex = kStartUserMarkOverlayIndex;
+  for (auto const & name : uniqueNames)
+  {
+    auto priority = static_cast<uint16_t>(stopParams.m_isTransfer ? Priority::TransferMin
+                                                                  : Priority::StopMin);
+    priority += static_cast<uint16_t>(10 * stopParams.m_stopsInfo.size());
 
-  // Here we use visual scale to adapt texts sizes and offsets
-  // to different screen resolutions and DPI.
-  params.m_titleDecl.m_primaryTextFont.m_size *= vs;
-  params.m_titleDecl.m_secondaryTextFont.m_size *= vs;
-  params.m_titleDecl.m_primaryOffset *= vs;
-  params.m_titleDecl.m_secondaryOffset *= vs;
-  bool const isSdf = df::VisualParams::Instance().IsSdfPrefered();
-  params.m_titleDecl.m_primaryTextFont.m_isSdf =
-    params.m_titleDecl.m_primaryTextFont.m_outlineColor != dp::Color::Transparent() ? true : isSdf;
-  params.m_titleDecl.m_secondaryTextFont.m_isSdf =
-    params.m_titleDecl.m_secondaryTextFont.m_outlineColor != dp::Color::Transparent() ? true : isSdf;
+    TextViewParams params;
+    params.m_featureID = featureId;
+    params.m_tileCenter = pivot;
+    params.m_titleDecl = titleDecl;
+    params.m_titleDecl.m_primaryText = name;
+    params.m_depth = kBaseTitleDepth;
+    params.m_depthLayer = RenderState::TransitSchemeLayer;
+    params.m_specialDisplacement = SpecialDisplacement::UserMark;
+    params.m_specialPriority = priority;
 
-  params.m_depth = kBaseTitleDepth;
-  params.m_depthLayer = RenderState::TransitSchemeLayer;
+    params.m_startOverlayRank = dp::OverlayRank1;
 
-  uint32_t const overlayIndex = kStartUserMarkOverlayIndex;
+    m2::PointF const symbolOffset(0.0f, 0.0f);
 
-  params.m_specialDisplacement = SpecialDisplacement::UserMark;
-  //params.m_specialPriority = ;
-  params.m_startOverlayRank = dp::OverlayRank1;
+    TileKey tileKey;
+    TextShape(stopParams.m_pivot, params, tileKey, markerSizes, symbolOffset, dp::Center, overlayIndex)
+      .Draw(&batcher, textures);
 
-  m2::PointF const symbolOffset(0.0f, 0.0f);
+    df::ColoredSymbolViewParams colorParams;
+    colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
 
-  TileKey tileKey;
-  TextShape(stopParams.m_pivot, params, tileKey, markerSizes, symbolOffset, dp::Center, overlayIndex)
-    .Draw(&batcher, textures);
+    colorParams.m_color = dp::Color::Transparent();
+    colorParams.m_featureID = featureId;
+    colorParams.m_tileCenter = pivot;
+    colorParams.m_depth = kBaseTitleDepth;
+    colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
+    colorParams.m_specialDisplacement = SpecialDisplacement::UserMark;
+    colorParams.m_specialPriority = priority;
+    colorParams.m_startOverlayRank = dp::OverlayRank0;
 
-  df::ColoredSymbolViewParams colorParams;
-  colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
+    ColoredSymbolShape(stopParams.m_pivot, colorParams, tileKey, overlayIndex, markerSizes)
+      .Draw(&batcher, textures);
 
-  colorParams.m_color = dp::Color::Transparent();
-  colorParams.m_featureID = stopInfo.m_featureId;
-  colorParams.m_tileCenter = pivot;
-  colorParams.m_depth = kBaseTitleDepth;
-  colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
-  colorParams.m_specialDisplacement = SpecialDisplacement::UserMark;
-  params.m_startOverlayRank = dp::OverlayRank0;
-  //colorParams.m_specialPriority = ;
-
-  ColoredSymbolShape(stopParams.m_pivot, colorParams, tileKey, overlayIndex, markerSizes)
-    .Draw(&batcher, textures);
+    ++overlayIndex;
+  }
 }
 
 void TransitSchemeBuilder::GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot,

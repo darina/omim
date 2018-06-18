@@ -24,87 +24,80 @@ float CalculateHalfWidth(ScreenBase const & screen)
 }
 }  // namespace
 
-TransitSchemeRenderer::TransitSchemeRenderer()
-{
-
-}
-
-TransitSchemeRenderer::~TransitSchemeRenderer()
-{
-
-}
-
 bool TransitSchemeRenderer::HasRenderData(int zoomLevel) const
 {
-  return !(m_renderData.empty() || zoomLevel < kTransitSchemeMinZoomLevel);
+  return !m_renderData.empty() && zoomLevel >= kTransitSchemeMinZoomLevel;
+}
+
+void TransitSchemeRenderer::ClearGLDependentResources()
+{
+  m_renderData.clear();
+  m_markersRenderData.clear();
+  m_textRenderData.clear();
+  m_colorSymbolRenderData.clear();
+}
+
+void TransitSchemeRenderer::Clear(MwmSet::MwmId const & mwmId)
+{
+  ClearRenderData(mwmId, m_renderData);
+  ClearRenderData(mwmId, m_markersRenderData);
+  ClearRenderData(mwmId, m_textRenderData);
+  ClearRenderData(mwmId, m_colorSymbolRenderData);
+}
+
+void TransitSchemeRenderer::ClearRenderData(MwmSet::MwmId const & mwmId, std::vector<TransitRenderData> & renderData)
+{
+  auto removePredicate = [&mwmId](TransitRenderData const & data) { return data.m_mwmId == mwmId; };
+
+  renderData.erase(remove_if(renderData.begin(), renderData.end(), removePredicate),
+                   renderData.end());
+}
+
+void TransitSchemeRenderer::PrepareRenderData(ref_ptr<dp::GpuProgramManager> mng,
+                                              std::vector<TransitRenderData> & currentRenderData,
+                                              TransitRenderData & newRenderData)
+{
+  // Remove obsolete render data.
+  currentRenderData.erase(remove_if(currentRenderData.begin(), currentRenderData.end(),
+                          [this, &newRenderData](TransitRenderData const & rd)
+                          {
+                            return rd.m_mwmId == newRenderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
+                          }), currentRenderData.end());
+
+  m_lastRecacheId = max(m_lastRecacheId, newRenderData.m_recacheId);
+
+  // Add new render data.
+  currentRenderData.emplace_back(std::move(newRenderData));
+  TransitRenderData & rd = currentRenderData.back();
+
+  ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
+  program->Bind();
+  for (auto const & bucket : rd.m_buckets)
+    bucket->GetBuffer()->Build(program);
 }
 
 void TransitSchemeRenderer::AddRenderData(ref_ptr<dp::GpuProgramManager> mng,
                                           TransitRenderData && renderData)
 {
-  // Remove obsolete render data.
-  m_renderData.erase(remove_if(m_renderData.begin(), m_renderData.end(),
-                               [this, &renderData](TransitRenderData const & rd)
-  {
-    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
-  }), m_renderData.end());
-
-  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
-
-  // Add new render data.
-  m_renderData.emplace_back(std::move(renderData));
-  TransitRenderData & rd = m_renderData.back();
-
-  ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
-  program->Bind();
-  for (auto const & bucket : rd.m_buckets)
-    bucket->GetBuffer()->Build(program);
+  PrepareRenderData(mng, m_renderData, renderData);
 }
 
 void TransitSchemeRenderer::AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> mng,
                                                  TransitRenderData && renderData)
 {
-  // Remove obsolete render data.
-  m_markersRenderData.erase(remove_if(m_markersRenderData.begin(), m_markersRenderData.end(),
-                                      [this, &renderData](TransitRenderData const & rd)
-  {
-    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
-  }), m_markersRenderData.end());
-
-  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
-
-  // Add new render data.
-  m_markersRenderData.emplace_back(std::move(renderData));
-  TransitRenderData & rd = m_markersRenderData.back();
-
-  ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
-  program->Bind();
-  for (auto const & bucket : rd.m_buckets)
-    bucket->GetBuffer()->Build(program);
+  PrepareRenderData(mng, m_markersRenderData, renderData);
 }
 
 void TransitSchemeRenderer::AddTextRenderData(ref_ptr<dp::GpuProgramManager> mng,
                                               TransitRenderData && renderData)
 {
-  auto & data = (renderData.m_state.GetProgramIndex() == gpu::TEXT_OUTLINED_PROGRAM) ? m_textRenderData
-                                                                                     : m_colorSymbolRenderData;
+  PrepareRenderData(mng, m_textRenderData, renderData);
+}
 
-  // Remove obsolete render data.
-  data.erase(remove_if(data.begin(), data.end(), [this, &renderData](TransitRenderData const & rd)
-  {
-    return rd.m_mwmId == renderData.m_mwmId && rd.m_recacheId < m_lastRecacheId;
-  }), data.end());
-
-  m_lastRecacheId = max(m_lastRecacheId, renderData.m_recacheId);
-
-  // Add new render data.
-  data.emplace_back(std::move(renderData));
-  TransitRenderData & rd = data.back();
-
-  ref_ptr<dp::GpuProgram> program = mng->GetProgram(rd.m_state.GetProgramIndex());
-  program->Bind();
-  for (auto const & bucket : rd.m_buckets)
-    bucket->GetBuffer()->Build(program);
+void TransitSchemeRenderer::AddStubsRenderData(ref_ptr<dp::GpuProgramManager> mng,
+                                               TransitRenderData && renderData)
+{
+  PrepareRenderData(mng, m_colorSymbolRenderData, renderData);
 }
 
 void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLevel,

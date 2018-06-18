@@ -34,7 +34,8 @@ BackendRenderer::BackendRenderer(Params && params)
                                               std::move(params.m_isUGCFn)))
   , m_transitBuilder(make_unique_dp<TransitSchemeBuilder>(bind(&BackendRenderer::FlushTransitRenderData, this, _1),
                                                           bind(&BackendRenderer::FlushTransitMarkersRenderData, this, _1),
-                                                          bind(&BackendRenderer::FlushTransitTextRenderData, this, _1)))
+                                                          bind(&BackendRenderer::FlushTransitTextRenderData, this, _1),
+                                                          bind(&BackendRenderer::FlushTransitStubsRenderData, this, _1)))
   , m_trafficGenerator(make_unique_dp<TrafficGenerator>(bind(&BackendRenderer::FlushTrafficRenderData, this, _1)))
   , m_userMarkGenerator(make_unique_dp<UserMarkGenerator>(bind(&BackendRenderer::FlushUserMarksRenderData, this, _1)))
   , m_requestedTiles(params.m_requestedTiles)
@@ -665,6 +666,12 @@ void BackendRenderer::FlushTransitTextRenderData(TransitRenderData && renderData
                             MessagePriority::Normal);
 }
 
+void BackendRenderer::FlushTransitStubsRenderData(TransitRenderData && renderData)
+{
+  m_commutator->PostMessage(ThreadsCommutator::RenderThread,
+                            make_unique_dp<FlushTransitStubsMessage>(move(renderData)),
+                            MessagePriority::Normal);
+}
 
 void BackendRenderer::FlushTrafficRenderData(TrafficRenderData && renderData)
 {
