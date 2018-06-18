@@ -7,6 +7,7 @@
 #include "drape_frontend/render_state.hpp"
 #include "drape_frontend/shader_def.hpp"
 #include "drape_frontend/shape_view_params.hpp"
+#include "drape_frontend/text_layout.hpp"
 #include "drape_frontend/text_shape.hpp"
 #include "drape_frontend/visual_params.hpp"
 
@@ -15,6 +16,8 @@
 #include "drape/glsl_types.hpp"
 #include "drape/render_bucket.hpp"
 #include "drape/utils/vertex_decl.hpp"
+
+#include "base/string_utils.hpp"
 
 using namespace std;
 
@@ -40,6 +43,25 @@ float const kBaseTitleDepth = 400.0f;
 
 float const kOuterMarkerDepth = kBaseMarkerDepth + 0.5f;
 float const kInnerMarkerDepth = kBaseMarkerDepth + 1.0f;
+
+// TODO(@darina) Use separate colors.
+std::string const kTransitMarkText = "RouteMarkPrimaryText";
+std::string const kTransitMarkTextOutline = "RouteMarkPrimaryTextOutline";
+float const kTransitMarkTextSize = 12.0f;
+
+struct TitleInfo
+{
+  TitleInfo() = default;
+  TitleInfo(std::string const & text)
+    : m_text(text)
+  {}
+
+  std::string m_text;
+  size_t m_rowsCount = 0;
+  m2::PointF m_pixelSize;
+  m2::PointF m_offset;
+  dp::Anchor m_anchor = dp::Left;
+};
 
 struct TransitLineStaticVertex
 {
@@ -594,46 +616,98 @@ void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2:
                                           vector<m2::PointF> const & markerSizes,
                                           ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher)
 {
-  std::set<std::string> uniqueNames;
+  std::vector<TitleInfo> uniqueNames;
   for (auto const & stopInfo : stopParams.m_stopsInfo)
   {
-    if (!stopInfo.second.m_name.empty())
-      uniqueNames.insert(stopInfo.second.m_name);
+    if (stopInfo.second.m_name.empty())
+      continue;
+    bool isUnique = true;
+    for (auto const & title : uniqueNames)
+    {
+      if (title.m_text == stopInfo.second.m_name)
+      {
+        isUnique = false;
+        break;
+      }
+    }
+    if (isUnique)
+      uniqueNames.emplace_back(stopInfo.second.m_name);
   }
 
   if (uniqueNames.empty())
     return;
 
-  auto const vs = df::VisualParams::Instance().GetVisualScale();
+  auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
   auto const featureId = stopParams.m_stopsInfo.begin()->second.m_featureId;
 
-  // TODO(@darina) Use separate colors.
-  std::string const kTransitMarkText = "RouteMarkPrimaryText";
-  std::string const kTransitMarkTextOutline = "RouteMarkPrimaryTextOutline";
-  float const kTransitMarkTextSize = 12.0f;
-
   dp::TitleDecl titleDecl;
+  titleDecl.m_primaryOptional = true;
   titleDecl.m_primaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
   titleDecl.m_primaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
   titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize * vs;
-  titleDecl.m_secondaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
-  titleDecl.m_secondaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
-  titleDecl.m_secondaryTextFont.m_size = kTransitMarkTextSize * vs;
   titleDecl.m_anchor = dp::Left;
-  titleDecl.m_primaryOffset = m2::PointF(1.0f * vs, 0.0f);
+
+  size_t summaryRowsCount = 0;
+  if (uniqueNames.size() > 1)
+  {
+    for (auto & name : uniqueNames)
+    {
+      df::StraightTextLayout layout(strings::MakeUniString(name.m_text), titleDecl.m_primaryTextFont.m_size,
+                                    false /* isSdf */, textures, titleDecl.m_anchor);
+      name.m_pixelSize = layout.GetPixelSize() + m2::PointF(4.0f * vs, 4.0f * vs);
+      name.m_rowsCount = layout.GetRowsCount();
+      summaryRowsCount += layout.GetRowsCount();
+    }
+
+    auto const rightRowsCount = summaryRowsCount > 3 ? (summaryRowsCount + 1) / 2 : summaryRowsCount;
+    float rightHeight = 0.0f;
+    float leftHeight = 0.0f;
+    size_t rowsCount = 0;
+    size_t rightTitlesCount = 0;
+    for (size_t i = 0; i < uniqueNames.size(); ++i)
+    {
+      rowsCount += uniqueNames[i].m_rowsCount;
+      if (rowsCount <= rightRowsCount)
+      {
+        rightHeight += uniqueNames[i].m_pixelSize.y;
+        ++rightTitlesCount;
+      }
+      else
+      {
+        leftHeight += uniqueNames[i].m_pixelSize.y;
+      }
+    }
+
+    float currentHeight = 0.0f;
+    for (size_t i = 0; i < rightTitlesCount; ++i)
+    {
+      uniqueNames[i].m_anchor = dp::Left;
+      uniqueNames[i].m_offset.y = -rightHeight / 2.0f + currentHeight + uniqueNames[i].m_pixelSize.y / 2.0f;
+      currentHeight += uniqueNames[i].m_pixelSize.y;
+    }
+
+    currentHeight = 0.0f;
+    for (size_t i = rightTitlesCount; i < uniqueNames.size(); ++i)
+    {
+      uniqueNames[i].m_anchor = dp::Right;
+      uniqueNames[i].m_offset.y = -leftHeight / 2.0f + currentHeight + uniqueNames[i].m_pixelSize.y / 2.0f;
+      currentHeight += uniqueNames[i].m_pixelSize.y;
+    }
+  }
+
+  auto priority = static_cast<uint16_t>(stopParams.m_isTransfer ? Priority::TransferMin
+                                                                : Priority::StopMin);
+  priority += static_cast<uint16_t>(stopParams.m_stopsInfo.size());
 
   uint32_t overlayIndex = kStartUserMarkOverlayIndex;
   for (auto const & name : uniqueNames)
   {
-    auto priority = static_cast<uint16_t>(stopParams.m_isTransfer ? Priority::TransferMin
-                                                                  : Priority::StopMin);
-    priority += static_cast<uint16_t>(10 * stopParams.m_stopsInfo.size());
-
     TextViewParams params;
     params.m_featureID = featureId;
     params.m_tileCenter = pivot;
     params.m_titleDecl = titleDecl;
-    params.m_titleDecl.m_primaryText = name;
+    params.m_titleDecl.m_primaryText = name.m_text;
+    params.m_titleDecl.m_anchor = name.m_anchor;
     params.m_depth = kBaseTitleDepth;
     params.m_depthLayer = RenderState::TransitSchemeLayer;
     params.m_specialDisplacement = SpecialDisplacement::UserMark;
@@ -641,29 +715,29 @@ void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2:
 
     params.m_startOverlayRank = dp::OverlayRank1;
 
-    m2::PointF const symbolOffset(0.0f, 0.0f);
-
     TileKey tileKey;
-    TextShape(stopParams.m_pivot, params, tileKey, markerSizes, symbolOffset, dp::Center, overlayIndex)
+    TextShape(stopParams.m_pivot, params, tileKey, markerSizes, name.m_offset, dp::Center, overlayIndex)
       .Draw(&batcher, textures);
 
-    df::ColoredSymbolViewParams colorParams;
-    colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
-
-    colorParams.m_color = dp::Color::Transparent();
-    colorParams.m_featureID = featureId;
-    colorParams.m_tileCenter = pivot;
-    colorParams.m_depth = kBaseTitleDepth;
-    colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
-    colorParams.m_specialDisplacement = SpecialDisplacement::UserMark;
-    colorParams.m_specialPriority = priority;
-    colorParams.m_startOverlayRank = dp::OverlayRank0;
-
-    ColoredSymbolShape(stopParams.m_pivot, colorParams, tileKey, overlayIndex, markerSizes)
-      .Draw(&batcher, textures);
-
-    ++overlayIndex;
+    //++overlayIndex;
   }
+
+  df::ColoredSymbolViewParams colorParams;
+  colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
+
+  colorParams.m_color = dp::Color::Transparent();
+  colorParams.m_featureID = featureId;
+  colorParams.m_tileCenter = pivot;
+  colorParams.m_depth = kBaseTitleDepth;
+  colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
+  colorParams.m_specialDisplacement = SpecialDisplacement::UserMark;
+  colorParams.m_specialPriority = priority;
+  colorParams.m_startOverlayRank = dp::OverlayRank0;
+
+  TileKey tileKey;
+  ColoredSymbolShape(stopParams.m_pivot, colorParams, tileKey, overlayIndex, markerSizes)
+    .Draw(&batcher, textures);
+
 }
 
 void TransitSchemeBuilder::GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot,

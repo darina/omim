@@ -178,6 +178,9 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
 
     for (auto const & bucket : renderData.m_buckets)
       bucket->Render(false /* draw as line */);
+
+    for (auto const & bucket : renderData.m_buckets)
+      bucket->RenderDebug(screen);
   }
 
   for (auto & renderData : m_colorSymbolRenderData)
@@ -201,6 +204,9 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
     GLFunctions::glEnable(gl_const::GLDepthTest);
     for (auto const & bucket : renderData.m_buckets)
       bucket->Render(false /* draw as line */);
+
+    for (auto const & bucket : renderData.m_buckets)
+      bucket->RenderDebug(screen);
   }
 }
 
