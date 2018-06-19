@@ -43,25 +43,15 @@ float const kBaseTitleDepth = 400.0f;
 
 float const kOuterMarkerDepth = kBaseMarkerDepth + 0.5f;
 float const kInnerMarkerDepth = kBaseMarkerDepth + 1.0f;
+uint32_t const kTransitOverlayIndex = 1000;
 
 // TODO(@darina) Use separate colors.
 std::string const kTransitMarkText = "RouteMarkPrimaryText";
 std::string const kTransitMarkTextOutline = "RouteMarkPrimaryTextOutline";
+std::string const kTransitTransferOuterColor = "RouteMarkPrimaryText";
+std::string const kTransitStopInnerColor = "RouteMarkPrimaryTextOutline";
+
 float const kTransitMarkTextSize = 12.0f;
-
-struct TitleInfo
-{
-  TitleInfo() = default;
-  TitleInfo(std::string const & text)
-    : m_text(text)
-  {}
-
-  std::string m_text;
-  size_t m_rowsCount = 0;
-  m2::PointF m_pixelSize;
-  m2::PointF m_offset;
-  dp::Anchor m_anchor = dp::Left;
-};
 
 struct TransitLineStaticVertex
 {
@@ -115,7 +105,6 @@ void GenerateJoinsTriangles(glsl::vec3 const & pivot,
                             glsl::vec4 const & color,
                             TGeometryBuffer & joinsGeometry)
 {
-  float const kEps = 1e-5;
   size_t const trianglesCount = normals.size() / 3;
   for (size_t j = 0; j < trianglesCount; j++)
   {
@@ -123,6 +112,92 @@ void GenerateJoinsTriangles(glsl::vec3 const & pivot,
     SubmitStaticVertex(pivot, normals[3 * j + 1] + offset, 1.0f, color, joinsGeometry);
     SubmitStaticVertex(pivot, normals[3 * j + 2] + offset, 1.0f, color, joinsGeometry);
   }
+}
+
+struct TitleInfo
+{
+  TitleInfo() = default;
+  TitleInfo(std::string const & text)
+    : m_text(text)
+  {}
+
+  std::string m_text;
+  size_t m_rowsCount = 0;
+  m2::PointF m_pixelSize;
+  m2::PointF m_offset;
+  dp::Anchor m_anchor = dp::Left;
+};
+
+std::vector<TitleInfo> PlaceTitles(StopNodeParams const & stopParams, float textSize, ref_ptr<dp::TextureManager> textures)
+{
+  std::vector<TitleInfo> titles;
+  for (auto const & stopInfo : stopParams.m_stopsInfo)
+  {
+    if (stopInfo.second.m_name.empty())
+      continue;
+    bool isUnique = true;
+    for (auto const & title : titles)
+    {
+      if (title.m_text == stopInfo.second.m_name)
+      {
+        isUnique = false;
+        break;
+      }
+    }
+    if (isUnique)
+      titles.emplace_back(stopInfo.second.m_name);
+  }
+
+  if (titles.size() > 1)
+  {
+    auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
+
+    size_t summaryRowsCount = 0;
+    for (auto & name : titles)
+    {
+      df::StraightTextLayout layout(strings::MakeUniString(name.m_text), textSize,
+                                    false /* isSdf */, textures, dp::Left);
+      name.m_pixelSize = layout.GetPixelSize() + m2::PointF(4.0f * vs, 4.0f * vs);
+      name.m_rowsCount = layout.GetRowsCount();
+      summaryRowsCount += layout.GetRowsCount();
+    }
+
+    auto const rightRowsCount = summaryRowsCount > 3 ? (summaryRowsCount + 1) / 2 : summaryRowsCount;
+    float rightHeight = 0.0f;
+    float leftHeight = 0.0f;
+    size_t rowsCount = 0;
+    size_t rightTitlesCount = 0;
+    for (size_t i = 0; i < titles.size(); ++i)
+    {
+      if (rowsCount < rightRowsCount)
+      {
+        rightHeight += titles[i].m_pixelSize.y;
+        ++rightTitlesCount;
+      }
+      else
+      {
+        leftHeight += titles[i].m_pixelSize.y;
+      }
+      rowsCount += titles[i].m_rowsCount;
+    }
+
+    float currentOffset = -rightHeight / 2.0f;
+    for (size_t i = 0; i < rightTitlesCount; ++i)
+    {
+      titles[i].m_anchor = dp::Left;
+      titles[i].m_offset.y = currentOffset + titles[i].m_pixelSize.y / 2.0f;
+      currentOffset += titles[i].m_pixelSize.y;
+    }
+
+    currentOffset = -leftHeight / 2.0f;
+    for (size_t i = rightTitlesCount; i < titles.size(); ++i)
+    {
+      titles[i].m_anchor = dp::Right;
+      titles[i].m_offset.y = currentOffset + titles[i].m_pixelSize.y / 2.0f;
+      currentOffset += titles[i].m_pixelSize.y;
+    }
+  }
+  return titles;
 }
 
 vector<m2::PointF> GetTransitMarkerSizes(float markerScale, float maxRouteWidth)
@@ -141,72 +216,6 @@ vector<m2::PointF> GetTransitMarkerSizes(float markerScale, float maxRouteWidth)
 uint32_t GetRouteId(routing::transit::LineId lineId)
 {
   return static_cast<uint32_t>(lineId >> 4);
-}
-}  // namespace
-
-void TransitSchemeBuilder::SetVisibleMwms(std::vector<MwmSet::MwmId> const & visibleMwms)
-{
-  m_visibleMwms = visibleMwms;
-}
-
-void TransitSchemeBuilder::AddShape(TransitDisplayInfo const & transitDisplayInfo,
-                                    routing::transit::StopId stop1Id,
-                                    routing::transit::StopId stop2Id,
-                                    routing::transit::LineId lineId,
-                                    MwmSchemeData & scheme)
-{
-  auto const stop1It = transitDisplayInfo.m_stops.find(stop1Id);
-  ASSERT(stop1It != transitDisplayInfo.m_stops.end(), ());
-
-  auto const stop2It = transitDisplayInfo.m_stops.find(stop2Id);
-  ASSERT(stop2It != transitDisplayInfo.m_stops.end(), ());
-
-  auto const transfer1Id = stop1It->second.GetTransferId();
-  auto const transfer2Id = stop2It->second.GetTransferId();
-
-  auto shapeId = routing::transit::ShapeId(transfer1Id != routing::transit::kInvalidTransferId ? transfer1Id
-                                                                                               : stop1Id,
-                                           transfer2Id != routing::transit::kInvalidTransferId ? transfer2Id
-                                                                                               : stop2Id);
-  auto it = transitDisplayInfo.m_shapes.find(shapeId);
-  bool isForward = true;
-  if (it == transitDisplayInfo.m_shapes.end())
-  {
-    isForward = false;
-    shapeId = routing::transit::ShapeId(shapeId.GetStop2Id(), shapeId.GetStop1Id());
-    it = transitDisplayInfo.m_shapes.find(shapeId);
-  }
-
-  // TODO: check
-  if (it == transitDisplayInfo.m_shapes.end())
-    return;
-
-  ASSERT(it != transitDisplayInfo.m_shapes.end(), ());
-
-  auto itScheme = scheme.m_shapes.find(shapeId);
-  if (itScheme == scheme.m_shapes.end())
-  {
-    auto const & polyline = transitDisplayInfo.m_shapes.at(it->first).GetPolyline();
-    if (isForward)
-      scheme.m_shapes[shapeId].m_forwardLines.push_back(lineId);
-    else
-      scheme.m_shapes[shapeId].m_backwardLines.push_back(lineId);
-    scheme.m_shapes[shapeId].m_polyline = polyline;
-  }
-  else
-  {
-    for (auto id : itScheme->second.m_forwardLines)
-      if (GetRouteId(id) == GetRouteId(lineId))
-        return;
-    for (auto id : itScheme->second.m_backwardLines)
-      if (GetRouteId(id) == GetRouteId(lineId))
-        return;
-
-    if (isForward)
-      itScheme->second.m_forwardLines.push_back(lineId);
-    else
-      itScheme->second.m_backwardLines.push_back(lineId);
-  }
 }
 
 void FillStopParams(TransitDisplayInfo const & transitDisplayInfo, MwmSet::MwmId const & mwmId,
@@ -227,6 +236,42 @@ void FillStopParams(TransitDisplayInfo const & transitDisplayInfo, MwmSet::MwmId
     info.m_featureId = featureId;
     info.m_name = title;
     info.m_lines.insert(lineId);
+  }
+}
+}  // namespace
+
+void TransitSchemeBuilder::SetVisibleMwms(std::vector<MwmSet::MwmId> const & visibleMwms)
+{
+  m_visibleMwms = visibleMwms;
+}
+
+void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDisplayInfos)
+{
+  for (auto const & mwmInfo : transitDisplayInfos)
+  {
+    if (!mwmInfo.second)
+      continue;
+
+    auto const & mwmId = mwmInfo.first;
+    auto const & transitDisplayInfo = *mwmInfo.second.get();
+
+    MwmSchemeData & scheme = m_schemes[mwmId];
+
+    CollectStops(transitDisplayInfo, mwmId, scheme);
+    CollectLines(transitDisplayInfo, scheme);
+    CollectShapes(transitDisplayInfo, scheme);
+
+    PrepareScheme(scheme);
+  }
+}
+
+void TransitSchemeBuilder::BuildScheme(ref_ptr<dp::TextureManager> textures)
+{
+  ++m_recacheId;
+  for (auto const & mwmId : m_visibleMwms)
+  {
+    GenerateShapes(mwmId);
+    GenerateStops(mwmId, textures);
   }
 }
 
@@ -251,7 +296,7 @@ void TransitSchemeBuilder::CollectStops(TransitDisplayInfo const & transitDispla
     {
       if (transitDisplayInfo.m_stops.find(stopId) == transitDisplayInfo.m_stops.end())
       {
-        LOG(LWARNING, ("!!!Invalid stop", stopId, "in transfer", transfer.GetId()));
+        LOG(LWARNING, ("Invalid stop", stopId, "in transfer", transfer.GetId()));
         continue;
       }
       routing::transit::Stop const & stop = transitDisplayInfo.m_stops.at(stopId);
@@ -357,6 +402,66 @@ void TransitSchemeBuilder::CollectShapes(TransitDisplayInfo const & transitDispl
   }
 }
 
+void TransitSchemeBuilder::AddShape(TransitDisplayInfo const & transitDisplayInfo,
+                                    routing::transit::StopId stop1Id,
+                                    routing::transit::StopId stop2Id,
+                                    routing::transit::LineId lineId,
+                                    MwmSchemeData & scheme)
+{
+  auto const stop1It = transitDisplayInfo.m_stops.find(stop1Id);
+  ASSERT(stop1It != transitDisplayInfo.m_stops.end(), ());
+
+  auto const stop2It = transitDisplayInfo.m_stops.find(stop2Id);
+  ASSERT(stop2It != transitDisplayInfo.m_stops.end(), ());
+
+  auto const transfer1Id = stop1It->second.GetTransferId();
+  auto const transfer2Id = stop2It->second.GetTransferId();
+
+  auto shapeId = routing::transit::ShapeId(transfer1Id != routing::transit::kInvalidTransferId ? transfer1Id
+                                                                                               : stop1Id,
+                                           transfer2Id != routing::transit::kInvalidTransferId ? transfer2Id
+                                                                                               : stop2Id);
+  auto it = transitDisplayInfo.m_shapes.find(shapeId);
+  bool isForward = true;
+  if (it == transitDisplayInfo.m_shapes.end())
+  {
+    isForward = false;
+    shapeId = routing::transit::ShapeId(shapeId.GetStop2Id(), shapeId.GetStop1Id());
+    it = transitDisplayInfo.m_shapes.find(shapeId);
+  }
+
+  // TODO: check
+  if (it == transitDisplayInfo.m_shapes.end())
+    return;
+
+  ASSERT(it != transitDisplayInfo.m_shapes.end(), ());
+
+  auto itScheme = scheme.m_shapes.find(shapeId);
+  if (itScheme == scheme.m_shapes.end())
+  {
+    auto const & polyline = transitDisplayInfo.m_shapes.at(it->first).GetPolyline();
+    if (isForward)
+      scheme.m_shapes[shapeId].m_forwardLines.push_back(lineId);
+    else
+      scheme.m_shapes[shapeId].m_backwardLines.push_back(lineId);
+    scheme.m_shapes[shapeId].m_polyline = polyline;
+  }
+  else
+  {
+    for (auto id : itScheme->second.m_forwardLines)
+      if (GetRouteId(id) == GetRouteId(lineId))
+        return;
+    for (auto id : itScheme->second.m_backwardLines)
+      if (GetRouteId(id) == GetRouteId(lineId))
+        return;
+
+    if (isForward)
+      itScheme->second.m_forwardLines.push_back(lineId);
+    else
+      itScheme->second.m_backwardLines.push_back(lineId);
+  }
+}
+
 void TransitSchemeBuilder::PrepareScheme(MwmSchemeData & scheme)
 {
   m2::RectD boundingRect;
@@ -386,36 +491,6 @@ void TransitSchemeBuilder::PrepareScheme(MwmSchemeData & scheme)
       boundingRect.Add(pt);
   }
   scheme.m_pivot = boundingRect.Center();
-}
-
-void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDisplayInfos)
-{
-  for (auto const & mwmInfo : transitDisplayInfos)
-  {
-    if (!mwmInfo.second)
-      continue;
-
-    auto const & mwmId = mwmInfo.first;
-    auto const & transitDisplayInfo = *mwmInfo.second.get();
-
-    MwmSchemeData & scheme = m_schemes[mwmId];
-
-    CollectStops(transitDisplayInfo, mwmId, scheme);
-    CollectLines(transitDisplayInfo, scheme);
-    CollectShapes(transitDisplayInfo, scheme);
-
-    PrepareScheme(scheme);
-  }
-}
-
-void TransitSchemeBuilder::BuildScheme(ref_ptr<dp::TextureManager> textures)
-{
-  ++m_recacheId;
-  for (auto const & mwmId : m_visibleMwms)
-  {
-    GenerateShapes(mwmId);
-    GenerateStops(mwmId, textures);
-  }
 }
 
 void TransitSchemeBuilder::GenerateShapes(MwmSet::MwmId const & mwmId)
@@ -512,6 +587,121 @@ void TransitSchemeBuilder::GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp
   }
 }
 
+void TransitSchemeBuilder::GenerateTransfer(StopNodeParams const & params, m2::PointD const & pivot, dp::Batcher & batcher)
+{
+  m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
+
+  size_t maxLinesCount = 0;
+  m2::PointD dir;
+  for (auto const & shapeInfo : params.m_shapesInfo)
+  {
+    if (shapeInfo.second.m_linesCount > maxLinesCount)
+    {
+      dir = shapeInfo.second.m_direction;
+      maxLinesCount = shapeInfo.second.m_linesCount;
+    }
+  }
+
+  float const kInnerScale = 1.0f;
+  float const kOuterScale = 1.5f;
+  auto const outerColor = GetColorConstant(kTransitTransferOuterColor);
+  auto const innerColor = GetColorConstant(kTransitStopInnerColor);
+
+  float const widthLinesCount = maxLinesCount > 3 ? 1.6f : 1.0f;
+  float const innerScale = maxLinesCount == 1 ? 1.4f : kInnerScale;
+  float const outerScale = maxLinesCount == 1 ? 1.9f : kOuterScale;
+
+  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, outerScale, outerScale,
+                 kOuterMarkerDepth, outerColor, batcher);
+
+  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, innerScale, innerScale,
+                 kInnerMarkerDepth, innerColor, batcher);
+}
+
+void TransitSchemeBuilder::GenerateStop(StopNodeParams const & params, m2::PointD const & pivot,
+                                        std::map<routing::transit::LineId, LineParams> const & lines,
+                                        dp::Batcher & batcher)
+{
+  bool severalRoads = params.m_stopsInfo.size() > 1;
+
+  if (severalRoads)
+  {
+    GenerateTransfer(params, pivot, batcher);
+    return;
+  }
+
+  float const kInnerScale = 0.8f;
+  float const kOuterScale = 2.0f;
+
+  auto const lineId = *params.m_stopsInfo.begin()->second.m_lines.begin();
+  auto const colorName = df::GetTransitColorName(lines.at(lineId).m_color);
+  auto const outerColor = GetColorConstant(colorName);
+
+  auto const innerColor = GetColorConstant(kTransitStopInnerColor);
+
+  m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
+
+  m2::PointD dir = params.m_shapesInfo.begin()->second.m_direction;
+
+  GenerateMarker(pt, dir, 1.0f, 1.0f, kOuterScale, kOuterScale, kOuterMarkerDepth, outerColor, batcher);
+
+  GenerateMarker(pt, dir, 1.0f, 1.0f, kInnerScale, kInnerScale, kInnerMarkerDepth, innerColor, batcher);
+}
+
+void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2::PointD const & pivot,
+                                          vector<m2::PointF> const & markerSizes,
+                                          ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher)
+{
+  auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
+
+  auto const titles = PlaceTitles(stopParams, kTransitMarkTextSize * vs, textures);
+  if (titles.empty())
+    return;
+
+  auto const featureId = stopParams.m_stopsInfo.begin()->second.m_featureId;
+  auto priority = static_cast<uint16_t>(stopParams.m_isTransfer ? Priority::TransferMin : Priority::StopMin);
+  priority += static_cast<uint16_t>(stopParams.m_stopsInfo.size());
+
+  dp::TitleDecl titleDecl;
+  titleDecl.m_primaryOptional = true;
+  titleDecl.m_primaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
+  titleDecl.m_primaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
+  titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize * vs;
+  titleDecl.m_anchor = dp::Left;
+
+  for (auto const & title : titles)
+  {
+    TextViewParams textParams;
+    textParams.m_featureID = featureId;
+    textParams.m_tileCenter = pivot;
+    textParams.m_titleDecl = titleDecl;
+    textParams.m_titleDecl.m_primaryText = title.m_text;
+    textParams.m_titleDecl.m_anchor = title.m_anchor;
+    textParams.m_depth = kBaseTitleDepth;
+    textParams.m_depthLayer = RenderState::TransitSchemeLayer;
+    textParams.m_specialDisplacement = SpecialDisplacement::SpecialMode;
+    textParams.m_specialPriority = priority;
+    textParams.m_startOverlayRank = dp::OverlayRank1;
+
+    TextShape(stopParams.m_pivot, textParams, TileKey(), markerSizes, title.m_offset, dp::Center, kTransitOverlayIndex)
+      .Draw(&batcher, textures);
+  }
+
+  df::ColoredSymbolViewParams colorParams;
+  colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
+  colorParams.m_color = dp::Color::Transparent();
+  colorParams.m_featureID = featureId;
+  colorParams.m_tileCenter = pivot;
+  colorParams.m_depth = kBaseTitleDepth;
+  colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
+  colorParams.m_specialDisplacement = SpecialDisplacement::SpecialMode;
+  colorParams.m_specialPriority = priority;
+  colorParams.m_startOverlayRank = dp::OverlayRank0;
+
+  ColoredSymbolShape(stopParams.m_pivot, colorParams, TileKey(), kTransitOverlayIndex, markerSizes)
+    .Draw(&batcher, textures);
+}
+
 void TransitSchemeBuilder::GenerateMarker(m2::PointD const & pt, m2::PointD widthDir,
                                           float linesCountWidth, float linesCountHeight,
                                           float scaleWidth, float scaleHeight,
@@ -546,198 +736,6 @@ void TransitSchemeBuilder::GenerateMarker(m2::PointD const & pt, m2::PointD widt
   provider.InitStream(0 /* stream index */, GetTransitStaticBindingInfo(), make_ref(geometry.data()));
   auto state = CreateGLState(gpu::TRANSIT_MARKER_PROGRAM, RenderState::TransitSchemeLayer);
   batcher.InsertTriangleList(state, make_ref(&provider));
-}
-
-void TransitSchemeBuilder::GenerateTransfer(StopNodeParams const & params, m2::PointD const & pivot, dp::Batcher & batcher)
-{
-  m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
-
-  size_t maxLinesCount = 0;
-  m2::PointD dir;
-  for (auto const & shapeInfo : params.m_shapesInfo)
-  {
-    if (shapeInfo.second.m_linesCount > maxLinesCount)
-    {
-      dir = shapeInfo.second.m_direction;
-      maxLinesCount = shapeInfo.second.m_linesCount;
-    }
-  }
-
-  float const kInnerScale = 1.0f;
-  float const kOuterScale = 1.5f;
-
-  dp::Color const outerColor = dp::Color::Black();
-  dp::Color const innerColor = dp::Color::White();
-
-  float const widthLinesCount = maxLinesCount > 3 ? 1.6f : 1.0f;
-  float const innerScale = maxLinesCount == 1 ? 1.4f : kInnerScale;
-  float const outerScale = maxLinesCount == 1 ? 1.9f : kOuterScale;
-
-  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, outerScale, outerScale,
-                 kOuterMarkerDepth, outerColor, batcher);
-
-  GenerateMarker(pt, dir, widthLinesCount, maxLinesCount, innerScale, innerScale,
-                 kInnerMarkerDepth, innerColor, batcher);
-}
-
-void TransitSchemeBuilder::GenerateStop(StopNodeParams const & params, m2::PointD const & pivot,
-                                        std::map<routing::transit::LineId, LineParams> const & lines,
-                                        dp::Batcher & batcher)
-{
-  bool severalRoads = params.m_stopsInfo.size() > 1;
-
-  if (severalRoads)
-  {
-    GenerateTransfer(params, pivot, batcher);
-    return;
-  }
-
-  float const kInnerScale = 0.8f;
-  float const kOuterScale = 2.0f;
-
-  dp::Color innerColor = dp::Color::White();
-
-  auto const lineId = *params.m_stopsInfo.begin()->second.m_lines.begin();
-  auto const colorName = df::GetTransitColorName(lines.at(lineId).m_color);
-  dp::Color outerColor = GetColorConstant(colorName);
-
-  m2::PointD const pt = MapShape::ConvertToLocal(params.m_pivot, pivot, kShapeCoordScalar);
-
-  m2::PointD dir = params.m_shapesInfo.begin()->second.m_direction;
-
-  GenerateMarker(pt, dir, 1.0f, 1.0f, kOuterScale, kOuterScale,
-                 kOuterMarkerDepth, outerColor, batcher);
-
-  GenerateMarker(pt, dir, 1.0f, 1.0f, kInnerScale, kInnerScale,
-                 kInnerMarkerDepth, innerColor, batcher);
-}
-
-void TransitSchemeBuilder::GenerateTitles(StopNodeParams const & stopParams, m2::PointD const & pivot,
-                                          vector<m2::PointF> const & markerSizes,
-                                          ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher)
-{
-  std::vector<TitleInfo> uniqueNames;
-  for (auto const & stopInfo : stopParams.m_stopsInfo)
-  {
-    if (stopInfo.second.m_name.empty())
-      continue;
-    bool isUnique = true;
-    for (auto const & title : uniqueNames)
-    {
-      if (title.m_text == stopInfo.second.m_name)
-      {
-        isUnique = false;
-        break;
-      }
-    }
-    if (isUnique)
-      uniqueNames.emplace_back(stopInfo.second.m_name);
-  }
-
-  if (uniqueNames.empty())
-    return;
-
-  auto const vs = static_cast<float>(df::VisualParams::Instance().GetVisualScale());
-  auto const featureId = stopParams.m_stopsInfo.begin()->second.m_featureId;
-
-  dp::TitleDecl titleDecl;
-  titleDecl.m_primaryOptional = true;
-  titleDecl.m_primaryTextFont.m_color = df::GetColorConstant(kTransitMarkText);
-  titleDecl.m_primaryTextFont.m_outlineColor = df::GetColorConstant(kTransitMarkTextOutline);
-  titleDecl.m_primaryTextFont.m_size = kTransitMarkTextSize * vs;
-  titleDecl.m_anchor = dp::Left;
-
-  size_t summaryRowsCount = 0;
-  if (uniqueNames.size() > 1)
-  {
-    for (auto & name : uniqueNames)
-    {
-      df::StraightTextLayout layout(strings::MakeUniString(name.m_text), titleDecl.m_primaryTextFont.m_size,
-                                    false /* isSdf */, textures, titleDecl.m_anchor);
-      name.m_pixelSize = layout.GetPixelSize() + m2::PointF(4.0f * vs, 4.0f * vs);
-      name.m_rowsCount = layout.GetRowsCount();
-      summaryRowsCount += layout.GetRowsCount();
-    }
-
-    auto const rightRowsCount = summaryRowsCount > 3 ? (summaryRowsCount + 1) / 2 : summaryRowsCount;
-    float rightHeight = 0.0f;
-    float leftHeight = 0.0f;
-    size_t rowsCount = 0;
-    size_t rightTitlesCount = 0;
-    for (size_t i = 0; i < uniqueNames.size(); ++i)
-    {
-      rowsCount += uniqueNames[i].m_rowsCount;
-      if (rowsCount <= rightRowsCount)
-      {
-        rightHeight += uniqueNames[i].m_pixelSize.y;
-        ++rightTitlesCount;
-      }
-      else
-      {
-        leftHeight += uniqueNames[i].m_pixelSize.y;
-      }
-    }
-
-    float currentHeight = 0.0f;
-    for (size_t i = 0; i < rightTitlesCount; ++i)
-    {
-      uniqueNames[i].m_anchor = dp::Left;
-      uniqueNames[i].m_offset.y = -rightHeight / 2.0f + currentHeight + uniqueNames[i].m_pixelSize.y / 2.0f;
-      currentHeight += uniqueNames[i].m_pixelSize.y;
-    }
-
-    currentHeight = 0.0f;
-    for (size_t i = rightTitlesCount; i < uniqueNames.size(); ++i)
-    {
-      uniqueNames[i].m_anchor = dp::Right;
-      uniqueNames[i].m_offset.y = -leftHeight / 2.0f + currentHeight + uniqueNames[i].m_pixelSize.y / 2.0f;
-      currentHeight += uniqueNames[i].m_pixelSize.y;
-    }
-  }
-
-  auto priority = static_cast<uint16_t>(stopParams.m_isTransfer ? Priority::TransferMin
-                                                                : Priority::StopMin);
-  priority += static_cast<uint16_t>(stopParams.m_stopsInfo.size());
-
-  uint32_t overlayIndex = kStartUserMarkOverlayIndex;
-  for (auto const & name : uniqueNames)
-  {
-    TextViewParams params;
-    params.m_featureID = featureId;
-    params.m_tileCenter = pivot;
-    params.m_titleDecl = titleDecl;
-    params.m_titleDecl.m_primaryText = name.m_text;
-    params.m_titleDecl.m_anchor = name.m_anchor;
-    params.m_depth = kBaseTitleDepth;
-    params.m_depthLayer = RenderState::TransitSchemeLayer;
-    params.m_specialDisplacement = SpecialDisplacement::UserMark;
-    params.m_specialPriority = priority;
-
-    params.m_startOverlayRank = dp::OverlayRank1;
-
-    TileKey tileKey;
-    TextShape(stopParams.m_pivot, params, tileKey, markerSizes, name.m_offset, dp::Center, overlayIndex)
-      .Draw(&batcher, textures);
-
-    //++overlayIndex;
-  }
-
-  df::ColoredSymbolViewParams colorParams;
-  colorParams.m_radiusInPixels = markerSizes.front().x * 0.5f;
-
-  colorParams.m_color = dp::Color::Transparent();
-  colorParams.m_featureID = featureId;
-  colorParams.m_tileCenter = pivot;
-  colorParams.m_depth = kBaseTitleDepth;
-  colorParams.m_depthLayer = RenderState::TransitSchemeLayer;
-  colorParams.m_specialDisplacement = SpecialDisplacement::UserMark;
-  colorParams.m_specialPriority = priority;
-  colorParams.m_startOverlayRank = dp::OverlayRank0;
-
-  TileKey tileKey;
-  ColoredSymbolShape(stopParams.m_pivot, colorParams, tileKey, overlayIndex, markerSizes)
-    .Draw(&batcher, textures);
-
 }
 
 void TransitSchemeBuilder::GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot,

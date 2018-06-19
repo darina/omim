@@ -14,27 +14,39 @@ namespace df
 class TransitSchemeRenderer
 {
 public:
-  TransitSchemeRenderer() = default;
-
   void AddRenderData(ref_ptr<dp::GpuProgramManager> mng, TransitRenderData && renderData);
   void AddMarkersRenderData(ref_ptr<dp::GpuProgramManager> mng, TransitRenderData && renderData);
   void AddTextRenderData(ref_ptr<dp::GpuProgramManager> mng, TransitRenderData && renderData);
   void AddStubsRenderData(ref_ptr<dp::GpuProgramManager> mng, TransitRenderData && renderData);
 
+  bool HasRenderData(int zoomLevel) const;
+
   void RenderTransit(ScreenBase const & screen, int zoomLevel,
                      ref_ptr<dp::GpuProgramManager> mng,
                      dp::UniformValuesStorage const & commonUniforms);
 
-  bool HasRenderData(int zoomLevel) const;
-  void ClearGLDependentResources();
-  void Clear(MwmSet::MwmId const & mwmId);
-
   void CollectOverlays(ref_ptr<dp::OverlayTree> tree, ScreenBase const & modelView);
+
+  void ClearGLDependentResources();
+
+  void Clear(MwmSet::MwmId const & mwmId);
 
 private:
   void PrepareRenderData(ref_ptr<dp::GpuProgramManager> mng, std::vector<TransitRenderData> & currentRenderData,
                          TransitRenderData & newRenderData);
   void ClearRenderData(MwmSet::MwmId const & mwmId, std::vector<TransitRenderData> & renderData);
+
+  void CollectOverlays(ref_ptr<dp::OverlayTree> tree, ScreenBase const & modelView,
+                       std::vector<TransitRenderData> & renderData);
+
+  void RenderLines(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> mng,
+                   dp::UniformValuesStorage const & commonUniforms, float pixelHalfWidth);
+  void RenderMarkers(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> mng,
+                     dp::UniformValuesStorage const & commonUniforms, float pixelHalfWidth);
+  void RenderText(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> mng,
+                  dp::UniformValuesStorage const & commonUniforms);
+  void RenderStubs(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> mng,
+                   dp::UniformValuesStorage const & commonUniforms);
 
   uint32_t m_lastRecacheId;
   std::vector<TransitRenderData> m_renderData;

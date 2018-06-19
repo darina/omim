@@ -123,15 +123,17 @@ private:
 
   void CollectStops(TransitDisplayInfo const & transitDisplayInfo,
                     MwmSet::MwmId const & mwmId, MwmSchemeData & scheme);
+
   void CollectLines(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme);
+
   void CollectShapes(TransitDisplayInfo const & transitDisplayInfo, MwmSchemeData & scheme);
+  void AddShape(TransitDisplayInfo const & transitDisplayInfo, routing::transit::StopId stop1Id,
+                routing::transit::StopId stop2Id, routing::transit::LineId lineId, MwmSchemeData & scheme);
+
   void PrepareScheme(MwmSchemeData & scheme);
 
   void GenerateShapes(MwmSet::MwmId const & mwmId);
   void GenerateStops(MwmSet::MwmId const & mwmId, ref_ptr<dp::TextureManager> textures);
-
-  void GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot, dp::Color const & colorConst,
-                    float lineOffset, float lineHalfWidth, float depth, dp::Batcher & batcher);
 
   void GenerateMarker(m2::PointD const & pt, m2::PointD widthDir, float linesCountWidth, float linesCountHeight,
                       float scaleWidth, float scaleHeight, float depth, dp::Color const & color, dp::Batcher & batcher);
@@ -144,8 +146,8 @@ private:
   void GenerateTitles(StopNodeParams const & params, m2::PointD const & pivot, vector<m2::PointF> const & markerSizes,
                       ref_ptr<dp::TextureManager> textures, dp::Batcher & batcher);
 
-  void AddShape(TransitDisplayInfo const & transitDisplayInfo, routing::transit::StopId stop1Id,
-                routing::transit::StopId stop2Id, routing::transit::LineId lineId, MwmSchemeData & scheme);
+  void GenerateLine(std::vector<m2::PointD> const & path, m2::PointD const & pivot, dp::Color const & colorConst,
+                    float lineOffset, float lineHalfWidth, float depth, dp::Batcher & batcher);
 
   using TransitSchemes = std::map<MwmSet::MwmId, MwmSchemeData>;
   TransitSchemes m_schemes;
