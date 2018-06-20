@@ -202,8 +202,10 @@ public:
   void ClearTrafficCache(MwmSet::MwmId const & mwmId);
   void SetSimplifiedTrafficColors(bool simplified);
 
+  void EnableTransitScheme(bool enable);
   void UpdateTransitScheme(TransitDisplayInfos && transitDisplayInfos,
                            std::vector<MwmSet::MwmId> const & visibleMwms);
+  void ClearTransitSchemeCache(MwmSet::MwmId const & mwmId);
 
   void SetFontScaleFactor(double scaleFactor);
 

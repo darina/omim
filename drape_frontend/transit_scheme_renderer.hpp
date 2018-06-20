@@ -10,6 +10,7 @@
 
 namespace df
 {
+class PostprocessRenderer;
 
 class TransitSchemeRenderer
 {
@@ -23,6 +24,7 @@ public:
 
   void RenderTransit(ScreenBase const & screen, int zoomLevel,
                      ref_ptr<dp::GpuProgramManager> mng,
+                     ref_ptr<PostprocessRenderer> postprocessRenderer,
                      dp::UniformValuesStorage const & commonUniforms);
 
   void CollectOverlays(ref_ptr<dp::OverlayTree> tree, ScreenBase const & modelView);
@@ -48,7 +50,7 @@ private:
   void RenderStubs(ScreenBase const & screen, ref_ptr<dp::GpuProgramManager> mng,
                    dp::UniformValuesStorage const & commonUniforms);
 
-  uint32_t m_lastRecacheId;
+  uint32_t m_lastRecacheId = 0;
   std::vector<TransitRenderData> m_renderData;
   std::vector<TransitRenderData> m_markersRenderData;
   std::vector<TransitRenderData> m_textRenderData;

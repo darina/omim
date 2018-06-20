@@ -1020,12 +1020,42 @@ private:
   bool const m_isSimplified;
 };
 
+class EnableTransitSchemeMessage : public Message
+{
+public:
+  explicit EnableTransitSchemeMessage(bool enable)
+    : m_enable(enable)
+  {}
+
+  Type GetType() const override { return Message::EnableTransitScheme; }
+
+  bool Enable() { return m_enable; }
+
+private:
+  bool m_enable = false;
+};
+
+class ClearTransitSchemeDataMessage : public Message
+{
+public:
+  explicit ClearTransitSchemeDataMessage(MwmSet::MwmId const & mwmId)
+    : m_mwmId(mwmId)
+  {}
+
+  Type GetType() const override { return Message::ClearTransitSchemeData; }
+
+  MwmSet::MwmId const & GetMwmId() { return m_mwmId; }
+
+private:
+  MwmSet::MwmId m_mwmId;
+};
+
 class UpdateTransitSchemeMessage : public Message
 {
 public:
-  explicit UpdateTransitSchemeMessage(TransitDisplayInfos && transitInfos,
-                                      std::vector<MwmSet::MwmId> const & visibleMwms)
-      : m_transitInfos(move(transitInfos)), m_visibleMwms(visibleMwms)
+  UpdateTransitSchemeMessage(TransitDisplayInfos && transitInfos,
+                             std::vector<MwmSet::MwmId> const & visibleMwms)
+    : m_transitInfos(move(transitInfos)), m_visibleMwms(visibleMwms)
   {}
 
   Type GetType() const override { return Message::UpdateTransitScheme; }

@@ -125,6 +125,7 @@ char const kAllow3dKey[] = "Allow3d";
 char const kAllow3dBuildingsKey[] = "Buildings3d";
 char const kAllowAutoZoom[] = "AutoZoom";
 char const kTrafficEnabledKey[] = "TrafficEnabled";
+char const kTransitSchemeEnabledKey[] = "TransitSchemeEnabled";
 char const kTrafficSimplifiedColorsKey[] = "TrafficSimplifiedColors";
 char const kLargeFontsSize[] = "LargeFontsSize";
 char const kTranslitMode[] = "TransliterationMode";
@@ -576,6 +577,7 @@ void Framework::OnCountryFileDownloaded(storage::TCountryId const & countryId, s
       rect = id.GetInfo()->m_limitRect;
   }
   m_trafficManager.Invalidate();
+  m_transitManager.Invalidate();
   m_localAdsManager.OnDownloadCountry(countryId);
   InvalidateRect(rect);
   GetSearchAPI().ClearCaches();
@@ -623,6 +625,7 @@ void Framework::OnMapDeregistered(platform::LocalCountryFile const & localFile)
 
   auto const mwmId = m_model.GetIndex().GetMwmIdByCountryFile(localFile.GetCountryFile());
   m_trafficManager.OnMwmDeregistered(mwmId);
+  m_transitManager.OnMwmDeregistered(mwmId);
 }
 
 bool Framework::HasUnsavedEdits(storage::TCountryId const & countryId)
@@ -2527,6 +2530,26 @@ void Framework::SaveAutoZoom(bool allowAutoZoom)
   settings::Set(kAllowAutoZoom, allowAutoZoom);
 }
 
+void Framework::EnableTransitScheme(bool enable)
+{
+  m_transitManager.EnableTransitSchemeMode(enable);
+  if (m_drapeEngine != nullptr)
+    m_drapeEngine->EnableTransitScheme(enable);
+}
+
+bool Framework::LoadTransitSchemeEnabled()
+{
+  bool enabled;
+  if (!settings::Get(kTransitSchemeEnabledKey, enabled))
+    enabled = true;
+  return enabled;
+}
+
+void Framework::SaveTransitSchemeEnabled(bool enabled)
+{
+  settings::Set(kTransitSchemeEnabledKey, enabled);
+}
+
 void Framework::EnableChoosePositionMode(bool enable, bool enableBounds, bool applyPosition, m2::PointD const & position)
 {
   if (m_drapeEngine != nullptr)
@@ -2650,7 +2673,16 @@ bool Framework::ParseDrapeDebugCommand(string const & query)
     m_drapeEngine->EnableUGCRendering(false /* enabled */);
     return true;
   }
-
+  if (query == "?scheme")
+  {
+    EnableTransitScheme(true /* enable */);
+    return true;
+  }
+  if (query == "?no-scheme")
+  {
+    EnableTransitScheme(false /* enable */);
+    return true;
+  }
   return false;
 }
 

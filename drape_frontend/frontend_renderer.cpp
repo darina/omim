@@ -773,6 +773,21 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       break;
     }
 
+  case Message::EnableTransitScheme:
+    {
+      ref_ptr<EnableTransitSchemeMessage > msg = message;
+      if (!msg->Enable())
+        m_transitSchemeRenderer->ClearGLDependentResources();
+      break;
+    }
+
+  case Message::ClearTransitSchemeData:
+    {
+      ref_ptr<ClearTransitSchemeDataMessage> msg = message;
+      m_transitSchemeRenderer->Clear(msg->GetMwmId());
+      break;
+    }
+
   case Message::EnableTraffic:
     {
       ref_ptr<EnableTrafficMessage> msg = message;
@@ -793,21 +808,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
       m_forceUpdateScene = true;
       break;
     }
-  case Message::RegenerateTransitScheme:
-    {
-      // Remove old scheme.
-      auto removePredicate = [this](drape_ptr<RenderGroup> const & group)
-      {
-        return GetDepthLayer(group->GetState()) == RenderState::TransitSchemeLayer;
-      };
-      for (RenderLayer & layer : m_layers)
-        layer.m_isDirty |= RemoveGroups(removePredicate, layer.m_renderGroups, make_ref(m_overlayTree));
 
-      m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
-                                make_unique_dp<RegenerateTransitMessage>(),
-                                MessagePriority::Normal);
-      break;
-    }
   case Message::InvalidateUserMarks:
     {
       m_forceUpdateUserMarks = true;
@@ -1220,7 +1221,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   if (m_buildingsFramebuffer->IsSupported())
   {
     RenderTrafficLayer(modelView);
-    if (!HasTransitData())
+    if (!HasTransitRouteData())
       RenderRouteLayer(modelView);
     Render3dLayer(modelView, true /* useFramebuffer */);
   }
@@ -1228,7 +1229,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
   {
     Render3dLayer(modelView, false /* useFramebuffer */);
     RenderTrafficLayer(modelView);
-    if (!HasTransitData())
+    if (!HasTransitRouteData())
       RenderRouteLayer(modelView);
   }
 
@@ -1268,7 +1269,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
                              m_generalUniforms);
   }
 
-  if (HasTransitData())
+  if (HasTransitRouteData())
     RenderRouteLayer(modelView);
 
   {
@@ -1279,7 +1280,8 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView)
     RenderSearchMarksLayer(modelView);
   }
 
-  RenderTransitSchemeLayer(modelView);
+  if (!HasTransitRouteData())
+    RenderTransitSchemeLayer(modelView);
 
   m_myPositionController->Render(modelView, m_currentZoomLevel, make_ref(m_gpuProgramManager),
                                  m_generalUniforms);
@@ -1369,7 +1371,7 @@ void FrontendRenderer::RenderNavigationOverlayLayer(ScreenBase const & modelView
   }
 }
 
-bool FrontendRenderer::HasTransitData()
+bool FrontendRenderer::HasTransitRouteData()
 {
   return m_routeRenderer->HasTransitData();
 }
@@ -1382,8 +1384,8 @@ void FrontendRenderer::RenderTransitSchemeLayer(ScreenBase const & modelView)
   {
     RenderTransitBackground();
     GLFunctions::glEnable(gl_const::GLDepthTest);
-    m_transitSchemeRenderer->RenderTransit(modelView, m_currentZoomLevel,
-                                           make_ref(m_gpuProgramManager), m_generalUniforms);
+    m_transitSchemeRenderer->RenderTransit(modelView, m_currentZoomLevel, make_ref(m_gpuProgramManager),
+                                           make_ref(m_postprocessRenderer), m_generalUniforms);
   }
   GLFunctions::glDisable(gl_const::GLDepthTest);
 }
@@ -1420,7 +1422,7 @@ void FrontendRenderer::RenderTransitBackground()
 
 void FrontendRenderer::RenderRouteLayer(ScreenBase const & modelView)
 {
-  if (HasTransitData())
+  if (HasTransitRouteData())
     RenderTransitBackground();
 
   GLFunctions::glClear(gl_const::GLDepthBit);
@@ -1481,7 +1483,7 @@ void FrontendRenderer::BuildOverlayTree(ScreenBase const & modelView)
     for (drape_ptr<RenderGroup> & group : overlay.m_renderGroups)
       UpdateOverlayTree(modelView, group);
   }
-  if (m_transitSchemeRenderer->HasRenderData(m_currentZoomLevel))
+  if (m_transitSchemeRenderer->HasRenderData(m_currentZoomLevel) && !HasTransitRouteData())
     m_transitSchemeRenderer->CollectOverlays(make_ref(m_overlayTree), modelView);
   EndUpdateOverlayTree();
 }

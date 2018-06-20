@@ -339,6 +339,7 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
       m_texMng->OnSwitchMapStyle();
       RecacheMapShapes();
       m_trafficGenerator->InvalidateTexturesCache();
+      m_transitBuilder->BuildScheme(m_texMng);
       break;
     }
 
@@ -440,9 +441,7 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
       ref_ptr<UpdateTransitSchemeMessage> msg = message;
       m_transitBuilder->SetVisibleMwms(msg->GetVisibleMwms());
       m_transitBuilder->UpdateScheme(msg->GetTransitDisplayInfos());
-      m_commutator->PostMessage(ThreadsCommutator::RenderThread,
-                                make_unique_dp<RegenerateTransitMessage>(),
-                                MessagePriority::Normal);
+      m_transitBuilder->BuildScheme(m_texMng);
       break;
     }
 
@@ -452,6 +451,26 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
       break;
     }
 
+  case Message::ClearTransitSchemeData:
+    {
+      ref_ptr<ClearTransitSchemeDataMessage> msg = message;
+      m_transitBuilder->Clear(msg->GetMwmId());
+      m_commutator->PostMessage(ThreadsCommutator::RenderThread,
+                                make_unique_dp<ClearTransitSchemeDataMessage>(msg->GetMwmId()),
+                                MessagePriority::Normal);
+      break;
+    }
+
+  case Message::EnableTransitScheme:
+    {
+      ref_ptr<EnableTransitSchemeMessage> msg = message;
+      if (!msg->Enable())
+        m_transitBuilder->Clear();
+      m_commutator->PostMessage(ThreadsCommutator::RenderThread,
+                                make_unique_dp<EnableTransitSchemeMessage>(msg->Enable()),
+                                MessagePriority::Normal);
+      break;
+    }
   case Message::DrapeApiAddLines:
     {
       ref_ptr<DrapeApiAddLinesMessage> msg = message;

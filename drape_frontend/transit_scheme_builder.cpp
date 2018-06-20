@@ -265,11 +265,23 @@ void TransitSchemeBuilder::UpdateScheme(TransitDisplayInfos const & transitDispl
   }
 }
 
+void TransitSchemeBuilder::Clear()
+{
+  m_schemes.clear();
+}
+
+void TransitSchemeBuilder::Clear(MwmSet::MwmId const & mwmId)
+{
+  m_schemes.erase(mwmId);
+}
+
 void TransitSchemeBuilder::BuildScheme(ref_ptr<dp::TextureManager> textures)
 {
   ++m_recacheId;
   for (auto const & mwmId : m_visibleMwms)
   {
+    if (m_schemes.find(mwmId) == m_schemes.end())
+      continue;
     GenerateShapes(mwmId);
     GenerateStops(mwmId, textures);
   }

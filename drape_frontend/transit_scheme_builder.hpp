@@ -107,8 +107,12 @@ public:
   {}
 
   void SetVisibleMwms(std::vector<MwmSet::MwmId> const & visibleMwms);
+
   void UpdateScheme(TransitDisplayInfos const & transitDisplayInfos);
   void BuildScheme(ref_ptr<dp::TextureManager> textures);
+
+  void Clear();
+  void Clear(MwmSet::MwmId const & mwmId);
 
 private:
   struct MwmSchemeData

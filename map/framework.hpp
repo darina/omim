@@ -748,6 +748,10 @@ public:
   bool LoadTrafficSimplifiedColors();
   void SaveTrafficSimplifiedColors(bool simplified);
 
+  void EnableTransitScheme(bool enable);
+  bool LoadTransitSchemeEnabled();
+  void SaveTransitSchemeEnabled(bool enabled);
+
 public:
   template <typename ResultCallback>
   uint32_t Discover(discovery::ClientParams && params, ResultCallback const & onResult,

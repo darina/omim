@@ -20,6 +20,16 @@ using namespace std;
 namespace
 {
 int constexpr kMinSchemeZoomLevel = 10;
+size_t constexpr kMaxTransitCacheSizeBytes = 5 /* Mb */ * 1024 * 1024;
+
+size_t CalculateCacheSize(TransitDisplayInfo const & transitInfo)
+{
+  size_t const kSegmentSize = 72;
+  size_t cacheSize = 0;
+  for (auto const & shape : transitInfo.m_shapes)
+    cacheSize += shape.second.GetPolyline().size() * kSegmentSize;
+  return cacheSize;
+}
 }  // namespace
 
 // ReadTransitTask --------------------------------------------------------------------------------
@@ -158,6 +168,24 @@ void TransitReadManager::SetDrapeEngine(ref_ptr<df::DrapeEngine> engine)
   m_drapeEngine.Set(engine);
 }
 
+void TransitReadManager::EnableTransitSchemeMode(bool enable)
+{
+  if (m_isSchemeMode == enable)
+    return;
+  m_isSchemeMode = enable;
+  if (!m_isSchemeMode)
+  {
+    m_lastVisibleMwms.clear();
+    m_lastActiveMwms.clear();
+    m_mwmCache.clear();
+    m_cacheSize = 0;
+  }
+  else
+  {
+    Invalidate();
+  }
+}
+
 void TransitReadManager::UpdateViewport(ScreenBase const & screen)
 {
   m_currentModelView = {screen, true /* initialized */};
@@ -173,21 +201,89 @@ void TransitReadManager::UpdateViewport(ScreenBase const & screen)
     return;
 
   m_lastVisibleMwms = mwms;
+  m_lastActiveMwms.clear();
 
+  auto const currentTime = steady_clock::now();
   TransitDisplayInfos displayInfos;
   for (auto const & mwmId : mwms)
   {
-    if (mwmId.IsAlive() && m_transitDisplayCache.find(mwmId) == m_transitDisplayCache.end())
+    if (!mwmId.IsAlive())
+      continue;
+    m_lastActiveMwms.insert(mwmId);
+    auto it = m_mwmCache.find(mwmId);
+    if (it == m_mwmCache.end())
     {
       displayInfos[mwmId] = {};
-      m_transitDisplayCache[mwmId] = nullptr;
+      m_mwmCache.insert(make_pair(mwmId, CacheEntry(currentTime)));
+    }
+    else
+    {
+      it->second.m_lastActiveTime = currentTime;
     }
   }
   GetTransitDisplayInfo(displayInfos);
   if (!displayInfos.empty())
   {
+    for (auto const & transitInfo : displayInfos)
+    {
+      if (transitInfo.second != nullptr)
+      {
+        auto it = m_mwmCache.find(transitInfo.first);
+        it->second.m_isLoaded = true;
+        it->second.m_dataSize = CalculateCacheSize(*transitInfo.second);
+        m_cacheSize += it->second.m_dataSize;
+
+      }
+    }
+    ShrinkCacheToAllowableSize();
     m_drapeEngine.SafeCall(&df::DrapeEngine::UpdateTransitScheme,
                            std::move(displayInfos), mwms);
+  }
+}
+
+void TransitReadManager::ClearCache(MwmSet::MwmId const & mwmId)
+{
+  auto it = m_mwmCache.find(mwmId);
+  if (it == m_mwmCache.end())
+    return;
+  m_cacheSize -= it->second.m_dataSize;
+  m_mwmCache.erase(it);
+  m_drapeEngine.SafeCall(&df::DrapeEngine::ClearTransitSchemeCache, mwmId);
+}
+
+void TransitReadManager::OnMwmDeregistered(MwmSet::MwmId const & mwmId)
+{
+  ClearCache(mwmId);
+}
+
+void TransitReadManager::Invalidate()
+{
+  if (!m_isSchemeMode)
+    return;
+
+  m_lastVisibleMwms.clear();
+
+  if (m_currentModelView.second)
+    UpdateViewport(m_currentModelView.first);
+}
+
+void TransitReadManager::ShrinkCacheToAllowableSize()
+{
+  using namespace std::chrono;
+  if (m_cacheSize > kMaxTransitCacheSizeBytes)
+  {
+    std::multimap<time_point<steady_clock>, MwmSet::MwmId> seenTimings;
+    for (auto const & entry : m_mwmCache)
+    {
+      if (entry.second.m_isLoaded && m_lastActiveMwms.count(entry.first) == 0)
+        seenTimings.insert(make_pair(entry.second.m_lastActiveTime, entry.first));
+    }
+
+    while (m_cacheSize > kMaxTransitCacheSizeBytes && !seenTimings.empty())
+    {
+      ClearCache(seenTimings.begin()->second);
+      seenTimings.erase(seenTimings.begin());
+    }
   }
 }
 
@@ -218,16 +314,17 @@ bool TransitReadManager::GetTransitDisplayInfo(TransitDisplayInfos & transitDisp
   m_tasksGroups.erase(groupId);
   lock.unlock();
 
+  bool result = true;
   for (auto const & transitTask : transitTasks)
   {
     if (!transitTask.second->GetSuccess())
-      return false;
-  }
-
-  for (auto const & transitTask : transitTasks)
+    {
+      result = false;
+      continue;
+    }
     transitDisplayInfos[transitTask.first] = transitTask.second->GetTransitInfo();
-
-  return true;
+  }
+  return result;
 }
 
 void TransitReadManager::OnTaskCompleted(threads::IRoutine * task)

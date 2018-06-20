@@ -12,12 +12,14 @@
 #include "base/thread.hpp"
 #include "base/thread_pool.hpp"
 
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -90,13 +92,16 @@ public:
 
   bool GetTransitDisplayInfo(TransitDisplayInfos & transitDisplayInfos);
 
+  void EnableTransitSchemeMode(bool enable);
   void UpdateViewport(ScreenBase const & screen);
-
-  // TODO(@darina) Clear cache for deleted mwm.
-  //void OnMwmDeregistered(MwmSet::MwmId const & mwmId);
+  void OnMwmDeregistered(MwmSet::MwmId const & mwmId);
+  void Invalidate();
 
 private:
   void OnTaskCompleted(threads::IRoutine * task);
+
+  void ShrinkCacheToAllowableSize();
+  void ClearCache(MwmSet::MwmId const & mwmId);
 
   std::unique_ptr<threads::ThreadPool> m_threadsPool;
 
@@ -108,13 +113,25 @@ private:
 
   Index & m_index;
   TReadFeaturesFn m_readFeaturesFn;
-  // TODO(@darina) In case of reading the whole mwm transit section, save it in the cache for transit scheme rendering.
-  TransitDisplayInfos m_transitDisplayCache;
 
   df::DrapeEngineSafePtr m_drapeEngine;
 
+  struct CacheEntry
+  {
+    CacheEntry(std::chrono::time_point<std::chrono::steady_clock> const & activeTime)
+      : m_lastActiveTime(activeTime)
+    {}
+
+    bool m_isLoaded = false;
+    size_t m_dataSize = 0;
+    std::chrono::time_point<std::chrono::steady_clock> m_lastActiveTime;
+  };
+
   GetMwmsByRectFn m_getMwmsByRectFn;
-  vector<MwmSet::MwmId> m_lastVisibleMwms;
-  bool m_isSchemeMode = true;
+  std::vector<MwmSet::MwmId> m_lastVisibleMwms;
+  std::set<MwmSet::MwmId> m_lastActiveMwms;
+  std::map<MwmSet::MwmId, CacheEntry> m_mwmCache;
+  size_t m_cacheSize = 0;
+  bool m_isSchemeMode = false;
   pair<ScreenBase, bool> m_currentModelView = {ScreenBase(), false /* initialized */};
 };

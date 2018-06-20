@@ -1,11 +1,12 @@
 #include "drape_frontend/transit_scheme_renderer.hpp"
 
+#include "drape_frontend/postprocess_renderer.hpp"
+#include "drape_frontend/shader_def.hpp"
 #include "drape_frontend/shape_view_params.hpp"
 #include "drape_frontend/visual_params.hpp"
 
 #include "drape/overlay_tree.hpp"
 #include "drape/vertex_array_buffer.hpp"
-#include "shader_def.hpp"
 
 namespace df
 {
@@ -102,6 +103,7 @@ void TransitSchemeRenderer::PrepareRenderData(ref_ptr<dp::GpuProgramManager> mng
 
 void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLevel,
                                           ref_ptr<dp::GpuProgramManager> mng,
+                                          ref_ptr<PostprocessRenderer> postprocessRenderer,
                                           dp::UniformValuesStorage const & commonUniforms)
 {
   if (!HasRenderData(zoomLevel))
@@ -111,7 +113,10 @@ void TransitSchemeRenderer::RenderTransit(ScreenBase const & screen, int zoomLev
 
   RenderLines(screen, mng, commonUniforms, pixelHalfWidth);
   RenderMarkers(screen, mng, commonUniforms, pixelHalfWidth);
-  RenderText(screen, mng, commonUniforms);
+  {
+    StencilWriterGuard guard(postprocessRenderer);
+    RenderText(screen, mng, commonUniforms);
+  }
   RenderStubs(screen, mng, commonUniforms);
 }
 
