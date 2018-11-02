@@ -27,7 +27,7 @@ bool IsEqual(std::vector<m2::PointD> const & v1, std::vector<m2::PointD> const &
   return true;
 }
 
-std::string GetPreferredBookmarkStr(LocalizableString const & name, std::string const & languageNorm)
+std::string GetPreferredBookmarkStr(coding::LocalizableString const & name, std::string const & languageNorm)
 {
   if (name.size() == 1)
     return name.begin()->second;
@@ -45,7 +45,7 @@ std::string GetPreferredBookmarkStr(LocalizableString const & name, std::string 
   return {};
 }
 
-std::string GetPreferredBookmarkStr(LocalizableString const & name, feature::RegionData const & regionData,
+std::string GetPreferredBookmarkStr(coding::LocalizableString const & name, feature::RegionData const & regionData,
                                     std::string const & languageNorm)
 {
   if (name.size() == 1)

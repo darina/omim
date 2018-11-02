@@ -3,6 +3,7 @@
 #include "descriptions/serdes.hpp"
 
 #include "indexer/feature_decl.hpp"
+#include "indexer/mwm_set.hpp"
 
 #include <map>
 #include <memory>
@@ -16,9 +17,9 @@ namespace descriptions
 class Loader
 {
 public:
-  Loader(DataSource const & dataSource) : m_dataSource(dataSource) {}
+  explicit Loader(DataSource const & dataSource) : m_dataSource(dataSource) {}
 
-  bool GetDescription(FeatureID const & featureId, std::vector<uint8_t> const & langPriority,
+  bool GetDescription(FeatureID const & featureId, std::vector<int8_t> const & langPriority,
                       std::string & description);
 
 private:

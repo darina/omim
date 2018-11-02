@@ -2,22 +2,24 @@
 
 #include "indexer/data_source.hpp"
 
+#include "base/assert.hpp"
+
 #include "defines.hpp"
 
 namespace descriptions
 {
-bool Loader::GetDescription(FeatureID const & featureId, std::vector<uint8_t> const & langPriority,
+bool Loader::GetDescription(FeatureID const & featureId, std::vector<int8_t> const & langPriority,
                             std::string & description)
 {
   auto const handle = m_dataSource.GetMwmHandleById(featureId.m_mwmId);
 
   if (!handle.IsAlive())
-    return {};
+    return false;
 
   auto const & value = *handle.GetValue<MwmValue>();
 
   if (!value.m_cont.IsExist(DESCRIPTIONS_FILE_TAG))
-    return {};
+    return false;
 
   EntryPtr entry;
   {
@@ -26,7 +28,7 @@ bool Loader::GetDescription(FeatureID const & featureId, std::vector<uint8_t> co
 
     if (it == m_deserializers.end())
     {
-      auto const result = m_deserializers.emplace(featureId.m_mwmId, make_shared<Entry>());
+      auto const result = m_deserializers.emplace(featureId.m_mwmId, std::make_shared<Entry>());
       it = result.first;
     }
     entry = it->second;

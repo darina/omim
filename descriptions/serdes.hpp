@@ -8,15 +8,20 @@
 #include "coding/localizable_string.hpp"
 #include "coding/text_storage.hpp"
 
+#include "base/assert.hpp"
+
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
 #include <map>
-#include <set>
 #include <string>
+#include <vector>
 
 namespace descriptions
 {
 using FeatureIndex = uint32_t;
 using StringIndex = uint32_t;
-using LangCode = uint8_t;
+using LangCode = int8_t;
 
 enum class Version : uint8_t
 {
@@ -24,12 +29,12 @@ enum class Version : uint8_t
   Latest = V0
 };
 
-using DescriptionsCollection = std::map<FeatureIndex, LocalizableString>;
+using DescriptionsCollection = std::map<FeatureIndex, coding::LocalizableString>;
 
 class Serializer
 {
 public:
-  Serializer(DescriptionsCollection && descriptions);
+  explicit Serializer(DescriptionsCollection && descriptions);
 
   template <typename Sink>
   void Serialize(Sink & sink)
@@ -67,7 +72,7 @@ public:
   template <typename Sink>
   void SerializeStringIndex(Sink & sink)
   {
-    WriteLocalizableStringIndex(sink, m_index);
+    coding::WriteLocalizableStringIndex(sink, m_index);
   }
 
   // Serializes strings in a compressed storage with block access.
@@ -81,33 +86,34 @@ public:
 
 private:
   std::vector<FeatureIndex> m_featureIndices;
-  LocalizableStringIndex m_index;
+  coding::LocalizableStringIndex m_index;
   std::vector<std::string> m_stringsCollection;
 };
 
 class Deserializer
 {
 public:
-  template <typename R>
-  bool Deserialize(R & reader, FeatureIndex featureIndex, std::vector<LangCode> const & langPriority,
+  template <typename Reader>
+  bool Deserialize(Reader & reader, FeatureIndex featureIndex, std::vector<LangCode> const & langPriority,
                    std::string & description)
   {
     NonOwningReaderSource source(reader);
     auto const version = static_cast<Version>(ReadPrimitiveFromSource<uint8_t>(source));
 
     auto subReader = reader.CreateSubReader(source.Pos(), source.Size());
+    CHECK(subReader, ());
 
     switch (version)
     {
     case Version::V0: return DeserializeV0(*subReader, featureIndex, langPriority, description);
-    default: ASSERT(false, ("Cannot deserialize descriptions for version", static_cast<uint8_t>(version)));
     }
+    CHECK_SWITCH();
 
     return false;
   }
 
-  template <typename R>
-  bool DeserializeV0(R & reader, FeatureIndex featureIndex, std::vector<LangCode> const & langPriority,
+  template <typename Reader>
+  bool DeserializeV0(Reader & reader, FeatureIndex featureIndex, std::vector<LangCode> const & langPriority,
                      std::string & description)
   {
     InitializeIfNeeded(reader);
@@ -120,15 +126,16 @@ public:
       if (it == ids.end() || *it != featureIndex)
         return false;
 
-      d = static_cast<uint32_t>(distance(ids.begin(), it));
+      d = static_cast<uint32_t>(std::distance(ids.begin(), it));
     }
 
-    LocalizableStringSubIndex subIndex;
+    coding::LocalizableStringSubIndex subIndex;
     {
-      LocalizableStringIndex index;
+      coding::LocalizableStringIndex index;
       auto indexSubReader = CreateStringsIndexSubReader(reader);
       NonOwningReaderSource source(*indexSubReader);
-      ReadLocalizableStringIndex(source, index);
+      coding::ReadLocalizableStringIndex(source, index);
+      CHECK(d < index.size(), ());
       subIndex = index[d];
     }
 
@@ -146,27 +153,15 @@ public:
     return false;
   }
 
-  uint64_t GetNumDescriptions()
-  {
-    ASSERT(m_initialized, ());
-
-    ASSERT_GREATER_OR_EQUAL(m_header.m_stringsIndexOffset, m_header.m_featuresOffset, ());
-    auto const totalSize = m_header.m_stringsIndexOffset - m_header.m_featuresOffset;
-
-    size_t constexpr kIndexOffset = sizeof(FeatureIndex);
-    ASSERT(totalSize % kIndexOffset == 0, (totalSize));
-
-    return totalSize / kIndexOffset;
-  }
-
   template <typename R>
   std::unique_ptr<Reader> CreateFeatureIndicesSubReader(R & reader)
   {
     ASSERT(m_initialized, ());
 
     auto const pos = m_header.m_featuresOffset;
-    auto const n = GetNumDescriptions();
-    return reader.CreateSubReader(pos, n * sizeof(FeatureIndex));
+    ASSERT_GREATER_OR_EQUAL(m_header.m_stringsIndexOffset, pos, ());
+    auto const size = m_header.m_stringsIndexOffset - pos;
+    return reader.CreateSubReader(pos, size);
   }
 
   template <typename R>

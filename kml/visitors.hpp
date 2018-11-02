@@ -101,10 +101,10 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, LocalizableString const & str,
+  void Collect(coding::LocalizableStringIndex & index, coding::LocalizableString const & str,
                OtherStrings const & ... args)
   {
-    index.emplace_back(LocalizableStringSubIndex());
+    index.emplace_back(coding::LocalizableStringSubIndex());
     for (auto const & p : str)
       CollectString(index.back(), p.first, p.second);
 
@@ -112,22 +112,22 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, std::string const & str,
+  void Collect(coding::LocalizableStringIndex & index, std::string const & str,
                OtherStrings const & ... args)
   {
     int8_t constexpr kFakeIndex = 0;
-    index.emplace_back(LocalizableStringSubIndex());
+    index.emplace_back(coding::LocalizableStringSubIndex());
     CollectString(index.back(), kFakeIndex, str);
 
     Collect(index, args...);
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index,
+  void Collect(coding::LocalizableStringIndex & index,
                std::vector<std::string> const & stringsArray,
                OtherStrings const & ... args)
   {
-    index.emplace_back(LocalizableStringSubIndex());
+    index.emplace_back(coding::LocalizableStringSubIndex());
     auto constexpr kMaxSize = static_cast<size_t>(std::numeric_limits<int8_t>::max());
     auto const sz = std::min(stringsArray.size(), kMaxSize);
     for (size_t i = 0; i < sz; ++i)
@@ -137,10 +137,10 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, Properties const & properties,
+  void Collect(coding::LocalizableStringIndex & index, Properties const & properties,
                OtherStrings const & ... args)
   {
-    index.emplace_back(LocalizableStringSubIndex());
+    index.emplace_back(coding::LocalizableStringSubIndex());
     auto constexpr kMaxSize = std::numeric_limits<int8_t>::max() - 1;
     int8_t counter = 0;
     for (auto const & p : properties)
@@ -155,12 +155,12 @@ public:
   }
 
   template <typename...>
-  void Collect(LocalizableStringIndex & index) {}
+  void Collect(coding::LocalizableStringIndex & index) {}
 
   std::vector<std::string> && StealCollection() { return std::move(m_collection); }
 
 private:
-  void CollectString(LocalizableStringSubIndex & subIndex, int8_t code,
+  void CollectString(coding::LocalizableStringSubIndex & subIndex, int8_t code,
                      std::string const & str)
   {
     if (str.empty())
@@ -217,9 +217,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(LocalizableStringIndex const & index, char const * /* name */ = nullptr)
+  void operator()(coding::LocalizableStringIndex const & index, char const * /* name */ = nullptr)
   {
-    WriteLocalizableStringIndex(m_sink, index);
+    coding::WriteLocalizableStringIndex(m_sink, index);
   }
 
   void operator()(bool b, char const * /* name */ = nullptr)
@@ -271,7 +271,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(LocalizableString const &)
+  SKIP_VISITING(coding::LocalizableString const &)
   SKIP_VISITING(std::string const &)
   SKIP_VISITING(std::vector<std::string> const &)
   SKIP_VISITING(Properties const &)
@@ -292,9 +292,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(LocalizableStringIndex const & index, char const * /* name */ = nullptr)
+  void operator()(coding::LocalizableStringIndex const & index, char const * /* name */ = nullptr)
   {
-    WriteLocalizableStringIndex(m_sink, index);
+    coding::WriteLocalizableStringIndex(m_sink, index);
   }
 
   void operator()(bool b, char const * /* name */ = nullptr)
@@ -363,7 +363,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(LocalizableString const &)
+  SKIP_VISITING(coding::LocalizableString const &)
   SKIP_VISITING(std::string const &)
   SKIP_VISITING(std::vector<std::string> const &)
   SKIP_VISITING(Properties const &)
@@ -382,9 +382,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(LocalizableStringIndex & index, char const * /* name */ = nullptr)
+  void operator()(coding::LocalizableStringIndex & index, char const * /* name */ = nullptr)
   {
-    ReadLocalizableStringIndex(m_source, index);
+    coding::ReadLocalizableStringIndex(m_source, index);
   }
 
   void operator()(bool & b, char const * /* name */ = nullptr)
@@ -441,7 +441,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(LocalizableString &)
+  SKIP_VISITING(coding::LocalizableString &)
   SKIP_VISITING(std::string &)
   SKIP_VISITING(std::vector<std::string> &)
   SKIP_VISITING(Properties &)
@@ -462,9 +462,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(LocalizableStringIndex & index, char const * /* name */ = nullptr)
+  void operator()(coding::LocalizableStringIndex & index, char const * /* name */ = nullptr)
   {
-    ReadLocalizableStringIndex(m_source, index);
+    coding::ReadLocalizableStringIndex(m_source, index);
   }
 
   void operator()(bool & b, char const * /* name */ = nullptr)
@@ -543,7 +543,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(LocalizableString &)
+  SKIP_VISITING(coding::LocalizableString &)
   SKIP_VISITING(std::string &)
   SKIP_VISITING(std::vector<std::string> &)
   SKIP_VISITING(Properties &)
@@ -562,7 +562,7 @@ public:
   {}
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, LocalizableString & str,
+  void Collect(coding::LocalizableStringIndex & index, coding::LocalizableString & str,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -577,7 +577,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, std::string & str,
+  void Collect(coding::LocalizableStringIndex & index, std::string & str,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -594,7 +594,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index,
+  void Collect(coding::LocalizableStringIndex & index,
                std::vector<std::string> & stringsArray,
                OtherStrings & ... args)
   {
@@ -611,7 +611,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(LocalizableStringIndex & index, Properties & properties,
+  void Collect(coding::LocalizableStringIndex & index, Properties & properties,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -630,10 +630,10 @@ public:
   }
 
   template <typename...>
-  void Collect(LocalizableStringIndex & index) {}
+  void Collect(coding::LocalizableStringIndex & index) {}
 
 private:
-  bool SwitchSubIndexIfNeeded(LocalizableStringIndex & index)
+  bool SwitchSubIndexIfNeeded(coding::LocalizableStringIndex & index)
   {
     if (m_lastIndex != &index)
     {
@@ -653,7 +653,7 @@ private:
   }
 
   coding::BlockedTextStorage<Reader> & m_textStorage;
-  LocalizableStringIndex * m_lastIndex = nullptr;
+  coding::LocalizableStringIndex * m_lastIndex = nullptr;
   size_t m_counter = 0;
 };
 }  // namespace binary

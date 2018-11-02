@@ -1,5 +1,7 @@
 #include "descriptions/serdes.hpp"
 
+#include <utility>
+
 namespace descriptions
 {
 Serializer::Serializer(DescriptionsCollection && descriptions)
@@ -14,7 +16,7 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
     stringsCount += pair.second.size();
     m_featureIndices.push_back(pair.first);
 
-    LocalizableStringSubIndex subIndex;
+    coding::LocalizableStringSubIndex subIndex;
     for (auto & translate : pair.second)
     {
       auto & group = groupedByLang[translate.first];
@@ -41,5 +43,4 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
       translate.second += indicesOffsets[translate.first];
   }
 }
-}  // descriptions
-
+}  // namespace descriptions

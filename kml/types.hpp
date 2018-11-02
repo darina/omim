@@ -163,7 +163,7 @@ struct BookmarkData
                                   visitor(m_boundTracks, "boundTracks"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_description, m_customName)
+  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_description, m_customName)
 
   bool operator==(BookmarkData const & data) const
   {
@@ -184,13 +184,13 @@ struct BookmarkData
   // Unique id (it will not be serialized in text files).
   MarkId m_id = kInvalidMarkId;
   // Bookmark's name.
-  LocalizableString m_name;
+  coding::LocalizableString m_name;
   // Bookmark's description.
-  LocalizableString m_description;
+  coding::LocalizableString m_description;
   // Bound feature's types.
   std::vector<uint32_t> m_featureTypes;
   // Custom bookmark's name.
-  LocalizableString m_customName;
+  coding::LocalizableString m_customName;
   // Bookmark's color.
   ColorData m_color;
   // Bookmark's icon.
@@ -235,7 +235,7 @@ struct TrackData
                                   visitor(m_points, "points"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_description)
+  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_description)
 
   bool operator==(TrackData const & data) const
   {
@@ -251,9 +251,9 @@ struct TrackData
   // Local track id.
   LocalId m_localId = 0;
   // Track's name.
-  LocalizableString m_name;
+  coding::LocalizableString m_name;
   // Track's description.
-  LocalizableString m_description;
+  coding::LocalizableString m_description;
   // Layers.
   std::vector<TrackLayer> m_layers;
   // Creation timestamp.
@@ -282,7 +282,7 @@ struct CategoryData
                                   visitor(m_properties, "properties"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_annotation, m_description,
+  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_annotation, m_description,
                       m_imageUrl, m_authorName, m_authorId, m_tags, m_properties)
 
   bool operator==(CategoryData const & data) const
@@ -303,13 +303,13 @@ struct CategoryData
   // Unique id (it will not be serialized in text files).
   MarkGroupId m_id = kInvalidMarkGroupId;
   // Category's name.
-  LocalizableString m_name;
+  coding::LocalizableString m_name;
   // Image URL.
   std::string m_imageUrl;
   // Category's description.
-  LocalizableString m_annotation;
+  coding::LocalizableString m_annotation;
   // Category's description.
-  LocalizableString m_description;
+  coding::LocalizableString m_description;
   // Collection visibility.
   bool m_visible = true;
   // Author's name.

@@ -130,12 +130,12 @@ std::string Bookmark::GetPreferredName() const
   return GetPreferredBookmarkName(m_data);
 }
 
-LocalizableString Bookmark::GetName() const
+coding::LocalizableString Bookmark::GetName() const
 {
   return m_data.m_name;
 }
 
-void Bookmark::SetName(LocalizableString const & name)
+void Bookmark::SetName(coding::LocalizableString const & name)
 {
   SetDirty();
   m_data.m_name = name;

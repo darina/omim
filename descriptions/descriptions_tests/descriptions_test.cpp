@@ -5,6 +5,10 @@
 #include "coding/reader.hpp"
 #include "coding/writer.hpp"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 using namespace descriptions;
 
 UNIT_TEST(Descriptions_SerDes)
