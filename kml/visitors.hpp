@@ -3,6 +3,7 @@
 #include "kml/types.hpp"
 
 #include "coding/geometry_coding.hpp"
+#include "coding/localizable_string.hpp"
 #include "coding/point_to_integer.hpp"
 #include "coding/pointd_to_pointu.hpp"
 #include "coding/text_storage.hpp"
@@ -180,39 +181,6 @@ private:
 
 namespace binary
 {
-template <typename Sink>
-inline void WriteLocalizableStringIndex(Sink & sink, LocalizableStringIndex const & index)
-{
-  WriteVarUint(sink, static_cast<uint32_t>(index.size()));
-  for (auto const & subIndex : index)
-  {
-    WriteVarUint(sink, static_cast<uint32_t>(subIndex.size()));
-    for (auto const & p : subIndex)
-    {
-      WriteToSink(sink, p.first);
-      WriteVarUint(sink, p.second);
-    }
-  }
-}
-
-template <typename Source>
-inline void ReadLocalizableStringIndex(Source & source, LocalizableStringIndex & index)
-{
-  auto const indexSize = ReadVarUint<uint32_t, Source>(source);
-  index.reserve(indexSize);
-  for (uint32_t i = 0; i < indexSize; ++i)
-  {
-    index.emplace_back(LocalizableStringSubIndex());
-    auto const subIndexSize = ReadVarUint<uint32_t, Source>(source);
-    for (uint32_t j = 0; j < subIndexSize; ++j)
-    {
-      auto const lang = ReadPrimitiveFromSource<int8_t>(source);
-      auto const strIndex = ReadVarUint<uint32_t, Source>(source);
-      index.back()[lang] = strIndex;
-    }
-  }
-}
-
 template <typename Sink>
 inline void WritePointU(Sink & sink, m2::PointU const & pt)
 {

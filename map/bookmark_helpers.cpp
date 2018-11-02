@@ -453,12 +453,12 @@ void SaveFeatureTypes(feature::TypesHolder const & types, kml::BookmarkData & bm
   }
 }
 
-std::string GetPreferredBookmarkStr(kml::LocalizableString const & name)
+std::string GetPreferredBookmarkStr(LocalizableString const & name)
 {
   return kml::GetPreferredBookmarkStr(name, languages::GetCurrentNorm());
 }
 
-std::string GetPreferredBookmarkStr(kml::LocalizableString const & name, feature::RegionData const & regionData)
+std::string GetPreferredBookmarkStr(LocalizableString const & name, feature::RegionData const & regionData)
 {
   return kml::GetPreferredBookmarkStr(name, regionData, languages::GetCurrentNorm());
 }

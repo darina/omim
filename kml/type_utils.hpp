@@ -2,6 +2,8 @@
 
 #include "indexer/feature.hpp"
 
+#include "coding/localizable_string.hpp"
+
 #include "geometry/point2d.hpp"
 
 #include <cstdint>
@@ -17,9 +19,6 @@
 namespace kml
 {
 using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
-using LocalizableString = std::unordered_map<int8_t, std::string>;
-using LocalizableStringSubIndex = std::map<int8_t, uint32_t>;
-using LocalizableStringIndex = std::vector<LocalizableStringSubIndex>;
 using Properties = std::map<std::string, std::string>;
 
 using MarkGroupId = uint64_t;
