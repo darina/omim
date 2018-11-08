@@ -24,8 +24,8 @@ public:
 
   std::string GetPreferredName() const;
 
-  coding::LocalizableString GetName() const;
-  void SetName(coding::LocalizableString const & name);
+  kml::LocalizableString GetName() const;
+  void SetName(kml::LocalizableString const & name);
   void SetName(std::string const & name, int8_t langCode);
 
   std::string GetCustomName() const;

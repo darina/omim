@@ -50,7 +50,7 @@ namespace
 {
 struct LocalizableStringAdapter
 {
-  static std::string const & Get(coding::LocalizableString const & str, std::string const & lang)
+  static std::string const & Get(LocalizableString const & str, std::string const & lang)
   {
     auto const langIndex = StringUtf8Multilang::GetLangIndex(lang);
     auto const it = str.find(langIndex);
@@ -59,7 +59,7 @@ struct LocalizableStringAdapter
     throw std::runtime_error("Language not found");
   }
 
-  static void Set(coding::LocalizableString & str, std::string const & lang, std::string const & val)
+  static void Set(LocalizableString & str, std::string const & lang, std::string const & val)
   {
     auto const langIndex = StringUtf8Multilang::GetLangIndex(lang);
     if (langIndex == StringUtf8Multilang::kUnsupportedLanguageCode)
@@ -67,7 +67,7 @@ struct LocalizableStringAdapter
     str[langIndex] = val;
   }
 
-  static void Delete(coding::LocalizableString & str, std::string const & lang)
+  static void Delete(LocalizableString & str, std::string const & lang)
   {
     auto const langIndex = StringUtf8Multilang::GetLangIndex(lang);
     auto const it = str.find(langIndex);
@@ -77,7 +77,7 @@ struct LocalizableStringAdapter
       throw std::runtime_error("Language not found");
   }
 
-  static boost::python::dict GetDict(coding::LocalizableString const & str)
+  static boost::python::dict GetDict(LocalizableString const & str)
   {
     boost::python::dict d;
     for (auto const & s : str)
@@ -90,7 +90,7 @@ struct LocalizableStringAdapter
     return d;
   }
 
-  static void SetDict(coding::LocalizableString & str, boost::python::dict & dict)
+  static void SetDict(LocalizableString & str, boost::python::dict & dict)
   {
     str.clear();
     if (dict.is_none())
@@ -107,7 +107,7 @@ struct LocalizableStringAdapter
     }
   }
 
-  static std::string ToString(coding::LocalizableString const & str)
+  static std::string ToString(LocalizableString const & str)
   {
     std::ostringstream out;
     out << "[";
@@ -697,9 +697,9 @@ BOOST_PYTHON_MODULE(pykmlib)
     .def("__ne__", &ColorData::operator!=)
     .def("__str__", &ColorDataToString);
 
-  class_<coding::LocalizableString>("coding::LocalizableString")
-    .def("__len__", &coding::LocalizableString::size)
-    .def("clear", &coding::LocalizableString::clear)
+  class_<LocalizableString>("LocalizableString")
+    .def("__len__", &LocalizableString::size)
+    .def("clear", &LocalizableString::clear)
     .def("__getitem__", &LocalizableStringAdapter::Get, return_value_policy<copy_const_reference>())
     .def("__setitem__", &LocalizableStringAdapter::Set, with_custodian_and_ward<1,2>())
     .def("__delitem__", &LocalizableStringAdapter::Delete)

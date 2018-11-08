@@ -44,6 +44,6 @@ struct HeaderV0
   uint64_t m_featuresOffset = 0;
   uint64_t m_stringsIndexOffset = 0;
   uint64_t m_stringsOffset = 0;
-  uint64_t m_eosOffset = 0;
+  uint64_t m_eosOffset = 0;  // End of section.
 };
 }  // namespace descriptions

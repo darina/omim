@@ -2,7 +2,7 @@
 
 #include "indexer/feature.hpp"
 
-#include "coding/localizable_string.hpp"
+#include "coding/localizable_string_index.hpp"
 
 #include "geometry/point2d.hpp"
 
@@ -19,6 +19,7 @@
 namespace kml
 {
 using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
+using LocalizableString = std::unordered_map<int8_t, std::string>;
 using Properties = std::map<std::string, std::string>;
 
 using MarkGroupId = uint64_t;
@@ -64,12 +65,12 @@ uint8_t constexpr kDoubleBits = 30;
 
 int8_t constexpr kDefaultLangCode = 0;
 
-inline std::string GetDefaultStr(coding::LocalizableString const & str)
+inline std::string GetDefaultStr(LocalizableString const & str)
 {
   return (str.empty() || str.find(kDefaultLangCode) == str.end()) ? "" : str.at(kDefaultLangCode);
 }
 
-inline void SetDefaultStr(coding::LocalizableString & localizableStr, std::string const & str)
+inline void SetDefaultStr(LocalizableString & localizableStr, std::string const & str)
 {
   localizableStr[kDefaultLangCode] = str;
 }
@@ -78,8 +79,8 @@ extern bool IsEqual(std::vector<m2::PointD> const & v1, std::vector<m2::PointD> 
 
 struct BookmarkData;
 std::string GetPreferredBookmarkName(BookmarkData const & bmData, std::string const & languageOrig);
-std::string GetPreferredBookmarkStr(coding::LocalizableString const & name, std::string const & languageNorm);
-std::string GetPreferredBookmarkStr(coding::LocalizableString const & name, feature::RegionData const & regionData,
+std::string GetPreferredBookmarkStr(LocalizableString const & name, std::string const & languageNorm);
+std::string GetPreferredBookmarkStr(LocalizableString const & name, feature::RegionData const & regionData,
                                     std::string const & languageNorm);
 std::string GetLocalizedBookmarkType(std::vector<uint32_t> const & types);
 

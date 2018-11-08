@@ -6,18 +6,16 @@
 
 #include <cstdint>
 #include <map>
-#include <string>
 #include <unordered_map>
 
 namespace coding
 {
 using LangCode = int8_t;
 using StringIndex = uint32_t;
-using LocalizableString = std::unordered_map<LangCode, std::string>;
 using LocalizableStringSubIndex = std::map<LangCode, StringIndex>;
 using LocalizableStringIndex = std::vector<LocalizableStringSubIndex>;
 
-template<typename Sink>
+template <typename Sink>
 void WriteLocalizableStringIndex(Sink & sink, LocalizableStringIndex const & index)
 {
   WriteVarUint(sink, static_cast<uint32_t>(index.size()));
@@ -32,7 +30,7 @@ void WriteLocalizableStringIndex(Sink & sink, LocalizableStringIndex const & ind
   }
 }
 
-template<typename Source>
+template <typename Source>
 void ReadLocalizableStringIndex(Source & source, LocalizableStringIndex & index)
 {
   auto const indexSize = ReadVarUint<uint32_t, Source>(source);

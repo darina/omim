@@ -3,7 +3,7 @@
 #include "kml/types.hpp"
 
 #include "coding/geometry_coding.hpp"
-#include "coding/localizable_string.hpp"
+#include "coding/localizable_string_index.hpp"
 #include "coding/point_to_integer.hpp"
 #include "coding/pointd_to_pointu.hpp"
 #include "coding/text_storage.hpp"
@@ -101,7 +101,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, coding::LocalizableString const & str,
+  void Collect(coding::LocalizableStringIndex & index, LocalizableString const & str,
                OtherStrings const & ... args)
   {
     index.emplace_back(coding::LocalizableStringSubIndex());
@@ -271,7 +271,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(coding::LocalizableString const &)
+  SKIP_VISITING(LocalizableString const &)
   SKIP_VISITING(std::string const &)
   SKIP_VISITING(std::vector<std::string> const &)
   SKIP_VISITING(Properties const &)
@@ -363,7 +363,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(coding::LocalizableString const &)
+  SKIP_VISITING(LocalizableString const &)
   SKIP_VISITING(std::string const &)
   SKIP_VISITING(std::vector<std::string> const &)
   SKIP_VISITING(Properties const &)
@@ -441,7 +441,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(coding::LocalizableString &)
+  SKIP_VISITING(LocalizableString &)
   SKIP_VISITING(std::string &)
   SKIP_VISITING(std::vector<std::string> &)
   SKIP_VISITING(Properties &)
@@ -543,7 +543,7 @@ public:
   }
 
   // Skip visiting. It is stored in the separate sections.
-  SKIP_VISITING(coding::LocalizableString &)
+  SKIP_VISITING(LocalizableString &)
   SKIP_VISITING(std::string &)
   SKIP_VISITING(std::vector<std::string> &)
   SKIP_VISITING(Properties &)
@@ -562,7 +562,7 @@ public:
   {}
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, coding::LocalizableString & str,
+  void Collect(coding::LocalizableStringIndex & index, LocalizableString & str,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))

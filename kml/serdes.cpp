@@ -75,7 +75,7 @@ std::string PointToString(m2::PointD const & org)
   return ss.str();
 }
 
-std::string GetLocalizableString(coding::LocalizableString const & s, int8_t lang)
+std::string GetLocalizableString(LocalizableString const & s, int8_t lang)
 {
   auto const it = s.find(lang);
   if (it == s.cend())
@@ -186,7 +186,7 @@ std::string TimestampToString(Timestamp const & timestamp)
   return strTimeStamp;
 }
 
-void SaveLocalizableString(KmlWriter::WriterWrapper & writer, coding::LocalizableString const & str,
+void SaveLocalizableString(KmlWriter::WriterWrapper & writer, LocalizableString const & str,
                            std::string const & tagName, std::string const & offsetStr)
 {
   writer << offsetStr << "<mwm:" << tagName << ">\n";

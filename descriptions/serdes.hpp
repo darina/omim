@@ -5,7 +5,8 @@
 #include "indexer/feature_decl.hpp"
 
 #include "coding/dd_vector.hpp"
-#include "coding/localizable_string.hpp"
+#include "coding/localizable_string_index.hpp"
+#include "coding/multilang_utf8_string.hpp"
 #include "coding/text_storage.hpp"
 
 #include "base/assert.hpp"
@@ -29,7 +30,18 @@ enum class Version : uint8_t
   Latest = V0
 };
 
-using DescriptionsCollection = std::map<FeatureIndex, coding::LocalizableString>;
+struct FeatureDescription
+{
+  FeatureDescription() = default;
+  FeatureDescription(FeatureIndex index, StringUtf8Multilang && description)
+    : m_featureIndex(index)
+    , m_description(std::move(description))
+  {}
+
+  FeatureIndex m_featureIndex = 0;
+  StringUtf8Multilang m_description;
+};
+using DescriptionsCollection = std::vector<FeatureDescription>;
 
 class Serializer
 {
@@ -65,8 +77,8 @@ public:
   template <typename Sink>
   void SerializeFeaturesIndices(Sink & sink)
   {
-    for (auto const & index : m_featureIndices)
-      WriteToSink(sink, index);
+    for (auto const & index : m_descriptions)
+      WriteToSink(sink, index.m_featureIndex);
   }
 
   template <typename Sink>
@@ -80,14 +92,22 @@ public:
   void SerializeStrings(Sink & sink)
   {
     coding::BlockedTextStorageWriter<Sink> writer(sink, 200000 /* blockSize */);
-    for (auto const & str : m_stringsCollection)
-      writer.Append(str);
+    std::string str;
+    for (auto const & pair : m_groupedByLang)
+    {
+      for (auto const & descIndex : pair.second)
+      {
+        auto const found = m_descriptions[descIndex].m_description.GetString(pair.first, str);
+        ASSERT(found, ());
+        writer.Append(str);
+      }
+    }
   }
 
 private:
-  std::vector<FeatureIndex> m_featureIndices;
+  DescriptionsCollection m_descriptions;
   coding::LocalizableStringIndex m_index;
-  std::vector<std::string> m_stringsCollection;
+  std::map<LangCode, std::vector<size_t>> m_groupedByLang;
 };
 
 class Deserializer
@@ -153,8 +173,8 @@ public:
     return false;
   }
 
-  template <typename R>
-  std::unique_ptr<Reader> CreateFeatureIndicesSubReader(R & reader)
+  template <typename Reader>
+  std::unique_ptr<Reader> CreateFeatureIndicesSubReader(Reader & reader)
   {
     ASSERT(m_initialized, ());
 
@@ -164,8 +184,8 @@ public:
     return reader.CreateSubReader(pos, size);
   }
 
-  template <typename R>
-  std::unique_ptr<Reader> CreateStringsIndexSubReader(R & reader)
+  template <typename Reader>
+  std::unique_ptr<Reader> CreateStringsIndexSubReader(Reader & reader)
   {
     ASSERT(m_initialized, ());
 
@@ -175,8 +195,8 @@ public:
     return reader.CreateSubReader(pos, size);
   }
 
-  template <typename R>
-  std::unique_ptr<Reader> CreateStringsSubReader(R & reader)
+  template <typename Reader>
+  std::unique_ptr<Reader> CreateStringsSubReader(Reader & reader)
   {
     ASSERT(m_initialized, ());
 

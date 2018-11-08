@@ -214,9 +214,9 @@ ftraits::UGCRatingCategories Info::GetRatingCategories() const
   return ftraits::UGC::GetCategories(m_sortedTypes);
 }
 
-coding::LocalizableString Info::FormatNewBookmarkName() const
+kml::LocalizableString Info::FormatNewBookmarkName() const
 {
-  coding::LocalizableString bookmarkName;
+  kml::LocalizableString bookmarkName;
   if (IsFeature())
   {
     m_name.ForEach([&bookmarkName](int8_t langCode, std::string const & localName)

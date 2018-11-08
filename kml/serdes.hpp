@@ -110,14 +110,14 @@ private:
   std::string m_attrId;
   std::string m_attrKey;
 
-  coding::LocalizableString m_name;
-  coding::LocalizableString m_description;
+  LocalizableString m_name;
+  LocalizableString m_description;
   PredefinedColor m_predefinedColor;
   Timestamp m_timestamp;
   m2::PointD m_org;
   uint8_t m_viewportScale;
   std::vector<uint32_t> m_featureTypes;
-  coding::LocalizableString m_customName;
+  LocalizableString m_customName;
   std::vector<LocalId> m_boundTracks;
   LocalId m_localId;
   BookmarkIcon m_icon;

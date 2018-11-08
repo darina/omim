@@ -5,36 +5,38 @@
 namespace descriptions
 {
 Serializer::Serializer(DescriptionsCollection && descriptions)
+  : m_descriptions(std::move(descriptions))
 {
-  m_featureIndices.reserve(descriptions.size());
-  m_index.reserve(descriptions.size());
+  std::sort(m_descriptions.begin(), m_descriptions.end(),
+            [](FeatureDescription const & lhs, FeatureDescription const & rhs) {
+    return lhs.m_featureIndex < rhs.m_featureIndex;
+  });
+
+  m_index.reserve(m_descriptions.size());
 
   size_t stringsCount = 0;
-  std::map<LangCode, std::vector<std::string>> groupedByLang;
-  for (auto & pair : descriptions)
+
+  for (size_t i = 0; i < m_descriptions.size(); ++i)
   {
-    stringsCount += pair.second.size();
-    m_featureIndices.push_back(pair.first);
+    auto & index = m_descriptions[i];
 
     coding::LocalizableStringSubIndex subIndex;
-    for (auto & translate : pair.second)
-    {
-      auto & group = groupedByLang[translate.first];
-      subIndex.insert(std::make_pair(translate.first, static_cast<uint32_t>(group.size())));
-      group.push_back(std::move(translate.second));
-    }
+    index.m_description.ForEach([this, &stringsCount, &subIndex, i](LangCode lang, std::string const & str)
+                                {
+                                  ++stringsCount;
+                                  auto & group = m_groupedByLang[lang];
+                                  subIndex.insert(std::make_pair(lang, static_cast<uint32_t>(group.size())));
+                                  group.push_back(i);
+                                });
     m_index.push_back(subIndex);
   }
 
-  m_stringsCollection.reserve(stringsCount);
-
   std::map<LangCode, uint32_t> indicesOffsets;
   uint32_t currentOffset = 0;
-  for (auto & pair : groupedByLang)
+  for (auto & pair : m_groupedByLang)
   {
     indicesOffsets.insert(std::make_pair(pair.first, currentOffset));
     currentOffset += pair.second.size();
-    std::move(pair.second.begin(), pair.second.end(), std::back_inserter(m_stringsCollection));
   }
 
   for (auto & subIndex : m_index)

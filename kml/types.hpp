@@ -184,13 +184,13 @@ struct BookmarkData
   // Unique id (it will not be serialized in text files).
   MarkId m_id = kInvalidMarkId;
   // Bookmark's name.
-  coding::LocalizableString m_name;
+  LocalizableString m_name;
   // Bookmark's description.
-  coding::LocalizableString m_description;
+  LocalizableString m_description;
   // Bound feature's types.
   std::vector<uint32_t> m_featureTypes;
   // Custom bookmark's name.
-  coding::LocalizableString m_customName;
+  LocalizableString m_customName;
   // Bookmark's color.
   ColorData m_color;
   // Bookmark's icon.
@@ -251,9 +251,9 @@ struct TrackData
   // Local track id.
   LocalId m_localId = 0;
   // Track's name.
-  coding::LocalizableString m_name;
+  LocalizableString m_name;
   // Track's description.
-  coding::LocalizableString m_description;
+  LocalizableString m_description;
   // Layers.
   std::vector<TrackLayer> m_layers;
   // Creation timestamp.
@@ -303,13 +303,13 @@ struct CategoryData
   // Unique id (it will not be serialized in text files).
   MarkGroupId m_id = kInvalidMarkGroupId;
   // Category's name.
-  coding::LocalizableString m_name;
+  LocalizableString m_name;
   // Image URL.
   std::string m_imageUrl;
   // Category's description.
-  coding::LocalizableString m_annotation;
+  LocalizableString m_annotation;
   // Category's description.
-  coding::LocalizableString m_description;
+  LocalizableString m_description;
   // Collection visibility.
   bool m_visible = true;
   // Author's name.
