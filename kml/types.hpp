@@ -163,7 +163,7 @@ struct BookmarkData
                                   visitor(m_boundTracks, "boundTracks"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_description, m_customName)
+  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_description, m_customName)
 
   bool operator==(BookmarkData const & data) const
   {
@@ -235,7 +235,7 @@ struct TrackData
                                   visitor(m_points, "points"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_description)
+  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_description)
 
   bool operator==(TrackData const & data) const
   {
@@ -282,7 +282,7 @@ struct CategoryData
                                   visitor(m_properties, "properties"),
                                   VISITOR_COLLECTABLE)
 
-  DECLARE_COLLECTABLE(coding::LocalizableStringIndex, m_name, m_annotation, m_description,
+  DECLARE_COLLECTABLE(LocalizableStringIndex, m_name, m_annotation, m_description,
                       m_imageUrl, m_authorName, m_authorId, m_tags, m_properties)
 
   bool operator==(CategoryData const & data) const

@@ -50,7 +50,6 @@ set(
   internal/file_data.cpp
   internal/file_data.hpp
   internal/xmlparser.hpp
-  localizable_string_index.hpp
   matrix_traversal.hpp
   memory_region.hpp
   mmap_reader.cpp

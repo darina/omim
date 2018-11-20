@@ -3,7 +3,6 @@
 #include "kml/types.hpp"
 
 #include "coding/geometry_coding.hpp"
-#include "coding/localizable_string_index.hpp"
 #include "coding/point_to_integer.hpp"
 #include "coding/pointd_to_pointu.hpp"
 #include "coding/text_storage.hpp"
@@ -101,10 +100,10 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, LocalizableString const & str,
+  void Collect(LocalizableStringIndex & index, LocalizableString const & str,
                OtherStrings const & ... args)
   {
-    index.emplace_back(coding::LocalizableStringSubIndex());
+    index.emplace_back(LocalizableStringSubIndex());
     for (auto const & p : str)
       CollectString(index.back(), p.first, p.second);
 
@@ -112,22 +111,22 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, std::string const & str,
+  void Collect(LocalizableStringIndex & index, std::string const & str,
                OtherStrings const & ... args)
   {
     int8_t constexpr kFakeIndex = 0;
-    index.emplace_back(coding::LocalizableStringSubIndex());
+    index.emplace_back(LocalizableStringSubIndex());
     CollectString(index.back(), kFakeIndex, str);
 
     Collect(index, args...);
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index,
+  void Collect(LocalizableStringIndex & index,
                std::vector<std::string> const & stringsArray,
                OtherStrings const & ... args)
   {
-    index.emplace_back(coding::LocalizableStringSubIndex());
+    index.emplace_back(LocalizableStringSubIndex());
     auto constexpr kMaxSize = static_cast<size_t>(std::numeric_limits<int8_t>::max());
     auto const sz = std::min(stringsArray.size(), kMaxSize);
     for (size_t i = 0; i < sz; ++i)
@@ -137,10 +136,10 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, Properties const & properties,
+  void Collect(LocalizableStringIndex & index, Properties const & properties,
                OtherStrings const & ... args)
   {
-    index.emplace_back(coding::LocalizableStringSubIndex());
+    index.emplace_back(LocalizableStringSubIndex());
     auto constexpr kMaxSize = std::numeric_limits<int8_t>::max() - 1;
     int8_t counter = 0;
     for (auto const & p : properties)
@@ -155,12 +154,12 @@ public:
   }
 
   template <typename...>
-  void Collect(coding::LocalizableStringIndex & index) {}
+  void Collect(LocalizableStringIndex & index) {}
 
   std::vector<std::string> && StealCollection() { return std::move(m_collection); }
 
 private:
-  void CollectString(coding::LocalizableStringSubIndex & subIndex, int8_t code,
+  void CollectString(LocalizableStringSubIndex & subIndex, int8_t code,
                      std::string const & str)
   {
     if (str.empty())
@@ -181,6 +180,40 @@ private:
 
 namespace binary
 {
+template <typename Sink>
+void WriteLocalizableStringIndex(Sink & sink, LocalizableStringIndex const & index)
+{
+  WriteVarUint(sink, static_cast<uint32_t>(index.size()));
+  for (auto const & subIndex : index)
+  {
+    WriteVarUint(sink, static_cast<uint32_t>(subIndex.size()));
+    for (auto const & p : subIndex)
+    {
+      WriteToSink(sink, p.first);
+      WriteVarUint(sink, p.second);
+    }
+  }
+}
+
+template <typename Source>
+void ReadLocalizableStringIndex(Source & source, LocalizableStringIndex & index)
+{
+  auto const indexSize = ReadVarUint<uint32_t, Source>(source);
+  index.reserve(indexSize);
+  for (uint32_t i = 0; i < indexSize; ++i)
+  {
+    index.emplace_back(LocalizableStringSubIndex());
+    auto & subIndex = index.back();
+    auto const subIndexSize = ReadVarUint<uint32_t, Source>(source);
+    for (uint32_t j = 0; j < subIndexSize; ++j)
+    {
+      auto const lang = ReadPrimitiveFromSource<int8_t>(source);
+      auto const strIndex = ReadVarUint<uint32_t, Source>(source);
+      subIndex[lang] = strIndex;
+    }
+  }
+}
+
 template <typename Sink>
 inline void WritePointU(Sink & sink, m2::PointU const & pt)
 {
@@ -217,9 +250,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(coding::LocalizableStringIndex const & index, char const * /* name */ = nullptr)
+  void operator()(LocalizableStringIndex const & index, char const * /* name */ = nullptr)
   {
-    coding::WriteLocalizableStringIndex(m_sink, index);
+    WriteLocalizableStringIndex(m_sink, index);
   }
 
   void operator()(bool b, char const * /* name */ = nullptr)
@@ -292,9 +325,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(coding::LocalizableStringIndex const & index, char const * /* name */ = nullptr)
+  void operator()(LocalizableStringIndex const & index, char const * /* name */ = nullptr)
   {
-    coding::WriteLocalizableStringIndex(m_sink, index);
+    WriteLocalizableStringIndex(m_sink, index);
   }
 
   void operator()(bool b, char const * /* name */ = nullptr)
@@ -382,9 +415,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(coding::LocalizableStringIndex & index, char const * /* name */ = nullptr)
+  void operator()(LocalizableStringIndex & index, char const * /* name */ = nullptr)
   {
-    coding::ReadLocalizableStringIndex(m_source, index);
+    ReadLocalizableStringIndex(m_source, index);
   }
 
   void operator()(bool & b, char const * /* name */ = nullptr)
@@ -462,9 +495,9 @@ public:
     , m_doubleBits(doubleBits)
   {}
 
-  void operator()(coding::LocalizableStringIndex & index, char const * /* name */ = nullptr)
+  void operator()(LocalizableStringIndex & index, char const * /* name */ = nullptr)
   {
-    coding::ReadLocalizableStringIndex(m_source, index);
+    ReadLocalizableStringIndex(m_source, index);
   }
 
   void operator()(bool & b, char const * /* name */ = nullptr)
@@ -562,7 +595,7 @@ public:
   {}
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, LocalizableString & str,
+  void Collect(LocalizableStringIndex & index, LocalizableString & str,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -577,7 +610,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, std::string & str,
+  void Collect(LocalizableStringIndex & index, std::string & str,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -594,7 +627,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index,
+  void Collect(LocalizableStringIndex & index,
                std::vector<std::string> & stringsArray,
                OtherStrings & ... args)
   {
@@ -611,7 +644,7 @@ public:
   }
 
   template <typename... OtherStrings>
-  void Collect(coding::LocalizableStringIndex & index, Properties & properties,
+  void Collect(LocalizableStringIndex & index, Properties & properties,
                OtherStrings & ... args)
   {
     if (!SwitchSubIndexIfNeeded(index))
@@ -630,10 +663,10 @@ public:
   }
 
   template <typename...>
-  void Collect(coding::LocalizableStringIndex & index) {}
+  void Collect(LocalizableStringIndex & index) {}
 
 private:
-  bool SwitchSubIndexIfNeeded(coding::LocalizableStringIndex & index)
+  bool SwitchSubIndexIfNeeded(LocalizableStringIndex & index)
   {
     if (m_lastIndex != &index)
     {
@@ -653,7 +686,7 @@ private:
   }
 
   coding::BlockedTextStorage<Reader> & m_textStorage;
-  coding::LocalizableStringIndex * m_lastIndex = nullptr;
+  LocalizableStringIndex * m_lastIndex = nullptr;
   size_t m_counter = 0;
 };
 }  // namespace binary

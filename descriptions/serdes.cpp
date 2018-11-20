@@ -12,7 +12,7 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
     return lhs.m_featureIndex < rhs.m_featureIndex;
   });
 
-  m_index.reserve(m_descriptions.size());
+  m_langMetaCollection.reserve(m_descriptions.size());
 
   size_t stringsCount = 0;
 
@@ -20,15 +20,15 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
   {
     auto & index = m_descriptions[i];
 
-    coding::LocalizableStringSubIndex subIndex;
-    index.m_description.ForEach([this, &stringsCount, &subIndex, i](LangCode lang, std::string const & str)
+    LangMeta langMeta;
+    index.m_description.ForEach([this, &stringsCount, &langMeta, i](LangCode lang, std::string const & str)
                                 {
                                   ++stringsCount;
                                   auto & group = m_groupedByLang[lang];
-                                  subIndex.insert(std::make_pair(lang, static_cast<uint32_t>(group.size())));
+                                  langMeta.insert(std::make_pair(lang, static_cast<StringIndex>(group.size())));
                                   group.push_back(i);
                                 });
-    m_index.push_back(subIndex);
+    m_langMetaCollection.push_back(langMeta);
   }
 
   std::map<LangCode, uint32_t> indicesOffsets;
@@ -39,10 +39,10 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
     currentOffset += pair.second.size();
   }
 
-  for (auto & subIndex : m_index)
+  for (auto & langMeta : m_langMetaCollection)
   {
-    for (auto & translate : subIndex)
-      translate.second += indicesOffsets[translate.first];
+    for (auto & translation : langMeta)
+      translation.second += indicesOffsets[translation.first];
   }
 }
 }  // namespace descriptions

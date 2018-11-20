@@ -14,7 +14,8 @@ struct HeaderV0
   void Visit(Visitor & visitor)
   {
     visitor(m_featuresOffset, "featuresOffset");
-    visitor(m_stringsIndexOffset, "stringsIndexOffset");
+    visitor(m_langMetaOffset, "langMetaOffset");
+    visitor(m_indexOffset, "indexOffset");
     visitor(m_stringsOffset, "stringsOffset");
     visitor(m_eosOffset, "eosOffset");
   }
@@ -42,7 +43,8 @@ struct HeaderV0
   }
 
   uint64_t m_featuresOffset = 0;
-  uint64_t m_stringsIndexOffset = 0;
+  uint64_t m_langMetaOffset = 0;
+  uint64_t m_indexOffset = 0;
   uint64_t m_stringsOffset = 0;
   uint64_t m_eosOffset = 0;  // End of section.
 };
