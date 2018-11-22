@@ -5,9 +5,12 @@
 #include "indexer/feature_decl.hpp"
 #include "indexer/mwm_set.hpp"
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <vector>
 
 class DataSource;
 

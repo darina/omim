@@ -30,10 +30,10 @@ Serializer::Serializer(DescriptionsCollection && descriptions)
 
   std::map<LangCode, uint32_t> indicesOffsets;
   uint32_t currentOffset = 0;
-  for (auto & pair : m_groupedByLang)
+  for (auto & langIndices : m_groupedByLang)
   {
-    indicesOffsets.insert(std::make_pair(pair.first, currentOffset));
-    currentOffset += pair.second.size();
+    indicesOffsets.insert(std::make_pair(langIndices.first, currentOffset));
+    currentOffset += langIndices.second.size();
   }
 
   for (auto & langMeta : m_langMetaCollection)

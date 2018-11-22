@@ -23,12 +23,12 @@ UNIT_TEST(Descriptions_SerDes)
     };
 
   DescriptionsCollection descriptionsCollection;
-  for (auto const & pair : data)
+  for (auto const & featureDesc : data)
   {
     StringUtf8Multilang str;
-    for (auto const & translation : pair.second)
+    for (auto const & translation : featureDesc.second)
       str.AddString(translation.first, translation.second);
-    descriptionsCollection.emplace_back(pair.first, std::move(str));
+    descriptionsCollection.emplace_back(featureDesc.first, std::move(str));
   }
 
   std::vector<uint8_t> buffer;

@@ -15,8 +15,11 @@
 #include <cstdint>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <utility>
 
 namespace descriptions
 {
@@ -57,6 +60,7 @@ using DescriptionsCollection = std::vector<FeatureDescription>;
 class Serializer
 {
 public:
+  /// \param descriptions unsorted collection of feature descriptions.
   explicit Serializer(DescriptionsCollection && descriptions);
 
   template <typename Sink>
@@ -128,12 +132,12 @@ public:
   {
     coding::BlockedTextStorageWriter<Sink> writer(sink, 200000 /* blockSize */);
     std::string str;
-    for (auto const & pair : m_groupedByLang)
+    for (auto const & langIndices : m_groupedByLang)
     {
-      for (auto const & descIndex : pair.second)
+      for (auto const & descIndex : langIndices.second)
       {
-        auto const found = m_descriptions[descIndex].m_description.GetString(pair.first, str);
-        ASSERT(found, ());
+        auto const found = m_descriptions[descIndex].m_description.GetString(langIndices.first, str);
+        CHECK(found, ());
         writer.Append(str);
       }
     }
@@ -186,6 +190,9 @@ public:
 
       ReaderPtr<Reader> ofsSubReader(CreateLangMetaOffsetsSubReader(reader));
       DDVector<LangMetaOffset, ReaderPtr<Reader>> ofs(ofsSubReader);
+      CHECK_LESS(d, ofs.size(), ());
+      CHECK_LESS(d + 1, ofs.size(), ());
+
       startOffset = ofs[d];
       endOffset = ofs[d + 1];
     }
@@ -220,10 +227,10 @@ public:
   template <typename Reader>
   std::unique_ptr<Reader> CreateFeatureIndicesSubReader(Reader & reader)
   {
-    ASSERT(m_initialized, ());
+    CHECK(m_initialized, ());
 
     auto const pos = m_header.m_featuresOffset;
-    ASSERT_GREATER_OR_EQUAL(m_header.m_langMetaOffset, pos, ());
+    CHECK_GREATER_OR_EQUAL(m_header.m_langMetaOffset, pos, ());
     auto const size = m_header.m_langMetaOffset - pos;
     return reader.CreateSubReader(pos, size);
   }
@@ -231,10 +238,10 @@ public:
   template <typename Reader>
   std::unique_ptr<Reader> CreateLangMetaOffsetsSubReader(Reader & reader)
   {
-    ASSERT(m_initialized, ());
+    CHECK(m_initialized, ());
 
     auto const pos = m_header.m_indexOffset;
-    ASSERT_GREATER_OR_EQUAL(m_header.m_stringsOffset, pos, ());
+    CHECK_GREATER_OR_EQUAL(m_header.m_stringsOffset, pos, ());
     auto const size = m_header.m_stringsOffset - pos;
     return reader.CreateSubReader(pos, size);
   }
@@ -242,22 +249,22 @@ public:
   template <typename Reader>
   std::unique_ptr<Reader> CreateLangMetaSubReader(Reader & reader, LangMetaOffset startOffset, LangMetaOffset endOffset)
   {
-    ASSERT(m_initialized, ());
+    CHECK(m_initialized, ());
 
     auto const pos = m_header.m_langMetaOffset + startOffset;
+    CHECK_GREATER_OR_EQUAL(m_header.m_indexOffset, pos, ());
     auto const size = endOffset - startOffset;
-    ASSERT_GREATER_OR_EQUAL(m_header.m_indexOffset, pos, ());
-    ASSERT_GREATER_OR_EQUAL(m_header.m_indexOffset, pos + size, ());
+    CHECK_GREATER_OR_EQUAL(m_header.m_indexOffset, pos + size, ());
     return reader.CreateSubReader(pos, size);
   }
 
   template <typename Reader>
   std::unique_ptr<Reader> CreateStringsSubReader(Reader & reader)
   {
-    ASSERT(m_initialized, ());
+    CHECK(m_initialized, ());
 
     auto const pos = m_header.m_stringsOffset;
-    ASSERT_GREATER_OR_EQUAL(m_header.m_eosOffset, pos, ());
+    CHECK_GREATER_OR_EQUAL(m_header.m_eosOffset, pos, ());
     auto const size = m_header.m_eosOffset - pos;
     return reader.CreateSubReader(pos, size);
   }
