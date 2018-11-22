@@ -1,7 +1,5 @@
 #include "descriptions/serdes.hpp"
 
-#include "base/stl_helpers.hpp"
-
 #include <utility>
 
 namespace descriptions

@@ -5,6 +5,7 @@
 #include "coding/reader.hpp"
 #include "coding/writer.hpp"
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>

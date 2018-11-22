@@ -34,14 +34,6 @@ struct HeaderV0
     visitor(*this);
   }
 
-  // Calculates the size of serialized header in bytes.
-  uint64_t Size()
-  {
-    coding::binary::HeaderSizeOfVisitor visitor;
-    visitor(*this);
-    return visitor.m_size;
-  }
-
   uint64_t m_featuresOffset = 0;
   uint64_t m_langMetaOffset = 0;
   uint64_t m_indexOffset = 0;

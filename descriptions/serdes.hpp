@@ -9,6 +9,7 @@
 #include "coding/text_storage.hpp"
 
 #include "base/assert.hpp"
+#include "base/stl_helpers.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -66,7 +67,7 @@ public:
     auto const startPos = sink.Pos();
 
     HeaderV0 header;
-    WriteZeroesToSink(sink, header.Size());
+    header.Serialize(sink);
 
     header.m_featuresOffset = sink.Pos() - startPos;
     SerializeFeaturesIndices(sink);
@@ -91,6 +92,9 @@ public:
   template <typename Sink>
   void SerializeFeaturesIndices(Sink & sink)
   {
+    CHECK(std::is_sorted(m_descriptions.begin(), m_descriptions.end(),
+                         base::LessBy(&FeatureDescription::m_featureIndex)), ());
+
     for (auto const & index : m_descriptions)
       WriteToSink(sink, index.m_featureIndex);
   }
