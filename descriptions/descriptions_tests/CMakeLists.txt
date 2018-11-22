@@ -2,7 +2,7 @@ project(descriptions_tests)
 
 set(
   SRC
-  descriptions_test.cpp
+  descriptions_tests.cpp
 )
 
 omim_add_test(${PROJECT_NAME} ${SRC})

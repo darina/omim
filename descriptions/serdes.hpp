@@ -51,7 +51,7 @@ using DescriptionsCollection = std::vector<FeatureDescription>;
 /// * header
 /// * sorted feature ids vector
 /// * vector of unordered maps with language codes and string indices of corresponding translations of a description
-/// * vector of maps offsets for each feature id
+/// * vector of maps offsets for each feature id (and one additional dummy offset in the end)
 /// * BWT-compressed strings grouped by language.
 class Serializer
 {
@@ -108,6 +108,7 @@ public:
         WriteVarUint(sink, pair.second);
       }
     }
+    offsets.push_back(static_cast<LangMetaOffset>(sink.Pos() - startPos));
   }
 
   template <typename Sink>
@@ -168,7 +169,7 @@ public:
   {
     InitializeIfNeeded(reader);
 
-    LangMetaOffset offset = 0;
+    LangMetaOffset startOffset = 0;
     LangMetaOffset endOffset = 0;
     {
       ReaderPtr<Reader> idsSubReader(CreateFeatureIndicesSubReader(reader));
@@ -181,19 +182,16 @@ public:
 
       ReaderPtr<Reader> ofsSubReader(CreateLangMetaOffsetsSubReader(reader));
       DDVector<LangMetaOffset, ReaderPtr<Reader>> ofs(ofsSubReader);
-      offset = ofs[d];
-      endOffset = d < ids.size() - 1 ? ofs[d + 1]
-                                     : static_cast<LangMetaOffset>(m_header.m_indexOffset - m_header.m_langMetaOffset);
+      startOffset = ofs[d];
+      endOffset = ofs[d + 1];
     }
 
     LangMeta langMeta;
     {
-      auto langMetaSubReader = CreateLangMetaSubReader(reader);
+      auto langMetaSubReader = CreateLangMetaSubReader(reader, startOffset, endOffset);
       NonOwningReaderSource source(*langMetaSubReader);
-      auto startPos = source.Pos();
 
-      source.Skip(offset);
-      while (source.Pos() - startPos < endOffset)
+      while (source.Size() > 0)
       {
         auto const lang = ReadPrimitiveFromSource<LangCode>(source);
         auto const stringIndex = ReadVarUint<StringIndex>(source);
@@ -238,13 +236,14 @@ public:
   }
 
   template <typename Reader>
-  std::unique_ptr<Reader> CreateLangMetaSubReader(Reader & reader)
+  std::unique_ptr<Reader> CreateLangMetaSubReader(Reader & reader, LangMetaOffset startOffset, LangMetaOffset endOffset)
   {
     ASSERT(m_initialized, ());
 
-    auto const pos = m_header.m_langMetaOffset;
+    auto const pos = m_header.m_langMetaOffset + startOffset;
+    auto const size = endOffset - startOffset;
     ASSERT_GREATER_OR_EQUAL(m_header.m_indexOffset, pos, ());
-    auto const size = m_header.m_indexOffset - pos;
+    ASSERT_GREATER_OR_EQUAL(m_header.m_indexOffset, pos + size, ());
     return reader.CreateSubReader(pos, size);
   }
 

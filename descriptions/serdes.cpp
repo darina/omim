@@ -1,5 +1,7 @@
 #include "descriptions/serdes.hpp"
 
+#include "base/stl_helpers.hpp"
+
 #include <utility>
 
 namespace descriptions
@@ -7,10 +9,7 @@ namespace descriptions
 Serializer::Serializer(DescriptionsCollection && descriptions)
   : m_descriptions(std::move(descriptions))
 {
-  std::sort(m_descriptions.begin(), m_descriptions.end(),
-            [](FeatureDescription const & lhs, FeatureDescription const & rhs) {
-    return lhs.m_featureIndex < rhs.m_featureIndex;
-  });
+  std::sort(m_descriptions.begin(), m_descriptions.end(), base::LessBy(&FeatureDescription::m_featureIndex));
 
   m_langMetaCollection.reserve(m_descriptions.size());
 

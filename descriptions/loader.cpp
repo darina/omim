@@ -36,8 +36,9 @@ bool Loader::GetDescription(FeatureID const & featureId, std::vector<int8_t> con
 
   ASSERT(entry, ());
 
-  std::lock_guard<std::mutex> lock(entry->m_mutex);
   auto readerPtr = value.m_cont.GetReader(DESCRIPTIONS_FILE_TAG);
+
+  std::lock_guard<std::mutex> lock(entry->m_mutex);
   return entry->m_deserializer.Deserialize(*readerPtr.GetPtr(), featureId.m_index, langPriority, description);
 }
 }  // namespace descriptions
