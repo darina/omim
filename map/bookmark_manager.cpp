@@ -799,6 +799,267 @@ kml::TrackIdSet const & BookmarkManager::GetTrackIds(kml::MarkGroupId groupId) c
   return GetGroup(groupId)->GetUserLines();
 }
 
+std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes(kml::MarkGroupId groupId) const
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  ASSERT(IsBookmarkCategory(groupId), ());
+
+  auto const * group = GetGroup(groupId);
+  CHECK(group != nullptr, ());
+
+  m2::PointD myPosition;
+  bool hasMyPosition = false;
+
+  bool byDistanceChecked = false;
+  bool byTypeChecked = false;
+  bool byTimeChecked = false;
+
+  size_t const kMinCommonTypesCount = 3;
+  double const kMaxDistanceInMeters = 300 * 1000;
+
+  std::map<uint32_t, size_t> typesCount;
+  for (auto markId : group->GetUserMarks())
+  {
+    auto const & bookmarkData = GetBookmark(markId)->GetData();
+
+    if (!byTypeChecked && !bookmarkData.m_featureTypes.empty())
+    {
+      auto const type = bookmarkData.m_featureTypes.front();
+      auto it = typesCount.find(type);
+      if (it == typesCount.end())
+        typesCount.insert(std::make_pair(type, 0));
+      else
+        ++it->second;
+      byTypeChecked = it->second >= kMinCommonTypesCount;
+    }
+
+    if (!byDistanceChecked && hasMyPosition)
+      byDistanceChecked = MercatorBounds::DistanceOnEarth(bookmarkData.m_point, myPosition) <= kMaxDistanceInMeters;
+
+    if (!byTimeChecked)
+      byTimeChecked = !kml::IsEqual(bookmarkData.m_timestamp, kml::Timestamp());
+
+    if (byTypeChecked && byDistanceChecked && byTimeChecked)
+      break;
+  }
+
+  std::set<SortingType> sortingTypes;
+  if (byTypeChecked)
+    sortingTypes.insert(SortingType::ByType);
+  if (byDistanceChecked)
+    sortingTypes.insert(SortingType::ByDistance);
+  if (byTimeChecked)
+    sortingTypes.insert(SortingType::ByTime);
+
+  return sortingTypes;
+}
+
+enum class TimeBlockType : uint32_t
+{
+  WeekAgo,
+  MonthAgo,
+  MoreThanMonthAgo,
+  Others
+};
+
+enum class DistanceBlockType : uint32_t
+{
+  Near,
+  Others
+};
+
+DistanceBlockType GetDistanceBlockType(double distance)
+{
+  static double const kMaxDistanceInMeters = 300 * 1000;
+  if (distance < kMaxDistanceInMeters)
+    return DistanceBlockType::Near;
+  return DistanceBlockType::Others;
+}
+
+std::string GetDistanceBlockName(DistanceBlockType blockType)
+{
+  switch (blockType)
+  {
+  case DistanceBlockType::Near: return "Near";
+  case DistanceBlockType::Others: return "Others";
+  }
+  CHECK(false, ());
+  return "";
+}
+
+template <typename T, typename R>
+TimeBlockType GetTimeBlockType(std::chrono::duration<T, R> const & timePeriod)
+{
+  static auto const kWeek = std::chrono::hours(24 * 7);
+  static auto const kMonth = std::chrono::hours(24 * 7 * 31);
+  if (timePeriod < kWeek)
+    return TimeBlockType::WeekAgo;
+  if (timePeriod < kMonth)
+    return TimeBlockType::MonthAgo;
+  return TimeBlockType::MoreThanMonthAgo;
+}
+
+std::string GetTimeBlockName(TimeBlockType blockType)
+{
+  switch (blockType)
+  {
+  case TimeBlockType::WeekAgo: return "Week ago";
+  case TimeBlockType::MonthAgo: return "Month ago";
+  case TimeBlockType::MoreThanMonthAgo: return "More than month ago";
+  case TimeBlockType::Others: return "Others";
+  }
+  CHECK(false, ());
+  return "";
+}
+
+std::string GetTypeName(uint32_t type)
+{
+  return kml::GetLocalizedBookmarkType({type});
+}
+
+BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType) const
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+
+  auto const * group = GetGroup(groupId);
+  CHECK(group != nullptr, ());
+
+  SortedBlocksCollection sortedBlocks;
+
+  m2::PointD myPosition(0.0, 0.0);
+  if (sortingType == SortingType::ByDistance)
+  {
+    std::vector<std::pair<kml::MarkId, double>> sortedMarks;
+    sortedMarks.reserve(group->GetUserMarks().size());
+    for (auto markId : group->GetUserMarks())
+    {
+      auto const & bookmarkData = GetBookmark(markId)->GetData();
+      sortedMarks.push_back(std::make_pair(markId, MercatorBounds::DistanceOnEarth(bookmarkData.m_point, myPosition)));
+    }
+    std::sort(sortedMarks.begin(), sortedMarks.end(),
+              [](std::pair<kml::MarkId, double> const & lbm, std::pair<kml::MarkId, double> const & rbm)
+    {
+      return lbm.second < rbm.second;
+    });
+
+    boost::optional<DistanceBlockType> lastBlockType;
+    SortedBlock currentBlock;
+    for (auto const & mark : sortedMarks)
+    {
+      auto const currentBlockType = GetDistanceBlockType(mark.second);
+
+      if (!lastBlockType)
+      {
+        lastBlockType.reset(currentBlockType);
+        currentBlock.m_blockName = GetDistanceBlockName(currentBlockType);
+      }
+
+      if (currentBlockType != lastBlockType.get())
+      {
+        sortedBlocks.push_back(currentBlock);
+        currentBlock = SortedBlock();
+        currentBlock.m_blockName = GetDistanceBlockName(currentBlockType);
+      }
+      lastBlockType.reset(currentBlockType);
+      currentBlock.m_markIds.push_back(mark.first);
+    }
+    sortedBlocks.push_back(currentBlock);
+
+    return sortedBlocks;
+  }
+
+  std::vector<kml::BookmarkData const *> sortedMarks;
+  sortedMarks.reserve(group->GetUserMarks().size());
+  for (auto markId : group->GetUserMarks())
+    sortedMarks.push_back(&GetBookmark(markId)->GetData());
+
+  std::sort(sortedMarks.begin(), sortedMarks.end(), [](kml::BookmarkData const * lbm, kml::BookmarkData const * rbm)
+  {
+    return lbm->m_timestamp > rbm->m_timestamp;
+  });
+
+  if (sortingType == SortingType::ByTime)
+  {
+    auto const currentTime = std::chrono::system_clock::now();
+
+    boost::optional<TimeBlockType> lastBlockType;
+    SortedBlock currentBlock;
+    for (auto mark : sortedMarks)
+    {
+      auto currentBlockType = TimeBlockType::Others;
+      if (mark->m_timestamp != kml::Timestamp())
+        currentBlockType = GetTimeBlockType(currentTime - mark->m_timestamp);
+
+      if (!lastBlockType)
+      {
+        lastBlockType.reset(currentBlockType);
+        currentBlock.m_blockName = GetTimeBlockName(currentBlockType);
+      }
+
+      if (currentBlockType != lastBlockType.get())
+      {
+        sortedBlocks.push_back(currentBlock);
+        currentBlock = SortedBlock();
+        currentBlock.m_blockName = GetTimeBlockName(currentBlockType);
+      }
+      lastBlockType.reset(currentBlockType);
+      currentBlock.m_markIds.push_back(mark->m_id);
+    }
+    sortedBlocks.push_back(currentBlock);
+
+    return sortedBlocks;
+  }
+
+  std::map<uint32_t, size_t> typesCount;
+  size_t unknownTypeMarksCount = 0;
+  for (auto const mark : sortedMarks)
+  {
+    if (mark->m_featureTypes.empty())
+    {
+      ++unknownTypeMarksCount;
+      continue;
+    }
+    auto const type = mark->m_featureTypes.front();
+    auto it = typesCount.find(type);
+    if (it != typesCount.end())
+      ++it->second;
+    else
+      typesCount.insert(std::make_pair(type, 0));
+  }
+  std::vector<std::pair<size_t, uint32_t>> sortedTypes;
+  sortedTypes.reserve(typesCount.size());
+  for (auto const & typeCount : typesCount)
+    sortedTypes.push_back(std::make_pair(typeCount.second, typeCount.first));
+  std::sort(sortedTypes.begin(), sortedTypes.end(), [](std::pair<uint32_t, size_t> const & l,
+                                                       std::pair<uint32_t, size_t> const & r)
+  {
+    return l.first > r.first;
+  });
+
+  sortedBlocks.resize(typesCount.size() + (unknownTypeMarksCount > 0 ? 1 : 0));
+  for (size_t i = 0; i < sortedTypes.size(); ++i)
+  {
+    auto const type = sortedTypes[i].second;
+    sortedBlocks[i].m_blockName = GetTypeName(type);
+    sortedBlocks[i].m_markIds.reserve(sortedTypes[i].first);
+    typesCount[type] = i;
+  }
+  if (unknownTypeMarksCount > 0)
+  {
+    sortedBlocks.back().m_blockName = "Others";
+    sortedBlocks.back().m_markIds.reserve(unknownTypeMarksCount);
+  }
+
+  for (auto const mark : sortedMarks)
+  {
+    auto & block = mark->m_featureTypes.empty() ? sortedBlocks.back()
+                                                : sortedBlocks[typesCount[mark->m_featureTypes.front()]];
+    block.m_markIds.push_back(mark->m_id);
+  }
+
+  return sortedBlocks;
+}
+
 void BookmarkManager::ClearGroup(kml::MarkGroupId groupId)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
