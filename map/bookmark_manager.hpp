@@ -180,6 +180,28 @@ public:
   kml::MarkIdSet const & GetUserMarkIds(kml::MarkGroupId groupId) const;
   kml::TrackIdSet const & GetTrackIds(kml::MarkGroupId groupId) const;
 
+  enum class SortingType
+  {
+    ByTime,
+    ByDistance,
+    ByType
+  };
+
+  struct SortedBlock
+  {
+    std::string m_blockName;
+    kml::MarkIdCollection m_markIds;
+
+    bool operator==(SortedBlock const & other) const
+    {
+      return m_blockName == other.m_blockName && m_markIds == other.m_markIds;
+    }
+  };
+  using SortedBlocksCollection = std::vector<SortedBlock>;
+
+  std::set<SortingType> GetAvailableSortingTypes(kml::MarkGroupId groupId) const;
+  SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType) const;
+
   bool IsVisible(kml::MarkGroupId groupId) const;
 
   kml::MarkGroupId CreateBookmarkCategory(kml::CategoryData && data, bool autoSave = true);

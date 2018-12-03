@@ -2,6 +2,7 @@
 
 #include "drape_frontend/visual_params.hpp"
 
+#include "indexer/classificator_loader.hpp"
 #include "indexer/data_header.hpp"
 #include "indexer/feature_utils.hpp"
 #include "indexer/mwm_set.hpp"
@@ -15,6 +16,7 @@
 #include "platform/platform.hpp"
 #include "platform/preferred_languages.hpp"
 
+#include "coding/file_name_utils.hpp"
 #include "coding/internal/file_data.hpp"
 #include "coding/string_utf8_multilang.hpp"
 
@@ -999,4 +1001,116 @@ UNIT_CLASS_TEST(Runner, Bookmarks_BrokenFile)
   string const fileName = GetPlatform().TestsDataPathForFile("broken_bookmarks.kmb.test");
   auto kmlData = LoadKmlFile(fileName, KmlFileType::Binary);
   TEST(kmlData == nullptr, ());
+}
+
+UNIT_CLASS_TEST(Runner, Bookmarks_Sorting)
+{
+  classificator::Load();
+
+  User user;
+  BookmarkManager bmManager(user, (BookmarkManager::Callbacks(bmCallbacks)));
+  bmManager.EnableTestMode(true);
+
+  BookmarkManager::SortedBlocksCollection blocks;
+  BookmarkManager::SortedBlocksCollection expectedBlocks;
+
+  auto const currentTime = std::chrono::system_clock::now();
+  auto const kDay = std::chrono::hours(24);
+  auto const kWeek = std::chrono::hours(24 * 7);
+  auto const kMonth = std::chrono::hours(24 * 7 * 31);
+  auto const kUnknownTime = std::chrono::hours(0);
+
+  auto const & c = classif();
+  auto const setFeatureTypes = [&c](std::vector<std::string> const & readableTypes, kml::BookmarkData & bmData)
+  {
+    for (auto const & readableType : readableTypes)
+    {
+      auto const type = c.GetTypeByReadableObjectName(readableType);
+      if (c.IsTypeValid(type))
+      {
+        auto const typeInd = c.GetIndexForType(type);
+        bmData.m_featureTypes.push_back(typeInd);
+      }
+    }
+  };
+
+  struct TestMarkData
+  {
+    kml::MarkId m_markId;
+    m2::PointD m_position;
+    std::chrono::hours m_hoursSinceCreation;
+    std::vector<std::string> m_types;
+  };
+
+  double constexpr kMaxDistance = MercatorBounds::kDegreesInMeter * 300000.0;
+
+  m2::PointD const myPosition(0.0, 0.0);
+  std::vector<TestMarkData> testData = {
+    {0,  {kMaxDistance * 0.07, 0.0}, kDay + std::chrono::hours(1), {"historic-castle", "historic-ruins"}},
+    {1,  {kMaxDistance * 0.06, 0.0}, kUnknownTime, {"cuisine-seafood", "cuisine-sushi"}},
+    {2,  {kMaxDistance * 0.05, 0.0}, kUnknownTime, {"shop-music"}},
+    {3,  {kMaxDistance * 1.01, 0.0}, kWeek + std::chrono::hours(2), {"historic-castle"}},
+    {4,  {kMaxDistance * 0.04, 0.0}, kWeek + std::chrono::hours(3), {"cuisine-seafood"}},
+    {5,  {kMaxDistance * 1.02, 0.0}, kMonth + std::chrono::hours(1), {"historic-castle", "historic-memorial"}},
+    {6,  {kMaxDistance * 0.03, 0.0}, kMonth + std::chrono::hours(2), {"shop-music"}},
+    {7,  {kMaxDistance * 1.05, 0.0}, kUnknownTime, {}},
+    {8,  {kMaxDistance * 0.02, 0.0}, std::chrono::hours(1), {"historic-ruins"}},
+    {9,  {kMaxDistance * 1.06, 0.0}, kDay + std::chrono::hours(3), {"cuisine-seafood", "cuisine-regional"}},
+    {10, {kMaxDistance * 1.03, 0.0}, kMonth + std::chrono::hours(3), {"historic-castle"}},
+    {11, {kMaxDistance * 0.01, 0.0}, kWeek + std::chrono::hours(1), {}},
+    {12, {kMaxDistance * 1.04, 0.0}, kDay + std::chrono::hours(2), {"shop-music"}},
+  };
+
+  BookmarkManager::SortedBlocksCollection sortDistance = {{"Near", {11, 8, 6, 4, 2, 1, 0}},
+                                                          {"Others", {3, 5, 10, 12, 7, 9}}};
+
+  BookmarkManager::SortedBlocksCollection sortTime = {{"Week ago", {8, 0, 12, 9}},
+                                                      {"Month ago", {11, 3, 4}},
+                                                      {"More than month ago", {5, 6, 10}},
+                                                      {"Others", {7, 2, 1}}};
+
+  BookmarkManager::SortedBlocksCollection sortType = {{"historic-castle", {0, 3, 5, 10}},
+                                                      {"shop-music", {12, 6, 2}},
+                                                      {"cuisine-seafood", {9, 4, 1}},
+                                                      {"historic-ruins", {8}},
+                                                      {"Others", {11, 7}}};
+
+  kml::MarkGroupId catId = bmManager.CreateBookmarkCategory("test", false);
+  {
+    auto es = bmManager.GetEditSession();
+    for (auto const & testMarkData : testData)
+    {
+      kml::BookmarkData bmData;
+      bmData.m_id = testMarkData.m_markId;
+      bmData.m_point = testMarkData.m_position;
+      if (testMarkData.m_hoursSinceCreation != kUnknownTime)
+        bmData.m_timestamp = currentTime - testMarkData.m_hoursSinceCreation;
+      setFeatureTypes(testMarkData.m_types, bmData);
+      auto const * bm = es.CreateBookmark(std::move(bmData));
+      es.AttachBookmark(bm->GetId(), catId);
+    }
+  }
+
+  auto printBlocks = [](std::string const & name, BookmarkManager::SortedBlocksCollection const & blocks)
+  {
+    LOG(LWARNING, ("##########################   ", name, "   ##########################"));
+    for (auto const & block : blocks)
+    {
+      LOG(LWARNING, ("=============   ", block.m_blockName, "   ============="));
+      for (auto const markId : block.m_markIds)
+        LOG(LWARNING, ("   ", markId));
+    }
+  };
+
+  blocks = bmManager.GetSortedBookmarkIds(catId, BookmarkManager::SortingType::ByDistance);
+  printBlocks("ByDistance", blocks);
+  TEST(blocks == sortDistance, ());
+
+  blocks = bmManager.GetSortedBookmarkIds(catId, BookmarkManager::SortingType::ByTime);
+  printBlocks("ByTime", blocks);
+  TEST(blocks == sortTime, ());
+
+  blocks = bmManager.GetSortedBookmarkIds(catId, BookmarkManager::SortingType::ByType);
+  printBlocks("ByType", blocks);
+  TEST(blocks == sortType, ());
 }
