@@ -44,13 +44,15 @@ private:
   drape_ptr<dp::vulkan::Layers> m_layers;
   VkPhysicalDevice m_gpu = nullptr;
   VkDevice m_device = nullptr;
+  uint32_t m_queueFamilyIndex = 0;
   drape_ptr<dp::vulkan::VulkanBaseContext> m_drawContext;
   drape_ptr<dp::vulkan::VulkanBaseContext> m_uploadContext;
 
   ANativeWindow * m_nativeWindow = nullptr;
   bool m_windowSurfaceValid = false;
   VkSurfaceKHR m_surface = 0;
-  VkFormat m_surfaceFormat = VK_FORMAT_UNDEFINED;
+  VkSurfaceFormatKHR m_surfaceFormat;
+  VkSurfaceCapabilitiesKHR m_surfaceCapabilities;
   int m_surfaceWidth = 0;
   int m_surfaceHeight = 0;
 };

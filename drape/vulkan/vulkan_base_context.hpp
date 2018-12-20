@@ -11,6 +11,7 @@
 #include <boost/optional.hpp>
 
 #include <cstdint>
+#include <vector>
 
 namespace dp
 {
@@ -20,7 +21,7 @@ class VulkanBaseContext : public dp::GraphicsContext
 {
 public:
   VulkanBaseContext(VkInstance vulkanInstance, VkPhysicalDevice gpu,
-                    VkDevice device);
+                    VkDevice device, uint32_t queueFamilyIndex);
 
   void Present() override {}
   void MakeCurrent() override {}
@@ -50,20 +51,39 @@ public:
                          StencilAction depthFailAction, StencilAction passAction) override {}
   void SetStencilReferenceValue(uint32_t stencilReferenceValue) override;
 
-  void SetSurface(VkSurfaceKHR surface, VkFormat surfaceFormat, int width, int height);
+  void SetSurface(VkSurfaceKHR surface, VkSurfaceFormatKHR surfaceFormat,
+                  VkSurfaceCapabilitiesKHR surfaceCapabilities);
   void ResetSurface();
 
   VkDevice GetDevice() const { return m_device; }
 
 protected:
+  void CreateSwapchain();
+  void CreateImageViews();
+  void CreateRenderPass();
+  void CreateCommandBuffer();
+
   VkInstance const m_vulkanInstance;
   VkPhysicalDevice const m_gpu;
   VkDevice const m_device;
+  uint32_t m_queueFamilyIndex;
+
+  VkSwapchainKHR m_swapchain;
+  std::vector<VkImageView> m_swapchainImageViews;
+  VkRenderPass m_renderPass;
+  VkSemaphore m_imageAcquiredSemaphore;
+  uint32_t m_currentBuffer = 0;
+  VkCommandPool m_commandPool;
+  std::vector<VkCommandBuffer> m_commandBuffers;
 
   VkPhysicalDeviceProperties m_gpuProperties;
 
   boost::optional<VkSurfaceKHR> m_surface;
-  m2::PointU m_maxTextureSize;
+  VkSurfaceCapabilitiesKHR m_surfaceCapabilities;
+  VkSurfaceFormatKHR m_surfaceFormat;
+
+  VkPipelineLayout m_pipelineLayout;
+  std::vector<VkDescriptorSetLayout> m_descLayout;
 
   uint32_t m_stencilReferenceValue = 1;
 };

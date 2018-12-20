@@ -159,7 +159,7 @@ MeshObject::MeshObject(ref_ptr<dp::GraphicsContext> context, DrawPrimitive drawP
   }
   else if (apiVersion == dp::ApiVersion::Vulkan)
   {
-    //TODO(@rokuz, @darina): Implement.
+    InitForVulkan();
     CHECK(false, ());
   }
   CHECK(m_impl != nullptr, ());
@@ -173,6 +173,11 @@ MeshObject::~MeshObject()
 void MeshObject::InitForOpenGL()
 {
   m_impl = make_unique_dp<GLMeshObjectImpl>(make_ref(this));
+}
+
+void MeshObject::InitForVulkan()
+{
+  //m_impl = make_unique_dp<GLMeshObjectImpl>(make_ref(this));
 }
 
 void MeshObject::SetBuffer(uint32_t bufferInd, std::vector<float> && vertices, uint32_t stride)

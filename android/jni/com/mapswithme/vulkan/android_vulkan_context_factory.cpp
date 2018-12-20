@@ -138,6 +138,7 @@ AndroidVulkanContextFactory::AndroidVulkanContextFactory()
     LOG_ERROR_VK("Any queue family with VK_QUEUE_GRAPHICS_BIT wasn't found.");
     return;
   }
+  m_queueFamilyIndex = queueFamilyIndex;
 
   if (!m_layers->Initialize(m_vulkanInstance, m_gpu))
     return;
@@ -219,8 +220,7 @@ void AndroidVulkanContextFactory::SetSurface(JNIEnv * env, jobject jsurface)
 
   if (m_drawContext)
   {
-    m_drawContext->SetSurface(m_surface, m_surfaceFormat, m_surfaceWidth,
-                              m_surfaceHeight);
+    m_drawContext->SetSurface(m_surface, m_surfaceFormat, m_surfaceCapabilities, m_queueFamilyIndex);
   }
 
   m_windowSurfaceValid = true;
@@ -271,7 +271,8 @@ bool AndroidVulkanContextFactory::QuerySurfaceSize()
     return false;
   }
 
-  m_surfaceFormat = formats[chosenFormat].format;
+  m_surfaceFormat = formats[chosenFormat];
+  m_surfaceCapabilities = surfaceCapabilities;
   m_surfaceWidth = static_cast<int>(surfaceCapabilities.currentExtent.width);
   m_surfaceHeight = static_cast<int>(surfaceCapabilities.currentExtent.height);
   return true;

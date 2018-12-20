@@ -100,6 +100,7 @@ private:
   };
 
   void InitForOpenGL();
+  void InitForVulkan();
 
 #if defined(OMIM_METAL_AVAILABLE)
   // Definition of this method is in a .mm-file.
