@@ -64,16 +64,6 @@ std::string VulkanBaseContext::GetRendererVersion() const
   return ss.str();
 }
 
-void VulkanBaseContext::MakeCurrent()
-{
-
-}
-
-void VulkanBaseContext::DoneCurrent()
-{
-
-}
-
 bool VulkanBaseContext::Validate()
 {
   return true;
@@ -107,8 +97,9 @@ void VulkanBaseContext::ApplyFramebuffer(std::string const & framebufferLabel)
   m_pipelineKey.m_renderPass = m_renderPass;
 
   VkClearValue clearValues[2];
-  clearValues[0].color = {1.0f, 0.0f, 1.0f, 1.0f};
-  clearValues[1].depthStencil = { 1.0f, m_stencilReferenceValue };
+  clearValues[0].color = {m_clearColor.GetRedF(), m_clearColor.GetGreenF(), m_clearColor.GetBlueF(),
+                          m_clearColor.GetAlphaF()};
+  clearValues[1].depthStencil = {1.0f, m_stencilReferenceValue};
 
   VkRenderPassBeginInfo renderPassBeginInfo = {};
   renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -130,6 +121,24 @@ void VulkanBaseContext::ApplyFramebuffer(std::string const & framebufferLabel)
     renderPassBeginInfo.framebuffer = m_defaultFramebuffers[m_imageIndex];
   }
   vkCmdBeginRenderPass(m_renderingCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+  m_colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  m_colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+  m_colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  m_colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  m_colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  m_colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  m_colorAttachment.finalLayout =
+      m_currentFramebuffer != nullptr ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                      : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+  m_depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  m_depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  m_depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  m_depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  m_depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  m_depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  m_depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 }
 
 void VulkanBaseContext::Init(ApiVersion apiVersion)
@@ -138,7 +147,7 @@ void VulkanBaseContext::Init(ApiVersion apiVersion)
 
 void VulkanBaseContext::SetClearColor(Color const & color)
 {
-
+  m_clearColor = color;
 }
 
 void VulkanBaseContext::Clear(uint32_t clearBits, uint32_t storeBits)
@@ -597,7 +606,7 @@ void VulkanBaseContext::CreateRenderPass()
   // Color attachment
   attachments[0].format = colorFormat;
   attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-  attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
   attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -658,7 +667,7 @@ void VulkanBaseContext::CreateRenderPass()
 
   VkRenderPassCreateInfo renderPassInfo = {};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+  renderPassInfo.attachmentCount = attachmentsCount;
   renderPassInfo.pAttachments = attachments.data();
   renderPassInfo.subpassCount = 1;
   renderPassInfo.pSubpasses = &subpassDescription;

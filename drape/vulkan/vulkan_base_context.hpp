@@ -38,8 +38,8 @@ public:
 
   void BeginRendering() override;
   void Present() override;
-  void MakeCurrent() override;
-  void DoneCurrent() override;
+  void MakeCurrent() override {};
+  void DoneCurrent() override {};
   bool Validate() override;
   void Resize(int w, int h) override;
   void SetFramebuffer(ref_ptr<dp::BaseFramebuffer> framebuffer) override;
@@ -160,6 +160,8 @@ protected:
 
   VulkanObject m_depthStencil;
   std::vector<VkFramebuffer> m_defaultFramebuffers;
+
+  Color m_clearColor;
 
   VkFramebuffer m_framebuffer = {};
   std::vector<VkFramebuffer> m_framebuffersToDestroy;
