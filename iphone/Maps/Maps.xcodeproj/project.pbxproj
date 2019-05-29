@@ -577,6 +577,7 @@
 		CDB92CEE229E9CF900EC757C /* MWMDiscoveryMapObjects.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CED229E9CF900EC757C /* MWMDiscoveryMapObjects.mm */; };
 		CDB92CF1229EB8A800EC757C /* MWMDiscoverySearchViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CF0229EB8A800EC757C /* MWMDiscoverySearchViewModel.m */; };
 		CDB92CF822A5350500EC757C /* MWMDiscoveryHotelViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CF722A5350500EC757C /* MWMDiscoveryHotelViewModel.m */; };
+		BBED27022292F6C000788143 /* BookmarksSection.mm in Sources */ = {isa = PBXBuildFile; fileRef = BBED27012292F6C000788143 /* BookmarksSection.mm */; };
 		F5BD255A0838E70EC012748E /* DiscoverySearchCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD2ED6E94925472A9901B4 /* DiscoverySearchCell.swift */; };
 		F5BD29FF26AD58255766C51A /* DiscoverySpinnerCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD246A7E6BE8CD8600EDD9 /* DiscoverySpinnerCell.swift */; };
 		F5BD2CA4DBEFACBC48195F39 /* DiscoveryCollectionHolderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD2A86D9DA2F9769D30B54 /* DiscoveryCollectionHolderCell.swift */; };
@@ -1619,6 +1620,8 @@
 		CDB92CF0229EB8A800EC757C /* MWMDiscoverySearchViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MWMDiscoverySearchViewModel.m; sourceTree = "<group>"; };
 		CDB92CF622A5350500EC757C /* MWMDiscoveryHotelViewModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MWMDiscoveryHotelViewModel.h; sourceTree = "<group>"; };
 		CDB92CF722A5350500EC757C /* MWMDiscoveryHotelViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MWMDiscoveryHotelViewModel.m; sourceTree = "<group>"; };
+		BBED27002292F42000788143 /* BookmarksSection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BookmarksSection.h; sourceTree = "<group>"; };
+		BBED27012292F6C000788143 /* BookmarksSection.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = BookmarksSection.mm; sourceTree = "<group>"; };
 		ED48BBB317C267F5003E7E92 /* ColorPickerView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ColorPickerView.h; sourceTree = "<group>"; };
 		ED48BBB417C267F5003E7E92 /* ColorPickerView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ColorPickerView.mm; sourceTree = "<group>"; };
 		ED48BBB817C2B1E2003E7E92 /* CircleView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CircleView.h; sourceTree = "<group>"; };
@@ -4484,6 +4487,8 @@
 				FA054610155C465E001F4E37 /* SelectSetVC.h */,
 				FA054611155C465E001F4E37 /* SelectSetVC.mm */,
 				B33D21B720E130D000BAD749 /* BookmarksTabViewController.swift */,
+				BBED27002292F42000788143 /* BookmarksSection.h */,
+				BBED27012292F6C000788143 /* BookmarksSection.mm */,
 			);
 			path = Bookmarks;
 			sourceTree = "<group>";
@@ -5058,6 +5063,7 @@
 				6741A9CF1BF340DE002C974C /* MWMLocationAlert.mm in Sources */,
 				474AC76C2139E4F2002F9BF9 /* RemoveAdsViewController.swift in Sources */,
 				34ABA62D1C2D57D500FE1BEC /* MWMInputPasswordValidator.mm in Sources */,
+				BBED27022292F6C000788143 /* BookmarksSection.mm in Sources */,
 				F6E2FDA11E097BA00083EBEC /* MWMEditorAdditionalNamesTableViewController.mm in Sources */,
 				4767CDA620AB1F6200BD8166 /* LeftAlignedIconButton.swift in Sources */,
 				3454D7D41E07F045004AF2AD /* UIImageView+Coloring.mm in Sources */,
