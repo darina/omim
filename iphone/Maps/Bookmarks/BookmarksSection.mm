@@ -14,13 +14,25 @@ namespace
 CGFloat const kPinDiameter = 18.0f;
 }  // namespace
 
+@interface BookmarksSection()
+
+@property (weak, nonatomic) id<BookmarksSectionDelegate> delegate;
+
+@end
+
 @implementation BookmarksSection
 
 - (instancetype)initWithDelegate: (id<BookmarksSectionDelegate>)delegate
 {
+  return [self initWithBlockIndex:nil delegate:delegate];
+}
+
+- (instancetype)initWithBlockIndex:(NSNumber *)blockIndex delegate:(id<BookmarksSectionDelegate>)delegate
+{
   self = [super init];
   if (self)
   {
+    _blockIndex = blockIndex;
     _delegate = delegate;
   }
   return self;
@@ -28,17 +40,17 @@ CGFloat const kPinDiameter = 18.0f;
 
 - (NSInteger)numberOfRows
 {
-  return [self.delegate numberOfBookmarks];
+  return [self.delegate numberOfBookmarksInSection:self];
 }
 
 - (NSString *)title
 {
-  return [self.delegate titleOfBookmarksSection];
+  return [self.delegate titleOfBookmarksSection:self];
 }
 
 - (BOOL)canEdit
 {
-  return [self.delegate canEditBookmarksSection];
+  return [self.delegate canEditBookmarksSection:self];
 }
 
 - (UITableViewCell *)tableView: (UITableView *)tableView cellForRow: (NSInteger)row
@@ -52,7 +64,7 @@ CGFloat const kPinDiameter = 18.0f;
   auto & f = GetFramework();
   auto const & bm = f.GetBookmarkManager();
   
-  kml::MarkId const bmId = [self.delegate getBookmarkIdByRow:row];
+  kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
   Bookmark const * bookmark = bm.GetBookmark(bmId);
   cell.textLabel.text = @(bookmark->GetPreferredName().c_str());
   cell.imageView.image = [CircleView createCircleImageWith:kPinDiameter
@@ -78,10 +90,9 @@ CGFloat const kPinDiameter = 18.0f;
 
 - (void)updateCell: (UITableViewCell *)cell forRow:(NSInteger)row withNewLocation: (location::GpsInfo const &)info
 {
-  auto & f = GetFramework();
-  auto const & bm = f.GetBookmarkManager();
+  auto const & bm = GetFramework().GetBookmarkManager();
   
-  kml::MarkId const bmId = [self.delegate getBookmarkIdByRow:row];
+  kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
   Bookmark const * bookmark = bm.GetBookmark(bmId);
   if (!bookmark)
     return;
@@ -94,18 +105,17 @@ CGFloat const kPinDiameter = 18.0f;
 
 - (BOOL)didSelectRow: (NSInteger)row
 {
-  kml::MarkId const bmId = [self.delegate getBookmarkIdByRow:row];
+  kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
   [Statistics logEvent:kStatEventName(kStatBookmarks, kStatShowOnMap)];
   // Same as "Close".
   [MWMSearchManager manager].state = MWMSearchManagerStateHidden;
-  auto & f = GetFramework();
-  f.ShowBookmark(bmId);
+  GetFramework().ShowBookmark(bmId);
   return YES;
 }
 
 - (void)deleteRow: (NSInteger)row
 {
-  kml::MarkId const bmId = [self.delegate getBookmarkIdByRow:row];
+  kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
   [[MWMBookmarksManager sharedManager] deleteBookmark:bmId];
 }
 
@@ -113,13 +123,25 @@ CGFloat const kPinDiameter = 18.0f;
 
 ////////////////////////////////////////////////////////
 
+@interface TracksSection()
+
+@property (weak, nonatomic) id<TracksSectionDelegate> delegate;
+
+@end
+
 @implementation TracksSection
 
-- (instancetype)initWithDelegate: (id<TracksSectionDelegate>)delegate
+- (instancetype)initWithDelegate:(id<TracksSectionDelegate>)delegate
+{
+  return [self initWithBlockIndex:nil delegate:delegate];
+}
+
+- (instancetype)initWithBlockIndex:(NSNumber *)blockIndex delegate: (id<TracksSectionDelegate>)delegate
 {
   self = [super init];
   if (self)
   {
+    _blockIndex = blockIndex;
     _delegate = delegate;
   }
   return self;
@@ -127,17 +149,17 @@ CGFloat const kPinDiameter = 18.0f;
 
 - (NSInteger)numberOfRows
 {
-  return [self.delegate numberOfTracks];
+  return [self.delegate numberOfTracksInSection:self];
 }
 
 - (NSString *)title
 {
-  return [self.delegate titleOfTracksSection];
+  return [self.delegate titleOfTracksSection:self];
 }
 
 - (BOOL)canEdit
 {
-  return [self.delegate canEditTracksSection];
+  return [self.delegate canEditTracksSection:self];
 }
 
 - (UITableViewCell *)tableView: (UITableView *)tableView cellForRow: (NSInteger)row
@@ -147,10 +169,9 @@ CGFloat const kPinDiameter = 18.0f;
     cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"TrackCell"];
   CHECK(cell, ("Invalid track cell."));
   
-  auto & f = GetFramework();
-  auto const & bm = f.GetBookmarkManager();
+  auto const & bm = GetFramework().GetBookmarkManager();
   
-  kml::TrackId const trackId = [self.delegate getTrackIdByRow:row];
+  kml::TrackId const trackId = [self.delegate tracksSection:self getTrackIdByRow:row];
   Track const * track = bm.GetTrack(trackId);
   cell.textLabel.text = @(track->GetName().c_str());
   string dist;
@@ -170,24 +191,28 @@ CGFloat const kPinDiameter = 18.0f;
 
 - (BOOL)didSelectRow: (NSInteger)row
 {
-  auto & f = GetFramework();
-  kml::TrackId const trackId = [self.delegate getTrackIdByRow:row];
-  f.ShowTrack(trackId);
+  kml::TrackId const trackId = [self.delegate tracksSection:self getTrackIdByRow:row];
+  GetFramework().ShowTrack(trackId);
   return YES;
 }
 
 - (void)deleteRow: (NSInteger)row
 {
-  auto & f = GetFramework();
   // TODO(@darina): [[MWMBookmarksManager sharedManager] deleteTrack:bmId];?
-  auto & bm = f.GetBookmarkManager();
-  kml::TrackId const trackId = [self.delegate getTrackIdByRow:row];
+  auto & bm = GetFramework().GetBookmarkManager();
+  kml::TrackId const trackId = [self.delegate tracksSection:self getTrackIdByRow:row];
   bm.GetEditSession().DeleteTrack(trackId);
 }
 
 @end
 
 ////////////////////////////////////////////////////////
+
+@interface InfoSection()
+
+@property (weak, nonatomic) id<InfoSectionDelegate> delegate;
+
+@end
 
 @implementation InfoSection
 
