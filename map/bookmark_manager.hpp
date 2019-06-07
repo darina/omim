@@ -184,17 +184,21 @@ public:
   {
     ByTime,
     ByDistance,
-    ByType
+    ByType,
+    ByLength
   };
 
   struct SortedBlock
   {
     std::string m_blockName;
     kml::MarkIdCollection m_markIds;
+    kml::MarkIdCollection m_trackIds;
+
+    bool IsMarksBlock() { return !m_markIds.empty(); }
 
     bool operator==(SortedBlock const & other) const
     {
-      return m_blockName == other.m_blockName && m_markIds == other.m_markIds;
+      return m_blockName == other.m_blockName && m_markIds == other.m_markIds && m_trackIds == other.m_trackIds;
     }
   };
   using SortedBlocksCollection = std::vector<SortedBlock>;
@@ -631,3 +635,5 @@ namespace impl
 bool IsBookmarksCloudEnabled();
 }  // namespace impl
 }  //namespace lightweight
+
+std::string DebugPrint(BookmarkManager::SortingType type);

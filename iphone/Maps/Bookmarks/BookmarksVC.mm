@@ -33,6 +33,7 @@ using namespace std;
                           CategorySettingsViewControllerDelegate>
 {
   NSMutableArray<id<TableSectionDelegate>> * m_sectionsCollection;
+  BookmarkManager::SortedBlocksCollection m_sortedBlocks;
 }
 
 @property(nonatomic) BOOL infoExpanded;
@@ -40,7 +41,7 @@ using namespace std;
 @property(weak, nonatomic) IBOutlet UIToolbar * myCategoryToolbar;
 @property(weak, nonatomic) IBOutlet UIToolbar * downloadedCategoryToolbar;
 @property(weak, nonatomic) IBOutlet UIBarButtonItem * viewOnMapItem;
-@property(weak, nonatomic) IBOutlet UIBarButtonItem * sharingOptionsItem;
+@property(weak, nonatomic) IBOutlet UIBarButtonItem * sortItem;
 @property(weak, nonatomic) IBOutlet UIBarButtonItem * moreItem;
 
 @end
@@ -57,6 +58,11 @@ using namespace std;
     [self calculateSections];
   }
   return self;
+}
+
+- (BOOL)isSortMode
+{
+  return !m_sortedBlocks.empty();
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
@@ -144,24 +150,47 @@ using namespace std;
 
 #pragma mark - BookmarksSectionDelegate
 
-- (NSInteger)numberOfBookmarks
+- (NSInteger)numberOfBookmarksInSection:(BookmarksSection *)bookmarkSection
 {
+  if ([self isSortMode])
+  {
+    CHECK(bookmarkSection.blockIndex != nil, ());
+    NSInteger index = bookmarkSection.blockIndex.integerValue;
+    return m_sortedBlocks[index].m_markIds.size();
+  }
   auto const & bm = GetFramework().GetBookmarkManager();
   return bm.GetUserMarkIds(m_categoryId).size();
 }
 
-- (NSString *)titleOfBookmarksSection
+- (NSString *)titleOfBookmarksSection:(BookmarksSection *)bookmarkSection
 {
+  if ([self isSortMode])
+  {
+    CHECK(bookmarkSection.blockIndex != nil, ());
+    NSInteger index = bookmarkSection.blockIndex.integerValue;
+    return @(m_sortedBlocks[index].m_blockName.c_str());
+  }
+  
   return L(@"bookmarks");
 }
 
-- (BOOL)canEditBookmarksSection
+- (BOOL)canEditBookmarksSection:(BookmarksSection *)bookmarkSection
 {
+  if ([self isSortMode])
+    return false;
+  
   return [[MWMBookmarksManager sharedManager] isCategoryEditable:m_categoryId];
 }
 
-- (kml::MarkId)getBookmarkIdByRow:(NSInteger)row
+- (kml::MarkId)bookmarkSection:(BookmarksSection *)bookmarkSection getBookmarkIdByRow:(NSInteger)row
 {
+  if ([self isSortMode])
+  {
+    CHECK(bookmarkSection.blockIndex != nil, ());
+    NSInteger index = bookmarkSection.blockIndex.integerValue;
+    return m_sortedBlocks[index].m_markIds[row];
+  }
+  
   auto const & bm = GetFramework().GetBookmarkManager();
   auto const & bookmarkIds = bm.GetUserMarkIds(m_categoryId);
   ASSERT_LESS(row, bookmarkIds.size(), ());
@@ -172,24 +201,48 @@ using namespace std;
 
 #pragma mark - TracksSectionDelegate
 
-- (NSInteger)numberOfTracks
+- (NSInteger)numberOfTracksInSection:(TracksSection *)tracksSection
 {
+  if ([self isSortMode])
+  {
+    CHECK(tracksSection.blockIndex != nil, ());
+    NSInteger index = tracksSection.blockIndex.integerValue;
+    return m_sortedBlocks[index].m_trackIds.size();
+  }
+  
   auto const & bm = GetFramework().GetBookmarkManager();
   return bm.GetTrackIds(m_categoryId).size();
 }
 
-- (NSString *)titleOfTracksSection
+- (NSString *)titleOfTracksSection:(TracksSection *)tracksSection
 {
+  if ([self isSortMode])
+  {
+    CHECK(tracksSection.blockIndex != nil, ());
+    NSInteger index = tracksSection.blockIndex.integerValue;
+    return @(m_sortedBlocks[index].m_blockName.c_str());
+  }
+  
   return L(@"tracks_title");
 }
 
-- (BOOL)canEditTracksSection
+- (BOOL)canEditTracksSection:(TracksSection *)tracksSection
 {
+  if ([self isSortMode])
+    return false;
+  
   return [[MWMBookmarksManager sharedManager] isCategoryEditable:m_categoryId];
 }
 
-- (kml::TrackId)getTrackIdByRow:(NSInteger)row
+- (kml::TrackId)tracksSection:(TracksSection *)tracksSection getTrackIdByRow:(NSInteger)row
 {
+  if ([self isSortMode])
+  {
+    CHECK(tracksSection.blockIndex != nil, ());
+    NSInteger index = tracksSection.blockIndex.integerValue;
+    return m_sortedBlocks[index].m_trackIds[row];
+  }
+  
   auto const & bm = GetFramework().GetBookmarkManager();
   auto const & trackIds = bm.GetTrackIds(m_categoryId);
   ASSERT_LESS(row, trackIds.size(), ());
@@ -258,11 +311,12 @@ using namespace std;
                                    NSForegroundColorAttributeName: [UIColor linkBlue] };
 
   [self.moreItem setTitleTextAttributes:moreTitleAttributes forState:UIControlStateNormal];
-  [self.sharingOptionsItem setTitleTextAttributes:regularTitleAttributes forState:UIControlStateNormal];
+  [self.sortItem setTitleTextAttributes:regularTitleAttributes forState:UIControlStateNormal];
   [self.viewOnMapItem setTitleTextAttributes:regularTitleAttributes forState:UIControlStateNormal];
 
   self.moreItem.title = L(@"placepage_more_button");
-  self.sharingOptionsItem.title = L(@"sharing_options");
+  // TODO(@darina) Use strings
+  self.sortItem.title = @"Sort";// L(@"sharing_options");
   self.viewOnMapItem.title = L(@"search_show_on_map");
 
   self.myCategoryToolbar.barTintColor = [UIColor white];
@@ -281,11 +335,11 @@ using namespace std;
     if ([[MWMBookmarksManager sharedManager] isCategoryNotEmpty:m_categoryId])
     {
       self.navigationItem.rightBarButtonItem = self.editButtonItem;
-      self.sharingOptionsItem.enabled = YES;
+      self.sortItem.enabled = YES;
     }
     else
     {
-      self.sharingOptionsItem.enabled = NO;
+      self.sortItem.enabled = NO;
     }
   }
   else
@@ -340,6 +394,18 @@ using namespace std;
 - (void)calculateSections
 {
   [m_sectionsCollection removeAllObjects];
+  
+  if ([self isSortMode])
+  {
+    NSInteger blockIndex = 0;
+    for (auto const & block : m_sortedBlocks)
+    {
+      if (!block.m_markIds.empty())
+        [m_sectionsCollection addObject:[[BookmarksSection alloc] initWithBlockIndex:@(blockIndex++) delegate:self]];
+    }
+    return;
+  }
+  
   auto const & bm = GetFramework().GetBookmarkManager();
   if (bm.IsCategoryFromCatalog(m_categoryId))
   {
@@ -360,6 +426,15 @@ using namespace std;
   auto actionSheet = [UIAlertController alertControllerWithTitle:nil
                                                          message:nil
                                                   preferredStyle:UIAlertControllerStyleActionSheet];
+  
+  [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"sharing_options")
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(UIAlertAction * _Nonnull action)
+                          {
+                            [self shareCategory];
+                            [Statistics logEvent:kStatBookmarksListItemSettings withParameters:@{kStatOption : kStatSharingOptions}];
+                          }]];
+  
   [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"search_show_on_map")
                                                   style:UIAlertActionStyleDefault
                                                 handler:^(UIAlertAction * _Nonnull action)
@@ -406,10 +481,42 @@ using namespace std;
   [Statistics logEvent:kStatBookmarksListItemSettings withParameters:@{kStatOption : kStatMore}];
 }
 
-- (IBAction)onSharingOptions:(UIBarButtonItem *)sender
+- (void)sort: (BookmarkManager::SortingType)type
 {
-  [self shareCategory];
-  [Statistics logEvent:kStatBookmarksListItemSettings withParameters:@{kStatOption : kStatSharingOptions}];
+  auto const & bm = GetFramework().GetBookmarkManager();
+  m_sortedBlocks = bm.GetSortedBookmarkIds(m_categoryId, type);
+  [self calculateSections];
+  [self.tableView reloadData];
+}
+
+- (IBAction)onSort:(UIBarButtonItem *)sender
+{
+  auto actionSheet = [UIAlertController alertControllerWithTitle:nil
+                                                         message:nil
+                                                  preferredStyle:UIAlertControllerStyleActionSheet];
+  
+  auto const & bm = GetFramework().GetBookmarkManager();
+  auto const sortingTypes = bm.GetAvailableSortingTypes(m_categoryId);
+  
+  for (auto type : sortingTypes)
+  {
+    NSString * typeStr = @(DebugPrint(type).c_str());
+    [actionSheet addAction:[UIAlertAction actionWithTitle:typeStr
+                                                    style:UIAlertActionStyleDefault
+                                                  handler:^(UIAlertAction * _Nonnull action)
+                            {
+                              [self sort:type];
+                            }]];
+  }
+  
+  [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"cancel")
+                                                  style:UIAlertActionStyleCancel
+                                                handler:nil]];
+  
+  actionSheet.popoverPresentationController.barButtonItem = self.sortItem;
+  [self presentViewController:actionSheet animated:YES completion:^{
+    actionSheet.popoverPresentationController.passthroughViews = nil;
+  }];
 }
 
 - (IBAction)onViewOnMap:(UIBarButtonItem *)sender
