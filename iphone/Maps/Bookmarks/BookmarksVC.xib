@@ -15,7 +15,7 @@
                 <outlet property="downloadedCategoryToolbar" destination="lox-EJ-BTW" id="q8N-7N-FxS"/>
                 <outlet property="moreItem" destination="SzW-hJ-oy9" id="aRd-eB-gSj"/>
                 <outlet property="myCategoryToolbar" destination="uNd-fM-YVD" id="dYH-H1-P8u"/>
-                <outlet property="sharingOptionsItem" destination="U4v-rd-kcf" id="vlw-yQ-uUA"/>
+                <outlet property="sortItem" destination="U4v-rd-kcf" id="vlw-yQ-uUA"/>
                 <outlet property="tableView" destination="sBT-45-bnw" id="zSc-eX-NZC"/>
                 <outlet property="view" destination="iN0-l3-epB" id="jfu-i2-8ie"/>
                 <outlet property="viewOnMapItem" destination="zDI-L0-Fjj" id="O8a-cu-AsX"/>
@@ -43,7 +43,7 @@
                         <barButtonItem width="16" style="plain" systemItem="fixedSpace" id="jsx-WU-dhT"/>
                         <barButtonItem title="Sharing options" style="plain" id="U4v-rd-kcf">
                             <connections>
-                                <action selector="onSharingOptions:" destination="-1" id="Nvj-G6-K6X"/>
+                                <action selector="onSort:" destination="-1" id="Nvj-G6-K6X"/>
                             </connections>
                         </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="Hpc-In-hqh"/>

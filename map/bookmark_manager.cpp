@@ -813,6 +813,7 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
   bool byDistanceChecked = false;
   bool byTypeChecked = false;
   bool byTimeChecked = false;
+  bool byLengthChecked = false;
 
   size_t const kMinCommonTypesCount = 3;
   double const kMaxDistanceInMeters = 300 * 1000;
@@ -843,6 +844,19 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
       break;
   }
 
+  if (group->GetUserMarks().empty())
+  {
+    for (auto trackId : group->GetUserLines())
+    {
+      auto const & trackData = GetTrack(trackId)->GetData();
+      byTimeChecked = !kml::IsEqual(trackData.m_timestamp, kml::Timestamp());
+      if (byTimeChecked)
+        break;
+    }
+
+    byLengthChecked = group->GetUserLines().size() > 1;
+  }
+
   std::set<SortingType> sortingTypes;
   if (byTypeChecked)
     sortingTypes.insert(SortingType::ByType);
@@ -850,6 +864,8 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
     sortingTypes.insert(SortingType::ByDistance);
   if (byTimeChecked)
     sortingTypes.insert(SortingType::ByTime);
+  if (byLengthChecked)
+    sortingTypes.insert(SortingType::ByLength);
 
   return sortingTypes;
 }
@@ -3179,3 +3195,15 @@ bool IsBookmarksCloudEnabled()
 }
 }  // namespace impl
 }  // namespace lightweight
+
+std::string DebugPrint(BookmarkManager::SortingType type)
+{
+  switch (type)
+  {
+  case BookmarkManager::SortingType::ByTime: return "By time";
+  case BookmarkManager::SortingType::ByType: return "By type";
+  case BookmarkManager::SortingType::ByDistance: return "By distance";
+  case BookmarkManager::SortingType::ByLength: return "By length";
+  }
+  UNREACHABLE();
+}
