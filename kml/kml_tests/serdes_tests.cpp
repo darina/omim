@@ -217,7 +217,7 @@ kml::FileData GenerateKmlFileData()
   bookmarkData.m_customName[kDefaultLang] = "Мое любимое место";
   bookmarkData.m_customName[kEnLang] = "My favorite place";
   bookmarkData.m_color = {kml::PredefinedColor::Blue, 0};
-  bookmarkData.m_icon = kml::BookmarkIcon::None;
+  bookmarkData.m_icon = kml::BookmarkType::None;
   bookmarkData.m_viewportScale = 15;
   bookmarkData.m_timestamp = std::chrono::system_clock::from_time_t(800);
   bookmarkData.m_point = m2::PointD(45.9242, 56.8679);

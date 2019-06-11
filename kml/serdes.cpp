@@ -125,15 +125,15 @@ std::string GetStyleForPredefinedColor(PredefinedColor color)
   UNREACHABLE();
 }
   
-BookmarkIcon GetIcon(std::string const & iconName)
+BookmarkType GetIcon(std::string const & iconName)
 {
-  for (size_t i = 0; i < static_cast<size_t>(BookmarkIcon::Count); ++i)
+  for (size_t i = 0; i < static_cast<size_t>(BookmarkType::Count); ++i)
   {
-    auto const icon = static_cast<BookmarkIcon>(i);
+    auto const icon = static_cast<BookmarkType>(i);
     if (iconName == DebugPrint(icon))
       return icon;
   }
-  return BookmarkIcon::None;
+  return BookmarkType::None;
 }
 
 template <typename Channel>
@@ -340,7 +340,7 @@ void SaveBookmarkExtendedData(KmlWriter::WriterWrapper & writer, BookmarkData co
 {
   if (bookmarkData.m_name.empty() && bookmarkData.m_description.empty() &&
       bookmarkData.m_customName.empty() && bookmarkData.m_viewportScale == 0 &&
-      bookmarkData.m_icon == BookmarkIcon::None && bookmarkData.m_featureTypes.empty() &&
+      bookmarkData.m_icon == BookmarkType::None && bookmarkData.m_featureTypes.empty() &&
       bookmarkData.m_boundTracks.empty())
   {
     return;
@@ -371,7 +371,7 @@ void SaveBookmarkExtendedData(KmlWriter::WriterWrapper & writer, BookmarkData co
     auto const scale = strings::to_string(static_cast<double>(bookmarkData.m_viewportScale));
     writer << kIndent6 << "<mwm:scale>" << scale << "</mwm:scale>\n";
   }
-  if (bookmarkData.m_icon != BookmarkIcon::None)
+  if (bookmarkData.m_icon != BookmarkType::None)
     writer << kIndent6 << "<mwm:icon>" << DebugPrint(bookmarkData.m_icon) << "</mwm:icon>\n";
 
   std::vector<std::string> boundTracks;
@@ -538,7 +538,7 @@ void KmlParser::ResetPoint()
   m_localId = 0;
   m_trackLayers.clear();
   m_trackWidth = kDefaultTrackWidth;
-  m_icon = BookmarkIcon::None;
+  m_icon = BookmarkType::None;
 
   m_points.clear();
   m_geometryType = GEOMETRY_TYPE_UNKNOWN;
@@ -898,7 +898,7 @@ void KmlParser::CharData(std::string value)
         if (value == "#placemark-hotel")
         {
           m_predefinedColor = PredefinedColor::Blue;
-          m_icon = BookmarkIcon::Hotel;
+          m_icon = BookmarkType::Hotel;
         }
 
         // Track draw style.

@@ -23,6 +23,7 @@
 - (NSString *)titleOfBookmarksSection:(BookmarksSection *)bookmarkSection;
 - (BOOL)canEditBookmarksSection:(BookmarksSection *)bookmarkSection;
 - (kml::MarkId)bookmarkSection:(BookmarksSection *)bookmarkSection getBookmarkIdByRow:(NSInteger)row;
+- (void)bookmarkSection:(BookmarksSection *)bookmarkSection onDeleteBookmarkInRow:(NSInteger)row;
 @end
 
 @class TracksSection;
@@ -32,6 +33,7 @@
 - (NSString *)titleOfTracksSection:(TracksSection *)tracksSection;
 - (BOOL)canEditTracksSection:(TracksSection *)tracksSection;
 - (kml::MarkId)tracksSection:(TracksSection *)tracksSection getTrackIdByRow:(NSInteger)row;
+- (void)tracksSection:(TracksSection *)tracksSection onDeleteTrackInRow:(NSInteger)row;
 @end
 
 @protocol InfoSectionDelegate <NSObject>
