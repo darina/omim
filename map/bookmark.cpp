@@ -11,32 +11,32 @@ namespace
 {
 std::string const kDeepLinkUrl = DLINK_URL;
 
-std::string GetBookmarkIconType(kml::BookmarkIcon const & icon)
+std::string GetBookmarkIconType(kml::BookmarkType const & icon)
 {
   switch (icon)
   {
-  case kml::BookmarkIcon::None: return "default";
-  case kml::BookmarkIcon::Hotel: return "hotel";
-  case kml::BookmarkIcon::Animals: return "animals";
-  case kml::BookmarkIcon::Buddhism: return "buddhism";
-  case kml::BookmarkIcon::Building: return "building";
-  case kml::BookmarkIcon::Christianity: return "christianity";
-  case kml::BookmarkIcon::Entertainment: return "entertainment";
-  case kml::BookmarkIcon::Exchange: return "exchange";
-  case kml::BookmarkIcon::Food: return "food";
-  case kml::BookmarkIcon::Gas: return "gas";
-  case kml::BookmarkIcon::Judaism: return "judaism";
-  case kml::BookmarkIcon::Medicine: return "medicine";
-  case kml::BookmarkIcon::Mountain: return "mountain";
-  case kml::BookmarkIcon::Museum: return "museum";
-  case kml::BookmarkIcon::Islam: return "islam";
-  case kml::BookmarkIcon::Park: return "park";
-  case kml::BookmarkIcon::Parking: return "parking";
-  case kml::BookmarkIcon::Shop: return "shop";
-  case kml::BookmarkIcon::Sights: return "sights";
-  case kml::BookmarkIcon::Swim: return "swim";
-  case kml::BookmarkIcon::Water: return "water";
-  case kml::BookmarkIcon::Count:
+  case kml::BookmarkType::None: return "default";
+  case kml::BookmarkType::Hotel: return "hotel";
+  case kml::BookmarkType::Animals: return "animals";
+  case kml::BookmarkType::Buddhism: return "buddhism";
+  case kml::BookmarkType::Building: return "building";
+  case kml::BookmarkType::Christianity: return "christianity";
+  case kml::BookmarkType::Entertainment: return "entertainment";
+  case kml::BookmarkType::Exchange: return "exchange";
+  case kml::BookmarkType::Food: return "food";
+  case kml::BookmarkType::Gas: return "gas";
+  case kml::BookmarkType::Judaism: return "judaism";
+  case kml::BookmarkType::Medicine: return "medicine";
+  case kml::BookmarkType::Mountain: return "mountain";
+  case kml::BookmarkType::Museum: return "museum";
+  case kml::BookmarkType::Islam: return "islam";
+  case kml::BookmarkType::Park: return "park";
+  case kml::BookmarkType::Parking: return "parking";
+  case kml::BookmarkType::Shop: return "shop";
+  case kml::BookmarkType::Sights: return "sights";
+  case kml::BookmarkType::Swim: return "swim";
+  case kml::BookmarkType::Water: return "water";
+  case kml::BookmarkType::Count:
     ASSERT(false, ("Invalid bookmark icon type"));
     return {};
   }

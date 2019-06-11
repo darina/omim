@@ -11,7 +11,7 @@
 
 #include "Framework.h"
 
-#include "geometry/distance_on_sphere.hpp"
+#include "geometry/mercator.hpp"
 
 #include "coding/zip_creator.hpp"
 #include "coding/internal/file_data.hpp"
@@ -122,7 +122,7 @@ using namespace std;
 
   if (editingStyle == UITableViewCellEditingStyleDelete)
     [m_sectionsCollection[indexPath.section] deleteRow:indexPath.row];
-
+  
   auto const previousNumberOfSections = [m_sectionsCollection count];
   [self calculateSections];
 
@@ -176,9 +176,6 @@ using namespace std;
 
 - (BOOL)canEditBookmarksSection:(BookmarksSection *)bookmarkSection
 {
-  if ([self isSortMode])
-    return false;
-  
   return [[MWMBookmarksManager sharedManager] isCategoryEditable:m_categoryId];
 }
 
@@ -197,6 +194,19 @@ using namespace std;
   auto it = bookmarkIds.begin();
   advance(it, row);
   return *it;
+}
+
+- (void)bookmarkSection:(BookmarksSection *)bookmarkSection onDeleteBookmarkInRow:(NSInteger)row
+{
+  if ([self isSortMode])
+  {
+    CHECK(bookmarkSection.blockIndex != nil, ());
+    NSInteger index = bookmarkSection.blockIndex.integerValue;
+    auto & marks = m_sortedBlocks[index].m_markIds;
+    marks.erase(marks.begin() + row);
+    if (marks.empty())
+      m_sortedBlocks.erase(m_sortedBlocks.begin() + index);
+  }
 }
 
 #pragma mark - TracksSectionDelegate
@@ -249,6 +259,19 @@ using namespace std;
   auto it = trackIds.begin();
   advance(it, row);
   return *it;
+}
+
+- (void)tracksSection:(TracksSection *)tracksSection onDeleteTrackInRow:(NSInteger)row
+{
+  if ([self isSortMode])
+  {
+    CHECK(tracksSection.blockIndex != nil, ());
+    NSInteger index = tracksSection.blockIndex.integerValue;
+    auto & tracks = m_sortedBlocks[index].m_trackIds;
+    tracks.erase(tracks.begin() + row);
+    if (tracks.empty())
+      m_sortedBlocks.erase(m_sortedBlocks.begin() + index);
+  }
 }
 
 #pragma mark - InfoSectionDelegate
@@ -484,7 +507,20 @@ using namespace std;
 - (void)sort: (BookmarkManager::SortingType)type
 {
   auto const & bm = GetFramework().GetBookmarkManager();
-  m_sortedBlocks = bm.GetSortedBookmarkIds(m_categoryId, type);
+  
+  bool hasMyPosition = false;
+  m2::PointD myPosition = m2::PointD::Zero();
+  
+  if (type == BookmarkManager::SortingType::ByDistance)
+  {
+    CLLocation * lastLocation = [MWMLocationManager lastLocation];
+    if (!lastLocation)
+      return;
+    hasMyPosition = true;
+    myPosition = MercatorBounds::FromLatLon(lastLocation.coordinate.latitude, lastLocation.coordinate.longitude);
+  }
+  
+  m_sortedBlocks = bm.GetSortedBookmarkIds(m_categoryId, type, hasMyPosition, myPosition);
   [self calculateSections];
   [self.tableView reloadData];
 }
@@ -496,7 +532,15 @@ using namespace std;
                                                   preferredStyle:UIAlertControllerStyleActionSheet];
   
   auto const & bm = GetFramework().GetBookmarkManager();
-  auto const sortingTypes = bm.GetAvailableSortingTypes(m_categoryId);
+  
+  CLLocation * lastLocation = [MWMLocationManager lastLocation];
+  bool const hasMyPosition = lastLocation != nil;
+  m2::PointD myPosition = m2::PointD::Zero();
+  if (hasMyPosition)
+    myPosition = MercatorBounds::FromLatLon(lastLocation.coordinate.latitude, lastLocation.coordinate.longitude);
+
+  
+  auto const sortingTypes = bm.GetAvailableSortingTypes(m_categoryId, hasMyPosition, myPosition);
   
   for (auto type : sortingTypes)
   {
