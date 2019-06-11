@@ -120,7 +120,7 @@ private:
   LocalizableString m_customName;
   std::vector<LocalId> m_boundTracks;
   LocalId m_localId;
-  BookmarkIcon m_icon;
+  BookmarkType m_icon;
   std::vector<TrackLayer> m_trackLayers;
   double m_trackWidth;
 };

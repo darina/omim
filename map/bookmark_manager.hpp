@@ -203,8 +203,10 @@ public:
   };
   using SortedBlocksCollection = std::vector<SortedBlock>;
 
-  std::set<SortingType> GetAvailableSortingTypes(kml::MarkGroupId groupId) const;
-  SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType) const;
+  std::set<SortingType> GetAvailableSortingTypes(kml::MarkGroupId groupId, bool hasMyPosition,
+                                                 m2::PointD const & myPosition) const;
+  SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType, bool hasMyPosition,
+                                              m2::PointD const & myPosition) const;
 
   bool IsVisible(kml::MarkGroupId groupId) const;
 

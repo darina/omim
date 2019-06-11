@@ -117,6 +117,7 @@ CGFloat const kPinDiameter = 18.0f;
 {
   kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
   [[MWMBookmarksManager sharedManager] deleteBookmark:bmId];
+  [self.delegate bookmarkSection:self onDeleteBookmarkInRow:row];
 }
 
 @end
@@ -199,9 +200,10 @@ CGFloat const kPinDiameter = 18.0f;
 - (void)deleteRow: (NSInteger)row
 {
   // TODO(@darina): [[MWMBookmarksManager sharedManager] deleteTrack:bmId];?
-  auto & bm = GetFramework().GetBookmarkManager();
   kml::TrackId const trackId = [self.delegate tracksSection:self getTrackIdByRow:row];
+  auto & bm = GetFramework().GetBookmarkManager();
   bm.GetEditSession().DeleteTrack(trackId);
+  [self.delegate tracksSection:self onDeleteTrackInRow:row];
 }
 
 @end
