@@ -11,7 +11,7 @@
 
 namespace
 {
-CGFloat const kPinDiameter = 18.0f;
+CGFloat const kPinDiameter = 22.0f;
 }  // namespace
 
 @interface BookmarksSection()
@@ -68,7 +68,8 @@ CGFloat const kPinDiameter = 18.0f;
   Bookmark const * bookmark = bm.GetBookmark(bmId);
   cell.textLabel.text = @(bookmark->GetPreferredName().c_str());
   cell.imageView.image = [CircleView createCircleImageWith:kPinDiameter
-                                                  andColor:[ColorPickerView getUIColor:bookmark->GetColor()]];
+                                                  andColor:[ColorPickerView getUIColor:bookmark->GetColor()]
+                                              andImageName:@(DebugPrint(bookmark->GetData().m_icon).c_str())];
   
   CLLocation * lastLocation = [MWMLocationManager lastLocation];
   if (lastLocation)
