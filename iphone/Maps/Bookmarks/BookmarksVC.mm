@@ -11,6 +11,8 @@
 
 #include "Framework.h"
 
+#include "map/bookmarks_search_params.hpp"
+
 #include "geometry/mercator.hpp"
 
 #include "coding/zip_creator.hpp"
@@ -24,6 +26,7 @@ using namespace std;
 
 @interface BookmarksVC() <UITableViewDataSource,
                           UITableViewDelegate,
+                          UISearchResultsUpdating,
                           MWMBookmarksObserver,
                           MWMLocationObserver,
                           BookmarksSectionDelegate,
@@ -34,8 +37,13 @@ using namespace std;
 {
   NSMutableArray<id<TableSectionDelegate>> * m_sectionsCollection;
   BookmarkManager::SortedBlocksCollection m_sortedBlocks;
+  
+  search::BookmarksSearchParams m_searchParams;
+  search::BookmarksSearchParams::Results m_searchResults;
 }
 
+@property(strong, nonatomic) UISearchController * searchController;
+@property(nonatomic) NSUInteger lastSearchId;
 @property(nonatomic) BOOL infoExpanded;
 @property(weak, nonatomic) IBOutlet UITableView * tableView;
 @property(weak, nonatomic) IBOutlet UIToolbar * myCategoryToolbar;
@@ -60,9 +68,17 @@ using namespace std;
   return self;
 }
 
+- (BOOL)isSearchMode
+{
+  // TODO(@darina) ??????
+  return !m_searchResults.empty();
+  NSString * searchText = self.searchController.searchBar.text;
+  return searchText && searchText.length != 0;
+}
+
 - (BOOL)isSortMode
 {
-  return !m_sortedBlocks.empty();
+  return ![self isSearchMode] && !m_sortedBlocks.empty();
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
@@ -152,6 +168,11 @@ using namespace std;
 
 - (NSInteger)numberOfBookmarksInSection:(BookmarksSection *)bookmarkSection
 {
+  if ([self isSearchMode])
+  {
+    return m_searchResults.size();
+  }
+  
   if ([self isSortMode])
   {
     CHECK(bookmarkSection.blockIndex != nil, ());
@@ -164,6 +185,9 @@ using namespace std;
 
 - (NSString *)titleOfBookmarksSection:(BookmarksSection *)bookmarkSection
 {
+  if ([self isSearchMode])
+    return nil;
+  
   if ([self isSortMode])
   {
     CHECK(bookmarkSection.blockIndex != nil, ());
@@ -181,6 +205,12 @@ using namespace std;
 
 - (kml::MarkId)bookmarkSection:(BookmarksSection *)bookmarkSection getBookmarkIdByRow:(NSInteger)row
 {
+  if ([self isSearchMode])
+  {
+    CHECK_LESS(row, m_searchResults.size(), ());
+    return m_searchResults[row];
+  }
+  
   if ([self isSortMode])
   {
     CHECK(bookmarkSection.blockIndex != nil, ());
@@ -198,6 +228,14 @@ using namespace std;
 
 - (void)bookmarkSection:(BookmarksSection *)bookmarkSection onDeleteBookmarkInRow:(NSInteger)row
 {
+  if ([self isSearchMode])
+  {
+    CHECK_LESS(row, m_searchResults.size(), ());
+    m_searchResults.erase(m_searchResults.begin() + row);
+    m_sortedBlocks.clear();
+    return;
+  }
+  
   if ([self isSortMode])
   {
     CHECK(bookmarkSection.blockIndex != nil, ());
@@ -213,6 +251,8 @@ using namespace std;
 
 - (NSInteger)numberOfTracksInSection:(TracksSection *)tracksSection
 {
+  CHECK(![self isSearchMode], ());
+  
   if ([self isSortMode])
   {
     CHECK(tracksSection.blockIndex != nil, ());
@@ -226,6 +266,8 @@ using namespace std;
 
 - (NSString *)titleOfTracksSection:(TracksSection *)tracksSection
 {
+  CHECK(![self isSearchMode], ());
+  
   if ([self isSortMode])
   {
     CHECK(tracksSection.blockIndex != nil, ());
@@ -238,6 +280,8 @@ using namespace std;
 
 - (BOOL)canEditTracksSection:(TracksSection *)tracksSection
 {
+  CHECK(![self isSearchMode], ());
+  
   if ([self isSortMode])
     return false;
   
@@ -246,6 +290,8 @@ using namespace std;
 
 - (kml::TrackId)tracksSection:(TracksSection *)tracksSection getTrackIdByRow:(NSInteger)row
 {
+  CHECK(![self isSearchMode], ());
+  
   if ([self isSortMode])
   {
     CHECK(tracksSection.blockIndex != nil, ());
@@ -263,6 +309,8 @@ using namespace std;
 
 - (void)tracksSection:(TracksSection *)tracksSection onDeleteTrackInRow:(NSInteger)row
 {
+  CHECK(![self isSearchMode], ());
+  
   if ([self isSortMode])
   {
     CHECK(tracksSection.blockIndex != nil, ());
@@ -324,6 +372,14 @@ using namespace std;
 - (void)viewDidLoad
 {
   [super viewDidLoad];
+  
+  self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
+  self.searchController.searchResultsUpdater = self;
+  self.searchController.dimsBackgroundDuringPresentation = NO;
+  [self.searchController.searchBar sizeToFit];
+  self.tableView.tableHeaderView = self.searchController.searchBar;
+  self.definesPresentationContext = YES;
+  
   self.tableView.estimatedRowHeight = 44;
   [self.tableView registerWithCellClass:MWMCategoryInfoCell.class];
   self.tableView.separatorColor = [UIColor blackDividers];
@@ -417,6 +473,12 @@ using namespace std;
 - (void)calculateSections
 {
   [m_sectionsCollection removeAllObjects];
+  
+  if ([self isSearchMode])
+  {
+    [m_sectionsCollection addObject:[[BookmarksSection alloc] initWithDelegate:self]];
+    return;
+  }
   
   if ([self isSortMode])
   {
@@ -650,6 +712,44 @@ using namespace std;
   [self.navigationController popViewControllerAnimated:YES];
   [self.delegate bookmarksVCdidUpdateCategory:self];
   [self.tableView reloadData];
+}
+
+#pragma mark - UISearchResultsUpdating
+
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController
+{
+  NSString * searchText = searchController.searchBar.text;
+  if (!searchText || searchText.length == 0)
+  {
+    GetFramework().CancelSearch(search::Mode::Bookmarks);
+    if (!m_searchResults.empty())
+    {
+      m_searchResults.clear();
+      [self.tableView reloadData];
+    }
+    return;
+  }
+
+  m_searchParams.m_query = searchText.UTF8String;
+  m_searchParams.m_categoryId = m_categoryId;
+  
+  auto const searchId = ++self.lastSearchId;
+  __weak auto weakSelf = self;
+  m_searchParams.m_onStarted = [] {};
+  m_searchParams.m_onResults = [weakSelf, searchId](search::BookmarksSearchParams::Results const & results,
+                                                    search::BookmarksSearchParams::Status status) {
+    __strong auto self = weakSelf;
+    if (!self || searchId != self.lastSearchId)
+      return;
+    
+    if (status != search::BookmarksSearchParams::Status::Cancelled)
+      self->m_searchResults = results;
+    else
+      self->m_searchResults.clear();
+    
+    [self.tableView reloadData];
+  };
+  GetFramework().SearchInBookmarks(m_searchParams);
 }
 
 @end
