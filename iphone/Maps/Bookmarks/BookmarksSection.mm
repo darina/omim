@@ -53,6 +53,29 @@ CGFloat const kPinDiameter = 22.0f;
   return [self.delegate canEditBookmarksSection:self];
 }
 
+- (void)fillCell: (UITableViewCell *)cell withBookmarkDetails: (Bookmark const *)bookmark andLocation:(CLLocation *)location
+{
+  std::vector<std::string> details;
+  
+  if (location)
+  {
+    m2::PointD const pos = bookmark->GetPivot();
+    double const meters = ms::DistanceOnEarth(location.coordinate.latitude, location.coordinate.longitude,
+                                              MercatorBounds::YToLat(pos.y), MercatorBounds::XToLon(pos.x));
+    details.push_back(location_helpers::formattedDistance(meters).UTF8String);
+  }
+  
+  auto const & types = bookmark->GetData().m_featureTypes;
+  if (!types.empty())
+    details.push_back(kml::GetLocalizedFeatureType(types));
+  
+  auto const detailText = strings::JoinStrings(details, " • ");
+  if (!detailText.empty())
+    cell.detailTextLabel.text = @(detailText.c_str());
+  else
+    cell.detailTextLabel.text = nil;
+}
+
 - (UITableViewCell *)tableView: (UITableView *)tableView cellForRow: (NSInteger)row
 {
   UITableViewCell * cell = [tableView dequeueReusableCellWithIdentifier:@"BookmarksVCBookmarkItemCell"];
@@ -61,10 +84,8 @@ CGFloat const kPinDiameter = 22.0f;
                                   reuseIdentifier:@"BookmarksVCBookmarkItemCell"];
   CHECK(cell, ("Invalid bookmark cell."));
   
-  auto & f = GetFramework();
-  auto const & bm = f.GetBookmarkManager();
-  
   kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
+  auto const & bm = GetFramework().GetBookmarkManager();
   Bookmark const * bookmark = bm.GetBookmark(bmId);
   cell.textLabel.text = @(bookmark->GetPreferredName().c_str());
   cell.imageView.image = [CircleView createCircleImageWith:kPinDiameter
@@ -72,36 +93,20 @@ CGFloat const kPinDiameter = 22.0f;
                                               andImageName:@(DebugPrint(bookmark->GetData().m_icon).c_str())];
   
   CLLocation * lastLocation = [MWMLocationManager lastLocation];
-  if (lastLocation)
-  {
-    double north = location_helpers::headingToNorthRad([MWMLocationManager lastHeading]);
-    string distance;
-    double azimut = -1.0;
-    f.GetDistanceAndAzimut(bookmark->GetPivot(), lastLocation.coordinate.latitude,
-                           lastLocation.coordinate.longitude, north, distance, azimut);
-    
-    cell.detailTextLabel.text = @(distance.c_str());
-  }
-  else
-  {
-    cell.detailTextLabel.text = nil;
-  }
+  
+  [self fillCell:cell withBookmarkDetails:bookmark andLocation:lastLocation];
   return cell;
 }
 
 - (void)updateCell: (UITableViewCell *)cell forRow:(NSInteger)row withNewLocation: (location::GpsInfo const &)info
 {
-  auto const & bm = GetFramework().GetBookmarkManager();
-  
   kml::MarkId const bmId = [self.delegate bookmarkSection:self getBookmarkIdByRow:row];
+  auto const & bm = GetFramework().GetBookmarkManager();
   Bookmark const * bookmark = bm.GetBookmark(bmId);
   if (!bookmark)
     return;
-  
-  m2::PointD const center = bookmark->GetPivot();
-  double const metres = ms::DistanceOnEarth(info.m_latitude, info.m_longitude,
-                                            MercatorBounds::YToLat(center.y), MercatorBounds::XToLon(center.x));
-  cell.detailTextLabel.text = location_helpers::formattedDistance(metres);
+  CLLocation * location = [[CLLocation alloc] initWithLatitude:info.m_latitude longitude:info.m_longitude];
+  [self fillCell:cell withBookmarkDetails:bookmark andLocation:location];
 }
 
 - (BOOL)didSelectRow: (NSInteger)row

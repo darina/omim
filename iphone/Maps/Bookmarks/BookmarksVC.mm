@@ -70,10 +70,7 @@ using namespace std;
 
 - (BOOL)isSearchMode
 {
-  // TODO(@darina) ??????
-  return !m_searchResults.empty();
-  NSString * searchText = self.searchController.searchBar.text;
-  return searchText && searchText.length != 0;
+  return self.searchController.isActive;
 }
 
 - (BOOL)isSortMode
@@ -615,6 +612,16 @@ using namespace std;
                             }]];
   }
   
+  // TODO(@darina) Use key from strings!
+  [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"By default")
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(UIAlertAction * _Nonnull action)
+                          {
+                            self->m_sortedBlocks.clear();
+                            [self calculateSections];
+                            [self.tableView reloadData];
+                          }]];
+  
   [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"cancel")
                                                   style:UIAlertActionStyleCancel
                                                 handler:nil]];
@@ -722,11 +729,9 @@ using namespace std;
   if (!searchText || searchText.length == 0)
   {
     GetFramework().CancelSearch(search::Mode::Bookmarks);
-    if (!m_searchResults.empty())
-    {
-      m_searchResults.clear();
-      [self.tableView reloadData];
-    }
+    m_searchResults.clear();
+    [self calculateSections];
+    [self.tableView reloadData];
     return;
   }
 
@@ -747,6 +752,7 @@ using namespace std;
     else
       self->m_searchResults.clear();
     
+    [self calculateSections];
     [self.tableView reloadData];
   };
   GetFramework().SearchInBookmarks(m_searchParams);
