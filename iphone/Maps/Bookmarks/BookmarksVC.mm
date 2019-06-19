@@ -45,6 +45,7 @@ using namespace std;
 @property(strong, nonatomic) UISearchController * searchController;
 @property(nonatomic) NSUInteger lastSearchId;
 @property(nonatomic) BOOL infoExpanded;
+@property(weak, nonatomic) IBOutlet UIView * searchView;
 @property(weak, nonatomic) IBOutlet UITableView * tableView;
 @property(weak, nonatomic) IBOutlet UIToolbar * myCategoryToolbar;
 @property(weak, nonatomic) IBOutlet UIToolbar * downloadedCategoryToolbar;
@@ -109,8 +110,11 @@ using namespace std;
   [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
   
   auto const close = [m_sectionsCollection[indexPath.section] didSelectRow:indexPath.row];
+  
+  self.searchController.hidesNavigationBarDuringPresentation = NO;
+  
   if (close)
-    [self.navigationController popToRootViewControllerAnimated:YES];
+    [self.navigationController popToRootViewControllerAnimated:NO];
 }
 
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
@@ -373,8 +377,27 @@ using namespace std;
   self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
   self.searchController.searchResultsUpdater = self;
   self.searchController.dimsBackgroundDuringPresentation = NO;
-  [self.searchController.searchBar sizeToFit];
-  self.tableView.tableHeaderView = self.searchController.searchBar;
+  
+  self.searchController.searchBar.frame = self.searchView.bounds;
+  [self.searchView addSubview:self.searchController.searchBar];
+  
+ /*
+  [self.searchController.searchBar setTranslatesAutoresizingMaskIntoConstraints:NO];
+ 
+  auto searchBar = self.searchController.searchBar;
+  auto searchView = self.searchView;
+  NSDictionary * views = NSDictionaryOfVariableBindings(searchBar, searchView);
+  
+  NSArray * horizontalConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"H:|[searchBar]|" options:0 metrics:nil views:views];
+  NSArray * verticalConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|[searchBar]|" options:0 metrics:nil views:views];
+  NSArray * equalWidthConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"[searchBar(==searchView)]" options:0 metrics:nil views:views];
+  [self.searchView addConstraints:horizontalConstraints];
+  [self.searchView addConstraints:verticalConstraints];
+  [self.searchView addConstraints:equalWidthConstraints];
+*/
+  //[self.searchController.searchBar sizeToFit];
+  
+  //self.tableView.tableHeaderView = self.searchController.searchBar;
   self.definesPresentationContext = YES;
   
   self.tableView.estimatedRowHeight = 44;
@@ -395,6 +418,14 @@ using namespace std;
   self.sortItem.title = @"Sort";// L(@"sharing_options");
   self.viewOnMapItem.title = L(@"search_show_on_map");
 
+
+  UIColor * searchBarColor = [UIColor primary];
+  self.searchView.backgroundColor = self.searchController.searchBar.barTintColor = searchBarColor;
+  self.searchController.searchBar.backgroundImage = [UIImage imageWithColor:searchBarColor];
+  
+  UITextField * textField = [self.searchController.searchBar valueForKey:@"searchField"];
+  textField.backgroundColor = [UIColor white];
+  
   self.myCategoryToolbar.barTintColor = [UIColor white];
   self.downloadedCategoryToolbar.barTintColor = [UIColor white];
 }
