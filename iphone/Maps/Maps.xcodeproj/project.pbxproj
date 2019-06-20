@@ -565,9 +565,11 @@
 		BB25B1A71FB32767007276FA /* transit_colors.txt in Resources */ = {isa = PBXBuildFile; fileRef = BB25B1A51FB32767007276FA /* transit_colors.txt */; };
 		BB2C99B021B6AB4500F7371C /* libdescriptions.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB2C99AF21B6AB4500F7371C /* libdescriptions.a */; };
 		BB7626B61E85599C0031D71C /* icudt57l.dat in Resources */ = {isa = PBXBuildFile; fileRef = BB7626B41E8559980031D71C /* icudt57l.dat */; };
+		BB7BD2AB22BBF70800065056 /* BookmarksNoResults.xib in Resources */ = {isa = PBXBuildFile; fileRef = BB7BD2AA22BBF70700065056 /* BookmarksNoResults.xib */; };
 		BB8123CF212C264700ADE512 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB8123CD212C264700ADE512 /* Metal.framework */; };
 		BB8123D0212C264700ADE512 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB8123CE212C264700ADE512 /* MetalKit.framework */; };
 		BB8123D62130427E00ADE512 /* MetalContextFactory.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB8123D52130427E00ADE512 /* MetalContextFactory.mm */; };
+		BBED27022292F6C000788143 /* BookmarksSection.mm in Sources */ = {isa = PBXBuildFile; fileRef = BBED27012292F6C000788143 /* BookmarksSection.mm */; };
 		CD96C70C22A681C400DB7CFE /* DiscoveryGuideCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD96C70A22A681C400DB7CFE /* DiscoveryGuideCell.swift */; };
 		CD96C70D22A681C400DB7CFE /* DiscoveryGuideCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = CD96C70B22A681C400DB7CFE /* DiscoveryGuideCell.xib */; };
 		CD96C71122A6820800DB7CFE /* DiscoveryGuideCollectionHolderCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = CD96C70F22A6820800DB7CFE /* DiscoveryGuideCollectionHolderCell.xib */; };
@@ -577,7 +579,6 @@
 		CDB92CEE229E9CF900EC757C /* MWMDiscoveryMapObjects.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CED229E9CF900EC757C /* MWMDiscoveryMapObjects.mm */; };
 		CDB92CF1229EB8A800EC757C /* MWMDiscoverySearchViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CF0229EB8A800EC757C /* MWMDiscoverySearchViewModel.m */; };
 		CDB92CF822A5350500EC757C /* MWMDiscoveryHotelViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = CDB92CF722A5350500EC757C /* MWMDiscoveryHotelViewModel.m */; };
-		BBED27022292F6C000788143 /* BookmarksSection.mm in Sources */ = {isa = PBXBuildFile; fileRef = BBED27012292F6C000788143 /* BookmarksSection.mm */; };
 		F5BD255A0838E70EC012748E /* DiscoverySearchCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD2ED6E94925472A9901B4 /* DiscoverySearchCell.swift */; };
 		F5BD29FF26AD58255766C51A /* DiscoverySpinnerCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD246A7E6BE8CD8600EDD9 /* DiscoverySpinnerCell.swift */; };
 		F5BD2CA4DBEFACBC48195F39 /* DiscoveryCollectionHolderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BD2A86D9DA2F9769D30B54 /* DiscoveryCollectionHolderCell.swift */; };
@@ -1601,10 +1602,13 @@
 		BB25B1A51FB32767007276FA /* transit_colors.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transit_colors.txt; path = ../../data/transit_colors.txt; sourceTree = "<group>"; };
 		BB2C99AF21B6AB4500F7371C /* libdescriptions.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libdescriptions.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB7626B41E8559980031D71C /* icudt57l.dat */ = {isa = PBXFileReference; lastKnownFileType = file; name = icudt57l.dat; path = ../../data/icudt57l.dat; sourceTree = "<group>"; };
+		BB7BD2AA22BBF70700065056 /* BookmarksNoResults.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BookmarksNoResults.xib; sourceTree = "<group>"; };
 		BB8123CD212C264700ADE512 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		BB8123CE212C264700ADE512 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		BB8123D42130427E00ADE512 /* MetalContextFactory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MetalContextFactory.h; sourceTree = "<group>"; };
 		BB8123D52130427E00ADE512 /* MetalContextFactory.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MetalContextFactory.mm; sourceTree = "<group>"; };
+		BBED27002292F42000788143 /* BookmarksSection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BookmarksSection.h; sourceTree = "<group>"; };
+		BBED27012292F6C000788143 /* BookmarksSection.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = BookmarksSection.mm; sourceTree = "<group>"; };
 		CD96C70A22A681C400DB7CFE /* DiscoveryGuideCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryGuideCell.swift; sourceTree = "<group>"; };
 		CD96C70B22A681C400DB7CFE /* DiscoveryGuideCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = DiscoveryGuideCell.xib; sourceTree = "<group>"; };
 		CD96C70F22A6820800DB7CFE /* DiscoveryGuideCollectionHolderCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = DiscoveryGuideCollectionHolderCell.xib; sourceTree = "<group>"; };
@@ -1620,8 +1624,6 @@
 		CDB92CF0229EB8A800EC757C /* MWMDiscoverySearchViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MWMDiscoverySearchViewModel.m; sourceTree = "<group>"; };
 		CDB92CF622A5350500EC757C /* MWMDiscoveryHotelViewModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MWMDiscoveryHotelViewModel.h; sourceTree = "<group>"; };
 		CDB92CF722A5350500EC757C /* MWMDiscoveryHotelViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MWMDiscoveryHotelViewModel.m; sourceTree = "<group>"; };
-		BBED27002292F42000788143 /* BookmarksSection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BookmarksSection.h; sourceTree = "<group>"; };
-		BBED27012292F6C000788143 /* BookmarksSection.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = BookmarksSection.mm; sourceTree = "<group>"; };
 		ED48BBB317C267F5003E7E92 /* ColorPickerView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ColorPickerView.h; sourceTree = "<group>"; };
 		ED48BBB417C267F5003E7E92 /* ColorPickerView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ColorPickerView.mm; sourceTree = "<group>"; };
 		ED48BBB817C2B1E2003E7E92 /* CircleView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CircleView.h; sourceTree = "<group>"; };
@@ -4489,6 +4491,7 @@
 				B33D21B720E130D000BAD749 /* BookmarksTabViewController.swift */,
 				BBED27002292F42000788143 /* BookmarksSection.h */,
 				BBED27012292F6C000788143 /* BookmarksSection.mm */,
+				BB7BD2AA22BBF70700065056 /* BookmarksNoResults.xib */,
 			);
 			path = Bookmarks;
 			sourceTree = "<group>";
@@ -4805,6 +4808,7 @@
 				671182E51C7F0DDB00CB8177 /* packed_polygons_obsolete.bin in Resources */,
 				470A8A012136097000D72FBF /* SubwayTutorialBlur.xib in Resources */,
 				676507601C10559800830BB3 /* patterns.txt in Resources */,
+				BB7BD2AB22BBF70800065056 /* BookmarksNoResults.xib in Resources */,
 				6741A94A1BF340DE002C974C /* resources-6plus_clear in Resources */,
 				34B6FD622015F71A00C18E97 /* DiscoveryBookingCollectionHolderCell.xib in Resources */,
 				6741A9741BF340DE002C974C /* resources-6plus_dark in Resources */,

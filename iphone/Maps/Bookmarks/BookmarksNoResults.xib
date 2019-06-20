@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="14490.70" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14490.49"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="zHb-TD-csm">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <subviews>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="No results found" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ZGf-28-3wK">
+                    <rect key="frame" x="50" y="220" width="275" height="29"/>
+                    <fontDescription key="fontDescription" type="system" pointSize="24"/>
+                    <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                    <nil key="highlightedColor"/>
+                </label>
+            </subviews>
+            <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+            <constraints>
+                <constraint firstItem="ZGf-28-3wK" firstAttribute="centerX" secondItem="86S-S3-xid" secondAttribute="centerX" id="AiD-kH-eqI"/>
+                <constraint firstItem="ZGf-28-3wK" firstAttribute="top" secondItem="86S-S3-xid" secondAttribute="top" constant="200" id="W4I-QI-Zkk"/>
+                <constraint firstItem="ZGf-28-3wK" firstAttribute="leading" secondItem="86S-S3-xid" secondAttribute="leading" constant="50" id="hNx-nz-oP3"/>
+                <constraint firstItem="86S-S3-xid" firstAttribute="trailing" secondItem="ZGf-28-3wK" secondAttribute="trailing" constant="50" id="vfs-Ct-xa6"/>
+            </constraints>
+            <viewLayoutGuide key="safeArea" id="86S-S3-xid"/>
+            <point key="canvasLocation" x="-51" y="94"/>
+        </view>
+    </objects>
+</document>
