@@ -4,9 +4,11 @@
 #import "ColorPickerView.h"
 #import "MWMBookmarksManager.h"
 #import "MWMCommon.h"
+#import "MWMKeyboard.h"
 #import "MWMLocationHelpers.h"
 #import "MWMLocationObserver.h"
 #import "MWMSearchManager.h"
+#import "MWMSearchNoResults.h"
 #import "MWMCategoryInfoCell.h"
 #import "SwiftBridge.h"
 
@@ -30,6 +32,7 @@ using namespace std;
                           UISearchBarDelegate,
                           MWMBookmarksObserver,
                           MWMLocationObserver,
+                          MWMKeyboardObserver,
                           BookmarksSectionDelegate,
                           TracksSectionDelegate,
                           MWMCategoryInfoCellDelegate,
@@ -47,6 +50,15 @@ using namespace std;
 @property(nonatomic) BOOL infoExpanded;
 @property(weak, nonatomic) IBOutlet UIView * statusBarBackground;
 @property(weak, nonatomic) IBOutlet UISearchBar * searchBar;
+@property(weak, nonatomic) IBOutlet UIView * noResultsContainer;
+@property(weak, nonatomic) IBOutlet NSLayoutConstraint * noResultsBottom;
+@property(nonatomic) MWMSearchNoResults * noResultsView;
+
+@property(nonatomic) UIActivityIndicatorView * spinner;
+@property(nonatomic) UIImageView * searchIcon;
+@property(weak, nonatomic) IBOutlet NSLayoutConstraint * hideSearchBar;
+@property(weak, nonatomic) IBOutlet NSLayoutConstraint * showSearchBar;
+
 @property(weak, nonatomic) IBOutlet UITableView * tableView;
 @property(weak, nonatomic) IBOutlet UIToolbar * myCategoryToolbar;
 @property(weak, nonatomic) IBOutlet UIToolbar * downloadedCategoryToolbar;
@@ -72,12 +84,84 @@ using namespace std;
 
 - (BOOL)isSearchMode
 {
-  return self.searchBar.text && self.searchBar.text.length != 0;
+  return !m_searchResults.empty();
 }
 
 - (BOOL)isSortMode
 {
   return ![self isSearchMode] && !m_sortedBlocks.empty();
+}
+
+- (MWMSearchNoResults *)noResultsView
+{
+  if (!_noResultsView)
+  {
+    _noResultsView = [MWMSearchNoResults viewWithImage:[UIImage imageNamed:@"img_search_not_found"]
+                                                 title:L(@"search_not_found")
+                                                  text:L(@"search_not_found_query")];
+  }
+  return _noResultsView;
+}
+
+- (void)showNoResultsView:(BOOL)show
+{
+  if (!show)
+  {
+    self.tableView.hidden = NO;
+    self.noResultsContainer.hidden = YES;
+    [self.noResultsView removeFromSuperview];
+  }
+  else
+  {
+    self.tableView.hidden = YES;
+    self.noResultsContainer.hidden = NO;
+    [self.noResultsContainer addSubview:self.noResultsView];
+    self.noResultsView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+                                              [self.noResultsView.topAnchor constraintEqualToAnchor:self.noResultsContainer.topAnchor],
+                                              [self.noResultsView.leftAnchor constraintEqualToAnchor:self.noResultsContainer.leftAnchor],
+                                              [self.noResultsView.bottomAnchor constraintEqualToAnchor:self.noResultsContainer.bottomAnchor],
+                                              [self.noResultsView.rightAnchor constraintEqualToAnchor:self.noResultsContainer.rightAnchor],
+                                              ]];
+    [self onKeyboardAnimation];
+  }
+}
+
+- (UIActivityIndicatorView *)spinner
+{
+  if (!_spinner)
+  {
+    _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+    _spinner.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin;
+    _spinner.hidesWhenStopped = YES;
+  }
+  return _spinner;
+}
+
+- (UIImageView *)searchIcon
+{
+  if (!_searchIcon)
+  {
+    _searchIcon = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"ic_search"]];
+    _searchIcon.mwm_coloring = MWMImageColoringBlack;
+  }
+  return _searchIcon;
+}
+
+- (void)showSpinner:(BOOL)show
+{
+  UITextField * textField = [self.searchBar valueForKey:@"searchField"];
+  if (!show)
+  {
+    textField.leftView = self.searchIcon;
+    [self.spinner stopAnimating];
+  }
+  else
+  {
+    self.spinner.bounds = textField.leftView.bounds;
+    textField.leftView = self.spinner;
+    [self.spinner startAnimating];
+  }
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
@@ -387,24 +471,18 @@ using namespace std;
   self.statusBarBackground.backgroundColor = self.searchBar.barTintColor = searchBarColor;
   self.searchBar.backgroundImage = [UIImage imageWithColor:searchBarColor];
   self.searchBar.placeholder = L(@"search");
+  
+  auto const & bm = GetFramework().GetBookmarkManager();
+  auto const searchAllowed = !bm.IsCategoryFromCatalog(m_categoryId);
+
+  self.showSearchBar.priority = searchAllowed ? UILayoutPriorityRequired : UILayoutPriorityDefaultLow;
+  self.hideSearchBar.priority = searchAllowed ? UILayoutPriorityDefaultLow : UILayoutPriorityRequired;
+  
   //UITextField * textFiled = [self.searchBar valueForKey:@"searchField"];
   //UILabel * placeholder = [textFiled valueForKey:@"_placeholderLabel"];
   //placeholder.textColor = [UIColor blackHintText];
- /*
-  [self.searchController.searchBar setTranslatesAutoresizingMaskIntoConstraints:NO];
- 
-  auto searchBar = self.searchController.searchBar;
-  auto searchView = self.searchView;
-  NSDictionary * views = NSDictionaryOfVariableBindings(searchBar, searchView);
-  
-  NSArray * horizontalConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"H:|[searchBar]|" options:0 metrics:nil views:views];
-  NSArray * verticalConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|[searchBar]|" options:0 metrics:nil views:views];
-  NSArray * equalWidthConstraints = [NSLayoutConstraint constraintsWithVisualFormat:@"[searchBar(==searchView)]" options:0 metrics:nil views:views];
-  [self.searchView addConstraints:horizontalConstraints];
-  [self.searchView addConstraints:verticalConstraints];
-  [self.searchView addConstraints:equalWidthConstraints];
-*/
-  //[self.searchController.searchBar sizeToFit];
+
+  [self.noResultsView setTranslatesAutoresizingMaskIntoConstraints:NO];
   
   self.tableView.estimatedRowHeight = 44;
   [self.tableView registerWithCellClass:MWMCategoryInfoCell.class];
@@ -430,6 +508,8 @@ using namespace std;
   
   self.myCategoryToolbar.barTintColor = [UIColor white];
   self.downloadedCategoryToolbar.barTintColor = [UIColor white];
+  
+  [self showSpinner:NO];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -776,6 +856,9 @@ using namespace std;
 {
   self.searchBar.text = @"";
   [self.searchBar resignFirstResponder];
+
+  [self showNoResultsView:NO];
+  [self showSpinner:NO];
   
   [self calculateSections];
   [self.tableView reloadData];
@@ -787,6 +870,9 @@ using namespace std;
   {
     GetFramework().CancelSearch(search::Mode::Bookmarks);
     m_searchResults.clear();
+    [self showNoResultsView:NO];
+    [self showSpinner:NO];
+    
     [self calculateSections];
     [self.tableView reloadData];
     return;
@@ -804,14 +890,37 @@ using namespace std;
     if (!self || searchId != self.lastSearchId)
       return;
     
-    if (status != search::BookmarksSearchParams::Status::Cancelled)
-      self->m_searchResults = results;
-    else
-      self->m_searchResults.clear();
+    self->m_searchResults = results;
+    
+    if (status == search::BookmarksSearchParams::Status::Cancelled)
+    {
+      m_searchResults.clear();
+      //[self showNoResultsView:NO];
+      [self showSpinner:NO];
+    }
+    else if (status == search::BookmarksSearchParams::Status::Completed)
+    {
+      [self showNoResultsView:results.empty()];
+      [self showSpinner:NO];
+    }
     
     [self calculateSections];
     [self.tableView reloadData];
   };
+  
+  [self showSpinner:YES];
   GetFramework().SearchInBookmarks(m_searchParams);
+}
+
+#pragma mark - MWMKeyboard
+
+- (void)onKeyboardAnimation
+{
+  self.noResultsBottom.constant = 0;
+  CGFloat const keyboardHeight = [MWMKeyboard keyboardHeight];
+  if (keyboardHeight >= self.noResultsContainer.height)
+    return;
+  
+  self.noResultsBottom.constant = -keyboardHeight;
 }
 @end
