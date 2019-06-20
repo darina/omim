@@ -3,6 +3,7 @@
 #import "CircleView.h"
 #import "ColorPickerView.h"
 #import "MWMBookmarksManager.h"
+#import "MWMCommon.h"
 #import "MWMLocationHelpers.h"
 #import "MWMLocationObserver.h"
 #import "MWMSearchManager.h"
@@ -26,7 +27,7 @@ using namespace std;
 
 @interface BookmarksVC() <UITableViewDataSource,
                           UITableViewDelegate,
-                          UISearchResultsUpdating,
+                          UISearchBarDelegate,
                           MWMBookmarksObserver,
                           MWMLocationObserver,
                           BookmarksSectionDelegate,
@@ -42,10 +43,10 @@ using namespace std;
   search::BookmarksSearchParams::Results m_searchResults;
 }
 
-@property(strong, nonatomic) UISearchController * searchController;
 @property(nonatomic) NSUInteger lastSearchId;
 @property(nonatomic) BOOL infoExpanded;
-@property(weak, nonatomic) IBOutlet UIView * searchView;
+@property(weak, nonatomic) IBOutlet UIView * statusBarBackground;
+@property(weak, nonatomic) IBOutlet UISearchBar * searchBar;
 @property(weak, nonatomic) IBOutlet UITableView * tableView;
 @property(weak, nonatomic) IBOutlet UIToolbar * myCategoryToolbar;
 @property(weak, nonatomic) IBOutlet UIToolbar * downloadedCategoryToolbar;
@@ -71,7 +72,7 @@ using namespace std;
 
 - (BOOL)isSearchMode
 {
-  return self.searchController.isActive;
+  return self.searchBar.text && self.searchBar.text.length != 0;
 }
 
 - (BOOL)isSortMode
@@ -111,7 +112,7 @@ using namespace std;
   
   auto const close = [m_sectionsCollection[indexPath.section] didSelectRow:indexPath.row];
   
-  self.searchController.hidesNavigationBarDuringPresentation = NO;
+  [self.searchBar resignFirstResponder];
   
   if (close)
     [self.navigationController popToRootViewControllerAnimated:NO];
@@ -370,17 +371,25 @@ using namespace std;
 //*********** End of Location manager callbacks ********************
 //******************************************************************
 
+- (UIStatusBarStyle)preferredStatusBarStyle
+{
+  setStatusBarBackgroundColor(UIColor.clearColor);
+  return UIStatusBarStyleLightContent;
+}
+
 - (void)viewDidLoad
 {
   [super viewDidLoad];
   
-  self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
-  self.searchController.searchResultsUpdater = self;
-  self.searchController.dimsBackgroundDuringPresentation = NO;
   
-  self.searchController.searchBar.frame = self.searchView.bounds;
-  [self.searchView addSubview:self.searchController.searchBar];
-  
+  UIColor * searchBarColor = [UIColor primary];
+  self.searchBar.delegate = self;
+  self.statusBarBackground.backgroundColor = self.searchBar.barTintColor = searchBarColor;
+  self.searchBar.backgroundImage = [UIImage imageWithColor:searchBarColor];
+  self.searchBar.placeholder = L(@"search");
+  //UITextField * textFiled = [self.searchBar valueForKey:@"searchField"];
+  //UILabel * placeholder = [textFiled valueForKey:@"_placeholderLabel"];
+  //placeholder.textColor = [UIColor blackHintText];
  /*
   [self.searchController.searchBar setTranslatesAutoresizingMaskIntoConstraints:NO];
  
@@ -396,9 +405,6 @@ using namespace std;
   [self.searchView addConstraints:equalWidthConstraints];
 */
   //[self.searchController.searchBar sizeToFit];
-  
-  //self.tableView.tableHeaderView = self.searchController.searchBar;
-  self.definesPresentationContext = YES;
   
   self.tableView.estimatedRowHeight = 44;
   [self.tableView registerWithCellClass:MWMCategoryInfoCell.class];
@@ -419,12 +425,8 @@ using namespace std;
   self.viewOnMapItem.title = L(@"search_show_on_map");
 
 
-  UIColor * searchBarColor = [UIColor primary];
-  self.searchView.backgroundColor = self.searchController.searchBar.barTintColor = searchBarColor;
-  self.searchController.searchBar.backgroundImage = [UIImage imageWithColor:searchBarColor];
-  
-  UITextField * textField = [self.searchController.searchBar valueForKey:@"searchField"];
-  textField.backgroundColor = [UIColor white];
+  //UITextField * textField = [self.searchBar valueForKey:@"searchField"];
+  //textField.backgroundColor = [UIColor white];
   
   self.myCategoryToolbar.barTintColor = [UIColor white];
   self.downloadedCategoryToolbar.barTintColor = [UIColor white];
@@ -752,11 +754,35 @@ using namespace std;
   [self.tableView reloadData];
 }
 
-#pragma mark - UISearchResultsUpdating
+#pragma mark - UISearchBarDelegate
 
-- (void)updateSearchResultsForSearchController:(UISearchController *)searchController
+- (BOOL)searchBarShouldBeginEditing:(UISearchBar *)searchBar
 {
-  NSString * searchText = searchController.searchBar.text;
+  [self.searchBar setShowsCancelButton:YES animated:YES];
+  [self.navigationController setNavigationBarHidden:YES animated:YES];
+  self.tableView.contentInset = self.tableView.scrollIndicatorInsets = {};
+  return YES;
+}
+
+- (BOOL)searchBarShouldEndEditing:(UISearchBar *)searchBar
+{
+  [self.searchBar setShowsCancelButton:NO animated:YES];
+  [self.navigationController setNavigationBarHidden:NO animated:YES];
+  self.tableView.contentInset = self.tableView.scrollIndicatorInsets = {};
+  return YES;
+}
+
+- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar
+{
+  self.searchBar.text = @"";
+  [self.searchBar resignFirstResponder];
+  
+  [self calculateSections];
+  [self.tableView reloadData];
+}
+
+- (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText
+{
   if (!searchText || searchText.length == 0)
   {
     GetFramework().CancelSearch(search::Mode::Bookmarks);
@@ -765,7 +791,7 @@ using namespace std;
     [self.tableView reloadData];
     return;
   }
-
+  
   m_searchParams.m_query = searchText.UTF8String;
   m_searchParams.m_categoryId = m_categoryId;
   
@@ -788,5 +814,4 @@ using namespace std;
   };
   GetFramework().SearchInBookmarks(m_searchParams);
 }
-
 @end
