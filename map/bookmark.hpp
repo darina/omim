@@ -1,5 +1,6 @@
 #pragma once
 
+#include "map/toponym.hpp"
 #include "map/user_mark.hpp"
 #include "map/user_mark_layer.hpp"
 
@@ -19,6 +20,9 @@ public:
 
   void SetData(kml::BookmarkData const & data);
   kml::BookmarkData const & GetData() const;
+
+  Toponym const & GetToponym() const;
+  void SetToponym(Toponym const & toponym);
 
   bool HasCreationAnimation() const override;
 
@@ -58,6 +62,7 @@ public:
 private:
   kml::BookmarkData m_data;
   kml::MarkGroupId m_groupId;
+  Toponym m_toponym;
 };
 
 class BookmarkCategory : public UserMarkLayer

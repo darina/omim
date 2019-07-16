@@ -3,6 +3,7 @@
 #include "map/bookmark.hpp"
 
 #include "indexer/feature.hpp"
+#include "indexer/mwm_set.hpp"
 
 #include "coding/reader.hpp"
 
@@ -21,6 +22,7 @@ struct BookmarkInfo
 
   kml::MarkId m_bookmarkId;
   kml::BookmarkData m_bookmarkData;
+  Toponym m_toponym;
 };
 
 struct BookmarkGroupInfo
