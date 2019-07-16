@@ -476,26 +476,26 @@ std::string GetLocalizedBookmarkType(kml::BookmarkType type)
   switch (type)
   {
   case kml::BookmarkType::None: return platform::GetLocalizedString("None");
-  case kml::BookmarkType::Hotel: return platform::GetLocalizedString("Hotel");
-  case kml::BookmarkType::Animals: return platform::GetLocalizedString("Animals");
+  case kml::BookmarkType::Hotel: return platform::GetLocalizedString("hotel");
+  case kml::BookmarkType::Animals: return platform::GetLocalizedString("animals_srt");
   case kml::BookmarkType::Buddhism: return platform::GetLocalizedString("Buddhism");
-  case kml::BookmarkType::Building: return platform::GetLocalizedString("Building");
+  case kml::BookmarkType::Building: return platform::GetLocalizedString("building_srt");
   case kml::BookmarkType::Christianity: return platform::GetLocalizedString("Christianity");
-  case kml::BookmarkType::Entertainment: return platform::GetLocalizedString("Entertainment");
-  case kml::BookmarkType::Exchange: return platform::GetLocalizedString("Exchange");
-  case kml::BookmarkType::Food: return platform::GetLocalizedString("Food");
-  case kml::BookmarkType::Gas: return platform::GetLocalizedString("Gas");
+  case kml::BookmarkType::Entertainment: return platform::GetLocalizedString("entertainment");
+  case kml::BookmarkType::Exchange: return platform::GetLocalizedString("money_srt");
+  case kml::BookmarkType::Food: return platform::GetLocalizedString("food_srt");
+  case kml::BookmarkType::Gas: return platform::GetLocalizedString("fuel");
   case kml::BookmarkType::Judaism: return platform::GetLocalizedString("Judaism");
-  case kml::BookmarkType::Medicine: return platform::GetLocalizedString("Medicine");
-  case kml::BookmarkType::Mountain: return platform::GetLocalizedString("Mountain");
-  case kml::BookmarkType::Museum: return platform::GetLocalizedString("Museum");
+  case kml::BookmarkType::Medicine: return platform::GetLocalizedString("medicine_srt");
+  case kml::BookmarkType::Mountain: return platform::GetLocalizedString("mountain_srt");
+  case kml::BookmarkType::Museum: return platform::GetLocalizedString("museum_srt");
   case kml::BookmarkType::Islam: return platform::GetLocalizedString("Islam");
-  case kml::BookmarkType::Park: return platform::GetLocalizedString("Park");
-  case kml::BookmarkType::Parking: return platform::GetLocalizedString("Parking");
-  case kml::BookmarkType::Shop: return platform::GetLocalizedString("Shop");
-  case kml::BookmarkType::Sights: return platform::GetLocalizedString("Sights");
-  case kml::BookmarkType::Swim: return platform::GetLocalizedString("Swim");
-  case kml::BookmarkType::Water: return platform::GetLocalizedString("Water");
+  case kml::BookmarkType::Park: return platform::GetLocalizedString("park_srt");
+  case kml::BookmarkType::Parking: return platform::GetLocalizedString("parking");
+  case kml::BookmarkType::Shop: return platform::GetLocalizedString("shop_srt");
+  case kml::BookmarkType::Sights: return platform::GetLocalizedString("tourism");
+  case kml::BookmarkType::Swim: return platform::GetLocalizedString("swim_srt");
+  case kml::BookmarkType::Water: return platform::GetLocalizedString("water_srt");
   case kml::BookmarkType::Count: CHECK(false, ("Invalid bookmark type")); return "";
   }
   UNREACHABLE();

@@ -875,6 +875,7 @@ enum class TimeBlockType : uint32_t
   WeekAgo,
   MonthAgo,
   MoreThanMonthAgo,
+  MoreThanYearAgo,
   Others
 };
 
@@ -918,10 +919,11 @@ std::string GetTimeBlockName(TimeBlockType blockType)
 {
   switch (blockType)
   {
-  case TimeBlockType::WeekAgo: return platform::GetLocalizedString("Week ago");
-  case TimeBlockType::MonthAgo: return platform::GetLocalizedString("Month ago");
-  case TimeBlockType::MoreThanMonthAgo: return platform::GetLocalizedString("More than month ago");
-  case TimeBlockType::Others: return platform::GetLocalizedString("Others");
+  case TimeBlockType::WeekAgo: return platform::GetLocalizedString("week_ago_sorttype");
+  case TimeBlockType::MonthAgo: return platform::GetLocalizedString("month_ago_sorttype");
+  case TimeBlockType::MoreThanMonthAgo: return platform::GetLocalizedString("moremonth_ago_sorttype");
+  case TimeBlockType::MoreThanYearAgo: return platform::GetLocalizedString("moreyear_ago_sorttype");
+  case TimeBlockType::Others: return platform::GetLocalizedString("others_sorttype");
   }
   UNREACHABLE();
 }
@@ -1068,7 +1070,7 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
   }
   if (othersTypeMarksCount > 0)
   {
-    sortedBlocks.back().m_blockName = platform::GetLocalizedString("Others");
+    sortedBlocks.back().m_blockName = platform::GetLocalizedString("others_sorttype");
     sortedBlocks.back().m_markIds.reserve(othersTypeMarksCount);
   }
 

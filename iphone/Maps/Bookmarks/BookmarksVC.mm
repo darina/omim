@@ -42,7 +42,6 @@ using namespace std;
   NSMutableArray<id<TableSectionDelegate>> * m_sectionsCollection;
   BookmarkManager::SortedBlocksCollection m_sortedBlocks;
   
-  search::BookmarksSearchParams m_searchParams;
   search::BookmarksSearchParams::Results m_searchResults;
 }
 
@@ -498,8 +497,7 @@ using namespace std;
   [self.viewOnMapItem setTitleTextAttributes:regularTitleAttributes forState:UIControlStateNormal];
 
   self.moreItem.title = L(@"placepage_more_button");
-  // TODO(@darina) Use strings
-  self.sortItem.title = @"Sort";// L(@"sharing_options");
+  self.sortItem.title = L(@"sort");
   self.viewOnMapItem.title = L(@"search_show_on_map");
 
 
@@ -725,8 +723,7 @@ using namespace std;
                             }]];
   }
   
-  // TODO(@darina) Use key from strings!
-  [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"By default")
+  [actionSheet addAction:[UIAlertAction actionWithTitle:L(@"sort_default")
                                                   style:UIAlertActionStyleDefault
                                                 handler:^(UIAlertAction * _Nonnull action)
                           {
@@ -878,14 +875,15 @@ using namespace std;
     return;
   }
   
-  m_searchParams.m_query = searchText.UTF8String;
-  m_searchParams.m_categoryId = m_categoryId;
+  search::BookmarksSearchParams searchParams;
+  searchParams.m_query = searchText.UTF8String;
+  searchParams.m_categoryId = m_categoryId;
   
   auto const searchId = ++self.lastSearchId;
   __weak auto weakSelf = self;
-  m_searchParams.m_onStarted = [] {};
-  m_searchParams.m_onResults = [weakSelf, searchId](search::BookmarksSearchParams::Results const & results,
-                                                    search::BookmarksSearchParams::Status status) {
+  searchParams.m_onStarted = [] {};
+  searchParams.m_onResults = [weakSelf, searchId](search::BookmarksSearchParams::Results const & results,
+                                                  search::BookmarksSearchParams::Status status) {
     __strong auto self = weakSelf;
     if (!self || searchId != self.lastSearchId)
       return;
@@ -909,7 +907,7 @@ using namespace std;
   };
   
   [self showSpinner:YES];
-  GetFramework().SearchInBookmarks(m_searchParams);
+  GetFramework().SearchInBookmarks(searchParams);
 }
 
 #pragma mark - MWMKeyboard
