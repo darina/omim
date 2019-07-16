@@ -870,6 +870,13 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
   return sortingTypes;
 }
 
+std::string GetDistanceBlockName(Toponym const & toponym)
+{
+  if (toponym.IsValid())
+    return GetLocalizedToponymName(toponym);
+  return platform::GetLocalizedString("near_me_sorttype");
+}
+
 enum class TimeBlockType : uint32_t
 {
   WeekAgo,
@@ -879,40 +886,21 @@ enum class TimeBlockType : uint32_t
   Others
 };
 
-enum class DistanceBlockType : uint32_t
-{
-  Near,
-  Others
-};
-
-DistanceBlockType GetDistanceBlockType(double distance)
-{
-  static double const kMaxDistanceInMeters = 300 * 1000;
-  if (distance < kMaxDistanceInMeters)
-    return DistanceBlockType::Near;
-  return DistanceBlockType::Others;
-}
-
-std::string GetDistanceBlockName(DistanceBlockType blockType)
-{
-  switch (blockType)
-  {
-  case DistanceBlockType::Near: return platform::GetLocalizedString("Near");
-  case DistanceBlockType::Others: return platform::GetLocalizedString("Others");
-  }
-  UNREACHABLE();
-}
-
 template <typename T, typename R>
 TimeBlockType GetTimeBlockType(std::chrono::duration<T, R> const & timePeriod)
 {
-  static auto const kWeek = std::chrono::hours(24 * 7);
-  static auto const kMonth = std::chrono::hours(24 * 7 * 31);
+  static auto const kDay = std::chrono::hours(24);
+  static auto const kWeek = 7 * kDay;
+  static auto const kMonth = 31 * kDay;
+  static auto const kYear = 365 * kDay;
+
   if (timePeriod < kWeek)
     return TimeBlockType::WeekAgo;
   if (timePeriod < kMonth)
     return TimeBlockType::MonthAgo;
-  return TimeBlockType::MoreThanMonthAgo;
+  if (timePeriod < kYear)
+    return TimeBlockType::MoreThanMonthAgo;
+  return TimeBlockType::MoreThanYearAgo;
 }
 
 std::string GetTimeBlockName(TimeBlockType blockType)
@@ -957,25 +945,27 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
       return lbm.second < rbm.second;
     });
 
-    boost::optional<DistanceBlockType> lastBlockType;
+    boost::optional<Toponym> lastBlockToponym;
     SortedBlock currentBlock;
     for (auto const & mark : sortedMarks)
     {
-      auto const currentBlockType = GetDistanceBlockType(mark.second);
+      static double const kNearDistanceInMeters = 20 * 1000;
+      auto const currentBlockToponym = mark.second < kNearDistanceInMeters ? Toponym()
+                                                                           : GetBookmark(mark.first)->GetToponym();
 
-      if (!lastBlockType)
+      if (!lastBlockToponym)
       {
-        lastBlockType.reset(currentBlockType);
-        currentBlock.m_blockName = GetDistanceBlockName(currentBlockType);
+        lastBlockToponym.reset(currentBlockToponym);
+        currentBlock.m_blockName = GetDistanceBlockName(currentBlockToponym);
       }
 
-      if (currentBlockType != lastBlockType.get())
+      if (currentBlockToponym != lastBlockToponym.get())
       {
         sortedBlocks.push_back(currentBlock);
         currentBlock = SortedBlock();
-        currentBlock.m_blockName = GetDistanceBlockName(currentBlockType);
+        currentBlock.m_blockName = GetDistanceBlockName(currentBlockToponym);
       }
-      lastBlockType.reset(currentBlockType);
+      lastBlockToponym.reset(currentBlockToponym);
       currentBlock.m_markIds.push_back(mark.first);
     }
     sortedBlocks.push_back(currentBlock);

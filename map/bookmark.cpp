@@ -71,6 +71,16 @@ kml::BookmarkData const & Bookmark::GetData() const
   return m_data;
 }
 
+Toponym const & Bookmark::GetToponym() const
+{
+  return m_toponym;
+}
+
+void Bookmark::SetToponym(Toponym const & toponym)
+{
+  m_toponym = toponym;
+}
+
 dp::Anchor Bookmark::GetAnchor() const
 {
   return dp::Bottom;
