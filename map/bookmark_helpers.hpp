@@ -37,6 +37,29 @@ struct BookmarkGroupInfo
   kml::MarkIdCollection m_bookmarkIds;
 };
 
+enum class BookmarkBaseType : uint16_t
+{
+  None = 0,
+  Hotel,
+  Animals,
+  Building,
+  Entertainment,
+  Exchange,
+  Food,
+  Gas,
+  Medicine,
+  Mountain,
+  Museum,
+  Park,
+  Parking,
+  Religion,
+  Shop,
+  Sights,
+  Swim,
+  Water,
+  Count
+};
+
 extern std::string const kKmzExtension;
 extern std::string const kKmlExtension;
 extern std::string const kKmbExtension;
@@ -75,9 +98,10 @@ std::string GetPreferredBookmarkName(kml::BookmarkData const & bmData);
 std::string GetPreferredBookmarkStr(kml::LocalizableString const & name);
 std::string GetPreferredBookmarkStr(kml::LocalizableString const & name, feature::RegionData const & regionData);
 std::string GetLocalizedFeatureType(std::vector<uint32_t> const & types);
-std::string GetLocalizedBookmarkType(kml::BookmarkType type);
+std::string GetLocalizedBookmarkBaseType(BookmarkBaseType type);
 
-kml::BookmarkType GetBookmarkTypeByFeatureType(uint32_t type);
+kml::BookmarkIcon GetBookmarkIconByFeatureType(uint32_t type);
+BookmarkBaseType GetBookmarkBaseTypeByFeatureTypes(std::vector<uint32_t> const & featureTypes);
 
 bool FromCatalog(kml::FileData const & kmlData);
 bool FromCatalog(kml::CategoryData const & categoryData, std::string const & serverId);

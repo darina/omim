@@ -674,7 +674,7 @@ using namespace std;
   [Statistics logEvent:kStatBookmarksListItemSettings withParameters:@{kStatOption : kStatMore}];
 }
 
-- (void)sort: (BookmarkManager::SortingType)type
+- (void)sort:(BookmarkManager::SortingType)type
 {
   auto const & bm = GetFramework().GetBookmarkManager();
   
@@ -693,6 +693,17 @@ using namespace std;
   m_sortedBlocks = bm.GetSortedBookmarkIds(m_categoryId, type, hasMyPosition, myPosition);
   [self calculateSections];
   [self.tableView reloadData];
+}
+
++ (NSString *)getLocalizedSortingType:(BookmarkManager::SortingType)type
+{
+  switch (type)
+  {
+  case BookmarkManager::SortingType::ByTime: return L(@"sort_date");
+  case BookmarkManager::SortingType::ByDistance: return L(@"sort_distance");
+  case BookmarkManager::SortingType::ByType: return L(@"sort_type");
+  }
+  UNREACHABLE();
 }
 
 - (IBAction)onSort:(UIBarButtonItem *)sender
@@ -714,8 +725,7 @@ using namespace std;
   
   for (auto type : sortingTypes)
   {
-    NSString * typeStr = @(DebugPrint(type).c_str());
-    [actionSheet addAction:[UIAlertAction actionWithTitle:typeStr
+    [actionSheet addAction:[UIAlertAction actionWithTitle:[BookmarksVC getLocalizedSortingType:type]
                                                     style:UIAlertActionStyleDefault
                                                   handler:^(UIAlertAction * _Nonnull action)
                             {

@@ -27,217 +27,425 @@
 
 namespace
 {
-std::map<std::string, kml::BookmarkType> const kFeatureTypeToBookmarkType = {
-  {"amenity-bbq", kml::BookmarkType::Food},
-  {"tourism-picnic_site", kml::BookmarkType::Food},
-  {"leisure-picnic_table", kml::BookmarkType::Food},
-  {"amenity-cafe", kml::BookmarkType::Food},
-  {"amenity-restaurant", kml::BookmarkType::Food},
-  {"amenity-fast_food", kml::BookmarkType::Food},
-  {"amenity-food_court", kml::BookmarkType::Food},
-  {"amenity-bar", kml::BookmarkType::Food},
-  {"amenity-pub", kml::BookmarkType::Food},
-  {"amenity-biergarten", kml::BookmarkType::Food},
+std::map<std::string, kml::BookmarkIcon> const kFeatureTypeToBookmarkIcon = {
+  {"amenity-bbq", kml::BookmarkIcon::Food},
+  {"tourism-picnic_site", kml::BookmarkIcon::Food},
+  {"leisure-picnic_table", kml::BookmarkIcon::Food},
+  {"amenity-cafe", kml::BookmarkIcon::Food},
+  {"amenity-restaurant", kml::BookmarkIcon::Food},
+  {"amenity-fast_food", kml::BookmarkIcon::Food},
+  {"amenity-food_court", kml::BookmarkIcon::Food},
+  {"amenity-bar", kml::BookmarkIcon::Food},
+  {"amenity-pub", kml::BookmarkIcon::Food},
+  {"amenity-biergarten", kml::BookmarkIcon::Food},
 
-  {"waterway-waterfall", kml::BookmarkType::Sights},
-  {"historic-tomb", kml::BookmarkType::Sights},
-  {"historic-boundary_stone", kml::BookmarkType::Sights},
-  {"historic-ship", kml::BookmarkType::Sights},
-  {"historic-archaeological_site", kml::BookmarkType::Sights},
-  {"historic-monument", kml::BookmarkType::Sights},
-  {"historic-memorial", kml::BookmarkType::Sights},
-  {"amenity-place_of_worship", kml::BookmarkType::Sights},
-  {"tourism-attraction", kml::BookmarkType::Sights},
-  {"tourism-theme_park", kml::BookmarkType::Sights},
-  {"tourism-viewpoint", kml::BookmarkType::Sights},
-  {"historic-fort", kml::BookmarkType::Sights},
-  {"historic-castle", kml::BookmarkType::Sights},
-  {"tourism-artwork", kml::BookmarkType::Sights},
-  {"historic-ruins", kml::BookmarkType::Sights},
-  {"historic-wayside_shrine", kml::BookmarkType::Sights},
-  {"historic-wayside_cross", kml::BookmarkType::Sights},
+  {"waterway-waterfall", kml::BookmarkIcon::Sights},
+  {"historic-tomb", kml::BookmarkIcon::Sights},
+  {"historic-boundary_stone", kml::BookmarkIcon::Sights},
+  {"historic-ship", kml::BookmarkIcon::Sights},
+  {"historic-archaeological_site", kml::BookmarkIcon::Sights},
+  {"historic-monument", kml::BookmarkIcon::Sights},
+  {"historic-memorial", kml::BookmarkIcon::Sights},
+  {"amenity-place_of_worship", kml::BookmarkIcon::Sights},
+  {"tourism-attraction", kml::BookmarkIcon::Sights},
+  {"tourism-theme_park", kml::BookmarkIcon::Sights},
+  {"tourism-viewpoint", kml::BookmarkIcon::Sights},
+  {"historic-fort", kml::BookmarkIcon::Sights},
+  {"historic-castle", kml::BookmarkIcon::Sights},
+  {"tourism-artwork", kml::BookmarkIcon::Sights},
+  {"historic-ruins", kml::BookmarkIcon::Sights},
+  {"historic-wayside_shrine", kml::BookmarkIcon::Sights},
+  {"historic-wayside_cross", kml::BookmarkIcon::Sights},
 
-  {"tourism-gallery", kml::BookmarkType::Museum},
-  {"tourism-museum", kml::BookmarkType::Museum},
-  {"amenity-arts_centre", kml::BookmarkType::Museum},
+  {"tourism-gallery", kml::BookmarkIcon::Museum},
+  {"tourism-museum", kml::BookmarkIcon::Museum},
+  {"amenity-arts_centre", kml::BookmarkIcon::Museum},
 
-  {"sport", kml::BookmarkType::Entertainment},
-  {"sport-multi", kml::BookmarkType::Entertainment},
-  {"leisure-playground", kml::BookmarkType::Entertainment},
-  {"leisure-water_park", kml::BookmarkType::Entertainment},
-  {"amenity-casino", kml::BookmarkType::Entertainment},
-  {"sport-archery", kml::BookmarkType::Entertainment},
-  {"sport-shooting", kml::BookmarkType::Entertainment},
-  {"sport-australian_football", kml::BookmarkType::Entertainment},
-  {"sport-bowls", kml::BookmarkType::Entertainment},
-  {"sport-curling", kml::BookmarkType::Entertainment},
-  {"sport-cricket", kml::BookmarkType::Entertainment},
-  {"sport-baseball", kml::BookmarkType::Entertainment},
-  {"sport-basketball", kml::BookmarkType::Entertainment},
-  {"sport-american_football", kml::BookmarkType::Entertainment},
-  {"sport-athletics", kml::BookmarkType::Entertainment},
-  {"sport-golf", kml::BookmarkType::Entertainment},
-  {"sport-gymnastics", kml::BookmarkType::Entertainment},
-  {"sport-tennis", kml::BookmarkType::Entertainment},
-  {"sport-skiing", kml::BookmarkType::Entertainment},
-  {"sport-soccer", kml::BookmarkType::Entertainment},
-  {"amenity-nightclub", kml::BookmarkType::Entertainment},
-  {"amenity-cinema", kml::BookmarkType::Entertainment},
-  {"amenity-theatre", kml::BookmarkType::Entertainment},
-  {"leisure-stadium", kml::BookmarkType::Entertainment},
+  {"sport", kml::BookmarkIcon::Entertainment},
+  {"sport-multi", kml::BookmarkIcon::Entertainment},
+  {"leisure-playground", kml::BookmarkIcon::Entertainment},
+  {"leisure-water_park", kml::BookmarkIcon::Entertainment},
+  {"amenity-casino", kml::BookmarkIcon::Entertainment},
+  {"sport-archery", kml::BookmarkIcon::Entertainment},
+  {"sport-shooting", kml::BookmarkIcon::Entertainment},
+  {"sport-australian_football", kml::BookmarkIcon::Entertainment},
+  {"sport-bowls", kml::BookmarkIcon::Entertainment},
+  {"sport-curling", kml::BookmarkIcon::Entertainment},
+  {"sport-cricket", kml::BookmarkIcon::Entertainment},
+  {"sport-baseball", kml::BookmarkIcon::Entertainment},
+  {"sport-basketball", kml::BookmarkIcon::Entertainment},
+  {"sport-american_football", kml::BookmarkIcon::Entertainment},
+  {"sport-athletics", kml::BookmarkIcon::Entertainment},
+  {"sport-golf", kml::BookmarkIcon::Entertainment},
+  {"sport-gymnastics", kml::BookmarkIcon::Entertainment},
+  {"sport-tennis", kml::BookmarkIcon::Entertainment},
+  {"sport-skiing", kml::BookmarkIcon::Entertainment},
+  {"sport-soccer", kml::BookmarkIcon::Entertainment},
+  {"amenity-nightclub", kml::BookmarkIcon::Entertainment},
+  {"amenity-cinema", kml::BookmarkIcon::Entertainment},
+  {"amenity-theatre", kml::BookmarkIcon::Entertainment},
+  {"leisure-stadium", kml::BookmarkIcon::Entertainment},
 
-  {"boundary-national_park", kml::BookmarkType::Park},
-  {"leisure-nature_reserve", kml::BookmarkType::Park},
-  {"landuse-forest", kml::BookmarkType::Park},
+  {"boundary-national_park", kml::BookmarkIcon::Park},
+  {"leisure-nature_reserve", kml::BookmarkIcon::Park},
+  {"landuse-forest", kml::BookmarkIcon::Park},
 
-  {"natural-beach", kml::BookmarkType::Swim},
-  {"sport-diving", kml::BookmarkType::Swim},
-  {"sport-scuba_diving", kml::BookmarkType::Swim},
-  {"sport-swimming", kml::BookmarkType::Swim},
-  {"leisure-swimming_pool", kml::BookmarkType::Swim},
+  {"natural-beach", kml::BookmarkIcon::Swim},
+  {"sport-diving", kml::BookmarkIcon::Swim},
+  {"sport-scuba_diving", kml::BookmarkIcon::Swim},
+  {"sport-swimming", kml::BookmarkIcon::Swim},
+  {"leisure-swimming_pool", kml::BookmarkIcon::Swim},
 
-  {"natural-cave_entrance", kml::BookmarkType::Mountain},
-  {"natural-peak", kml::BookmarkType::Mountain},
-  {"natural-volcano", kml::BookmarkType::Mountain},
-  {"natural-rock", kml::BookmarkType::Mountain},
-  {"natural-bare_rock", kml::BookmarkType::Mountain},
+  {"natural-cave_entrance", kml::BookmarkIcon::Mountain},
+  {"natural-peak", kml::BookmarkIcon::Mountain},
+  {"natural-volcano", kml::BookmarkIcon::Mountain},
+  {"natural-rock", kml::BookmarkIcon::Mountain},
+  {"natural-bare_rock", kml::BookmarkIcon::Mountain},
 
-  {"amenity-veterinary", kml::BookmarkType::Animals},
-  {"leisure-dog_park", kml::BookmarkType::Animals},
-  {"tourism-zoo", kml::BookmarkType::Animals},
+  {"amenity-veterinary", kml::BookmarkIcon::Animals},
+  {"leisure-dog_park", kml::BookmarkIcon::Animals},
+  {"tourism-zoo", kml::BookmarkIcon::Animals},
 
-  {"tourism-apartment", kml::BookmarkType::Hotel},
-  {"tourism-chalet", kml::BookmarkType::Hotel},
-  {"tourism-guest_house", kml::BookmarkType::Hotel},
-  {"tourism-alpine_hut", kml::BookmarkType::Hotel},
-  {"tourism-wilderness_hut", kml::BookmarkType::Hotel},
-  {"tourism-hostel", kml::BookmarkType::Hotel},
-  {"tourism-motel", kml::BookmarkType::Hotel},
-  {"tourism-resort", kml::BookmarkType::Hotel},
-  {"tourism-hotel", kml::BookmarkType::Hotel},
-  {"sponsored-booking", kml::BookmarkType::Hotel},
+  {"tourism-apartment", kml::BookmarkIcon::Hotel},
+  {"tourism-chalet", kml::BookmarkIcon::Hotel},
+  {"tourism-guest_house", kml::BookmarkIcon::Hotel},
+  {"tourism-alpine_hut", kml::BookmarkIcon::Hotel},
+  {"tourism-wilderness_hut", kml::BookmarkIcon::Hotel},
+  {"tourism-hostel", kml::BookmarkIcon::Hotel},
+  {"tourism-motel", kml::BookmarkIcon::Hotel},
+  {"tourism-resort", kml::BookmarkIcon::Hotel},
+  {"tourism-hotel", kml::BookmarkIcon::Hotel},
+  {"sponsored-booking", kml::BookmarkIcon::Hotel},
 
-  {"amenity-kindergarten", kml::BookmarkType::Building},
-  {"amenity-school", kml::BookmarkType::Building},
-  {"office", kml::BookmarkType::Building},
-  {"amenity-library", kml::BookmarkType::Building},
-  {"amenity-courthouse", kml::BookmarkType::Building},
-  {"amenity-college", kml::BookmarkType::Building},
-  {"amenity-police", kml::BookmarkType::Building},
-  {"amenity-prison", kml::BookmarkType::Building},
-  {"amenity-embassy", kml::BookmarkType::Building},
-  {"office-lawyer", kml::BookmarkType::Building},
-  {"building-train_station", kml::BookmarkType::Building},
-  {"building-university", kml::BookmarkType::Building},
+  {"amenity-kindergarten", kml::BookmarkIcon::Building},
+  {"amenity-school", kml::BookmarkIcon::Building},
+  {"office", kml::BookmarkIcon::Building},
+  {"amenity-library", kml::BookmarkIcon::Building},
+  {"amenity-courthouse", kml::BookmarkIcon::Building},
+  {"amenity-college", kml::BookmarkIcon::Building},
+  {"amenity-police", kml::BookmarkIcon::Building},
+  {"amenity-prison", kml::BookmarkIcon::Building},
+  {"amenity-embassy", kml::BookmarkIcon::Building},
+  {"office-lawyer", kml::BookmarkIcon::Building},
+  {"building-train_station", kml::BookmarkIcon::Building},
+  {"building-university", kml::BookmarkIcon::Building},
 
+  {"amenity-atm", kml::BookmarkIcon::Exchange},
+  {"amenity-bureau_de_change", kml::BookmarkIcon::Exchange},
+  {"amenity-bank", kml::BookmarkIcon::Exchange},
 
-  {"amenity-atm", kml::BookmarkType::Exchange},
-  {"amenity-bureau_de_change", kml::BookmarkType::Exchange},
-  {"amenity-bank", kml::BookmarkType::Exchange},
+  {"amenity-vending_machine", kml::BookmarkIcon::Shop},
+  {"shop", kml::BookmarkIcon::Shop},
+  {"amenity-marketplace", kml::BookmarkIcon::Shop},
+  {"craft", kml::BookmarkIcon::Shop},
+  {"shop-pawnbroker", kml::BookmarkIcon::Shop},
+  {"shop-supermarket", kml::BookmarkIcon::Shop},
+  {"shop-car_repair", kml::BookmarkIcon::Shop},
+  {"shop-mall", kml::BookmarkIcon::Shop},
+  {"highway-services", kml::BookmarkIcon::Shop},
+  {"shop-stationery", kml::BookmarkIcon::Shop},
+  {"shop-variety_store", kml::BookmarkIcon::Shop},
+  {"shop-alcohol", kml::BookmarkIcon::Shop},
+  {"shop-wine", kml::BookmarkIcon::Shop},
+  {"shop-books", kml::BookmarkIcon::Shop},
+  {"shop-bookmaker", kml::BookmarkIcon::Shop},
+  {"shop-bakery", kml::BookmarkIcon::Shop},
+  {"shop-beauty", kml::BookmarkIcon::Shop},
+  {"shop-cosmetics", kml::BookmarkIcon::Shop},
+  {"shop-beverages", kml::BookmarkIcon::Shop},
+  {"shop-bicycle", kml::BookmarkIcon::Shop},
+  {"shop-butcher", kml::BookmarkIcon::Shop},
+  {"shop-car", kml::BookmarkIcon::Shop},
+  {"shop-motorcycle", kml::BookmarkIcon::Shop},
+  {"shop-car_parts", kml::BookmarkIcon::Shop},
+  {"shop-car_repair", kml::BookmarkIcon::Shop},
+  {"shop-tyres", kml::BookmarkIcon::Shop},
+  {"shop-chemist", kml::BookmarkIcon::Shop},
+  {"shop-clothes", kml::BookmarkIcon::Shop},
+  {"shop-computer", kml::BookmarkIcon::Shop},
+  {"shop-tattoo", kml::BookmarkIcon::Shop},
+  {"shop-erotic", kml::BookmarkIcon::Shop},
+  {"shop-funeral_directors", kml::BookmarkIcon::Shop},
+  {"shop-confectionery", kml::BookmarkIcon::Shop},
+  {"shop-chocolate", kml::BookmarkIcon::Shop},
+  {"amenity-ice_cream", kml::BookmarkIcon::Shop},
+  {"shop-convenience", kml::BookmarkIcon::Shop},
+  {"shop-copyshop", kml::BookmarkIcon::Shop},
+  {"shop-photo", kml::BookmarkIcon::Shop},
+  {"shop-pet", kml::BookmarkIcon::Shop},
+  {"shop-department_store", kml::BookmarkIcon::Shop},
+  {"shop-doityourself", kml::BookmarkIcon::Shop},
+  {"shop-electronics", kml::BookmarkIcon::Shop},
+  {"shop-florist", kml::BookmarkIcon::Shop},
+  {"shop-furniture", kml::BookmarkIcon::Shop},
+  {"shop-garden_centre", kml::BookmarkIcon::Shop},
+  {"shop-gift", kml::BookmarkIcon::Shop},
+  {"shop-music", kml::BookmarkIcon::Shop},
+  {"shop-video", kml::BookmarkIcon::Shop},
+  {"shop-musical_instrument", kml::BookmarkIcon::Shop},
+  {"shop-greengrocer", kml::BookmarkIcon::Shop},
+  {"shop-hairdresser", kml::BookmarkIcon::Shop},
+  {"shop-hardware", kml::BookmarkIcon::Shop},
+  {"shop-jewelry", kml::BookmarkIcon::Shop},
+  {"shop-kiosk", kml::BookmarkIcon::Shop},
+  {"shop-laundry", kml::BookmarkIcon::Shop},
+  {"shop-dry_cleaning", kml::BookmarkIcon::Shop},
+  {"shop-mobile_phone", kml::BookmarkIcon::Shop},
+  {"shop-optician", kml::BookmarkIcon::Shop},
+  {"shop-outdoor", kml::BookmarkIcon::Shop},
+  {"shop-seafood", kml::BookmarkIcon::Shop},
+  {"shop-shoes", kml::BookmarkIcon::Shop},
+  {"shop-sports", kml::BookmarkIcon::Shop},
+  {"shop-ticket", kml::BookmarkIcon::Shop},
+  {"shop-toys", kml::BookmarkIcon::Shop},
+  {"shop-fabric", kml::BookmarkIcon::Shop},
+  {"shop-alcohol", kml::BookmarkIcon::Shop},
 
-  {"amenity-vending_machine", kml::BookmarkType::Shop},
-  {"shop", kml::BookmarkType::Shop},
-  {"amenity-marketplace", kml::BookmarkType::Shop},
-  {"craft", kml::BookmarkType::Shop},
-  {"shop-pawnbroker", kml::BookmarkType::Shop},
-  {"shop-supermarket", kml::BookmarkType::Shop},
-  {"shop-car_repair", kml::BookmarkType::Shop},
-  {"shop-mall", kml::BookmarkType::Shop},
-  {"highway-services", kml::BookmarkType::Shop},
-  {"shop-stationery", kml::BookmarkType::Shop},
-  {"shop-variety_store", kml::BookmarkType::Shop},
-  {"shop-alcohol", kml::BookmarkType::Shop},
-  {"shop-wine", kml::BookmarkType::Shop},
-  {"shop-books", kml::BookmarkType::Shop},
-  {"shop-bookmaker", kml::BookmarkType::Shop},
-  {"shop-bakery", kml::BookmarkType::Shop},
-  {"shop-beauty", kml::BookmarkType::Shop},
-  {"shop-cosmetics", kml::BookmarkType::Shop},
-  {"shop-beverages", kml::BookmarkType::Shop},
-  {"shop-bicycle", kml::BookmarkType::Shop},
-  {"shop-butcher", kml::BookmarkType::Shop},
-  {"shop-car", kml::BookmarkType::Shop},
-  {"shop-motorcycle", kml::BookmarkType::Shop},
-  {"shop-car_parts", kml::BookmarkType::Shop},
-  {"shop-car_repair", kml::BookmarkType::Shop},
-  {"shop-tyres", kml::BookmarkType::Shop},
-  {"shop-chemist", kml::BookmarkType::Shop},
-  {"shop-clothes", kml::BookmarkType::Shop},
-  {"shop-computer", kml::BookmarkType::Shop},
-  {"shop-tattoo", kml::BookmarkType::Shop},
-  {"shop-erotic", kml::BookmarkType::Shop},
-  {"shop-funeral_directors", kml::BookmarkType::Shop},
-  {"shop-confectionery", kml::BookmarkType::Shop},
-  {"shop-chocolate", kml::BookmarkType::Shop},
-  {"amenity-ice_cream", kml::BookmarkType::Shop},
-  {"shop-convenience", kml::BookmarkType::Shop},
-  {"shop-copyshop", kml::BookmarkType::Shop},
-  {"shop-photo", kml::BookmarkType::Shop},
-  {"shop-pet", kml::BookmarkType::Shop},
-  {"shop-department_store", kml::BookmarkType::Shop},
-  {"shop-doityourself", kml::BookmarkType::Shop},
-  {"shop-electronics", kml::BookmarkType::Shop},
-  {"shop-florist", kml::BookmarkType::Shop},
-  {"shop-furniture", kml::BookmarkType::Shop},
-  {"shop-garden_centre", kml::BookmarkType::Shop},
-  {"shop-gift", kml::BookmarkType::Shop},
-  {"shop-music", kml::BookmarkType::Shop},
-  {"shop-video", kml::BookmarkType::Shop},
-  {"shop-musical_instrument", kml::BookmarkType::Shop},
-  {"shop-greengrocer", kml::BookmarkType::Shop},
-  {"shop-hairdresser", kml::BookmarkType::Shop},
-  {"shop-hardware", kml::BookmarkType::Shop},
-  {"shop-jewelry", kml::BookmarkType::Shop},
-  {"shop-kiosk", kml::BookmarkType::Shop},
-  {"shop-laundry", kml::BookmarkType::Shop},
-  {"shop-dry_cleaning", kml::BookmarkType::Shop},
-  {"shop-mobile_phone", kml::BookmarkType::Shop},
-  {"shop-optician", kml::BookmarkType::Shop},
-  {"shop-outdoor", kml::BookmarkType::Shop},
-  {"shop-seafood", kml::BookmarkType::Shop},
-  {"shop-shoes", kml::BookmarkType::Shop},
-  {"shop-sports", kml::BookmarkType::Shop},
-  {"shop-ticket", kml::BookmarkType::Shop},
-  {"shop-toys", kml::BookmarkType::Shop},
-  {"shop-fabric", kml::BookmarkType::Shop},
-  {"shop-alcohol", kml::BookmarkType::Shop},
+  {"amenity-place_of_worship-christian", kml::BookmarkIcon::Christianity},
+  {"landuse-cemetery-christian", kml::BookmarkIcon::Christianity},
+  {"amenity-grave_yard-christian", kml::BookmarkIcon::Christianity},
 
-  {"amenity-place_of_worship-christian", kml::BookmarkType::Christianity},
-  {"landuse-cemetery-christian", kml::BookmarkType::Christianity},
-  {"amenity-grave_yard-christian", kml::BookmarkType::Christianity},
+  {"amenity-place_of_worship-jewish", kml::BookmarkIcon::Judaism},
 
-  {"amenity-place_of_worship-jewish", kml::BookmarkType::Judaism},
+  {"amenity-place_of_worship-buddhist", kml::BookmarkIcon::Buddhism},
 
-  {"amenity-place_of_worship-buddhist", kml::BookmarkType::Buddhism},
+  {"amenity-place_of_worship-muslim", kml::BookmarkIcon::Islam},
 
-  {"amenity-place_of_worship-muslim", kml::BookmarkType::Islam},
+  {"amenity-parking", kml::BookmarkIcon::Parking},
+  {"vending-parking_tickets", kml::BookmarkIcon::Parking},
+  {"tourism-caravan_site", kml::BookmarkIcon::Parking},
+  {"amenity-bicycle_parking", kml::BookmarkIcon::Parking},
+  {"amenity-taxi", kml::BookmarkIcon::Parking},
+  {"amenity-car_sharing", kml::BookmarkIcon::Parking},
+  {"tourism-camp_site", kml::BookmarkIcon::Parking},
+  {"amenity-motorcycle_parking", kml::BookmarkIcon::Parking},
 
-  {"amenity-parking", kml::BookmarkType::Parking},
-  {"vending-parking_tickets", kml::BookmarkType::Parking},
-  {"tourism-caravan_site", kml::BookmarkType::Parking},
-  {"amenity-bicycle_parking", kml::BookmarkType::Parking},
-  {"amenity-taxi", kml::BookmarkType::Parking},
-  {"amenity-car_sharing", kml::BookmarkType::Parking},
-  {"tourism-camp_site", kml::BookmarkType::Parking},
-  {"amenity-motorcycle_parking", kml::BookmarkType::Parking},
+  {"amenity-fuel", kml::BookmarkIcon::Gas},
+  {"amenity-charging_station", kml::BookmarkIcon::Gas},
 
-  {"amenity-fuel", kml::BookmarkType::Gas},
-  {"amenity-charging_station", kml::BookmarkType::Gas},
+  {"amenity-fountain", kml::BookmarkIcon::Water},
+  {"natural-spring", kml::BookmarkIcon::Water},
+  {"amenity-drinking_water", kml::BookmarkIcon::Water},
+  {"man_made-water_tap", kml::BookmarkIcon::Water},
+  {"amenity-water_point", kml::BookmarkIcon::Water},
 
-  {"amenity-fountain", kml::BookmarkType::Water},
-  {"natural-spring", kml::BookmarkType::Water},
-  {"amenity-drinking_water", kml::BookmarkType::Water},
-  {"man_made-water_tap", kml::BookmarkType::Water},
-  {"amenity-water_point", kml::BookmarkType::Water},
+  {"amenity-dentist", kml::BookmarkIcon::Medicine},
+  {"amenity-clinic", kml::BookmarkIcon::Medicine},
+  {"amenity-doctors", kml::BookmarkIcon::Medicine},
+  {"amenity-hospital", kml::BookmarkIcon::Medicine},
+  {"amenity-pharmacy", kml::BookmarkIcon::Medicine},
+  {"amenity-clinic", kml::BookmarkIcon::Medicine},
+  {"amenity-childcare", kml::BookmarkIcon::Medicine},
+  {"emergency-defibrillator", kml::BookmarkIcon::Medicine}
+};
 
-  {"amenity-dentist", kml::BookmarkType::Medicine},
-  {"amenity-clinic", kml::BookmarkType::Medicine},
-  {"amenity-doctors", kml::BookmarkType::Medicine},
-  {"amenity-hospital", kml::BookmarkType::Medicine},
-  {"amenity-pharmacy", kml::BookmarkType::Medicine},
-  {"amenity-clinic", kml::BookmarkType::Medicine},
-  {"amenity-childcare", kml::BookmarkType::Medicine},
-  {"emergency-defibrillator", kml::BookmarkType::Medicine}
+std::map<std::string, BookmarkBaseType> const kFeatureTypeToBookmarkType = {
+  {"amenity-bbq", BookmarkBaseType::Food},
+  {"tourism-picnic_site", BookmarkBaseType::Food},
+  {"leisure-picnic_table", BookmarkBaseType::Food},
+  {"amenity-cafe", BookmarkBaseType::Food},
+  {"amenity-restaurant", BookmarkBaseType::Food},
+  {"amenity-fast_food", BookmarkBaseType::Food},
+  {"amenity-food_court", BookmarkBaseType::Food},
+  {"amenity-bar", BookmarkBaseType::Food},
+  {"amenity-pub", BookmarkBaseType::Food},
+  {"amenity-biergarten", BookmarkBaseType::Food},
+
+  {"waterway-waterfall", BookmarkBaseType::Sights},
+  {"historic-tomb", BookmarkBaseType::Sights},
+  {"historic-boundary_stone", BookmarkBaseType::Sights},
+  {"historic-ship", BookmarkBaseType::Sights},
+  {"historic-archaeological_site", BookmarkBaseType::Sights},
+  {"historic-monument", BookmarkBaseType::Sights},
+  {"historic-memorial", BookmarkBaseType::Sights},
+  {"tourism-attraction", BookmarkBaseType::Sights},
+  {"tourism-theme_park", BookmarkBaseType::Sights},
+  {"tourism-viewpoint", BookmarkBaseType::Sights},
+  {"historic-fort", BookmarkBaseType::Sights},
+  {"historic-castle", BookmarkBaseType::Sights},
+  {"tourism-artwork", BookmarkBaseType::Sights},
+  {"historic-ruins", BookmarkBaseType::Sights},
+  {"historic-wayside_shrine", BookmarkBaseType::Sights},
+  {"historic-wayside_cross", BookmarkBaseType::Sights},
+
+  {"tourism-gallery", BookmarkBaseType::Museum},
+  {"tourism-museum", BookmarkBaseType::Museum},
+  {"amenity-arts_centre", BookmarkBaseType::Museum},
+
+  {"sport", BookmarkBaseType::Entertainment},
+  {"sport-multi", BookmarkBaseType::Entertainment},
+  {"leisure-playground", BookmarkBaseType::Entertainment},
+  {"leisure-water_park", BookmarkBaseType::Entertainment},
+  {"amenity-casino", BookmarkBaseType::Entertainment},
+  {"sport-archery", BookmarkBaseType::Entertainment},
+  {"sport-shooting", BookmarkBaseType::Entertainment},
+  {"sport-australian_football", BookmarkBaseType::Entertainment},
+  {"sport-bowls", BookmarkBaseType::Entertainment},
+  {"sport-curling", BookmarkBaseType::Entertainment},
+  {"sport-cricket", BookmarkBaseType::Entertainment},
+  {"sport-baseball", BookmarkBaseType::Entertainment},
+  {"sport-basketball", BookmarkBaseType::Entertainment},
+  {"sport-american_football", BookmarkBaseType::Entertainment},
+  {"sport-athletics", BookmarkBaseType::Entertainment},
+  {"sport-golf", BookmarkBaseType::Entertainment},
+  {"sport-gymnastics", BookmarkBaseType::Entertainment},
+  {"sport-tennis", BookmarkBaseType::Entertainment},
+  {"sport-skiing", BookmarkBaseType::Entertainment},
+  {"sport-soccer", BookmarkBaseType::Entertainment},
+  {"amenity-nightclub", BookmarkBaseType::Entertainment},
+  {"amenity-cinema", BookmarkBaseType::Entertainment},
+  {"amenity-theatre", BookmarkBaseType::Entertainment},
+  {"leisure-stadium", BookmarkBaseType::Entertainment},
+
+  {"boundary-national_park", BookmarkBaseType::Park},
+  {"leisure-nature_reserve", BookmarkBaseType::Park},
+  {"landuse-forest", BookmarkBaseType::Park},
+
+  {"natural-beach", BookmarkBaseType::Swim},
+  {"sport-diving", BookmarkBaseType::Swim},
+  {"sport-scuba_diving", BookmarkBaseType::Swim},
+  {"sport-swimming", BookmarkBaseType::Swim},
+  {"leisure-swimming_pool", BookmarkBaseType::Swim},
+
+  {"natural-cave_entrance", BookmarkBaseType::Mountain},
+  {"natural-peak", BookmarkBaseType::Mountain},
+  {"natural-volcano", BookmarkBaseType::Mountain},
+  {"natural-rock", BookmarkBaseType::Mountain},
+  {"natural-bare_rock", BookmarkBaseType::Mountain},
+
+  {"amenity-veterinary", BookmarkBaseType::Animals},
+  {"leisure-dog_park", BookmarkBaseType::Animals},
+  {"tourism-zoo", BookmarkBaseType::Animals},
+
+  {"tourism-apartment", BookmarkBaseType::Hotel},
+  {"tourism-chalet", BookmarkBaseType::Hotel},
+  {"tourism-guest_house", BookmarkBaseType::Hotel},
+  {"tourism-alpine_hut", BookmarkBaseType::Hotel},
+  {"tourism-wilderness_hut", BookmarkBaseType::Hotel},
+  {"tourism-hostel", BookmarkBaseType::Hotel},
+  {"tourism-motel", BookmarkBaseType::Hotel},
+  {"tourism-resort", BookmarkBaseType::Hotel},
+  {"tourism-hotel", BookmarkBaseType::Hotel},
+  {"sponsored-booking", BookmarkBaseType::Hotel},
+
+  {"amenity-kindergarten", BookmarkBaseType::Building},
+  {"amenity-school", BookmarkBaseType::Building},
+  {"office", BookmarkBaseType::Building},
+  {"amenity-library", BookmarkBaseType::Building},
+  {"amenity-courthouse", BookmarkBaseType::Building},
+  {"amenity-college", BookmarkBaseType::Building},
+  {"amenity-police", BookmarkBaseType::Building},
+  {"amenity-prison", BookmarkBaseType::Building},
+  {"amenity-embassy", BookmarkBaseType::Building},
+  {"office-lawyer", BookmarkBaseType::Building},
+  {"building-train_station", BookmarkBaseType::Building},
+  {"building-university", BookmarkBaseType::Building},
+
+  {"amenity-atm", BookmarkBaseType::Exchange},
+  {"amenity-bureau_de_change", BookmarkBaseType::Exchange},
+  {"amenity-bank", BookmarkBaseType::Exchange},
+
+  {"amenity-vending_machine", BookmarkBaseType::Shop},
+  {"shop", BookmarkBaseType::Shop},
+  {"amenity-marketplace", BookmarkBaseType::Shop},
+  {"craft", BookmarkBaseType::Shop},
+  {"shop-pawnbroker", BookmarkBaseType::Shop},
+  {"shop-supermarket", BookmarkBaseType::Shop},
+  {"shop-car_repair", BookmarkBaseType::Shop},
+  {"shop-mall", BookmarkBaseType::Shop},
+  {"highway-services", BookmarkBaseType::Shop},
+  {"shop-stationery", BookmarkBaseType::Shop},
+  {"shop-variety_store", BookmarkBaseType::Shop},
+  {"shop-alcohol", BookmarkBaseType::Shop},
+  {"shop-wine", BookmarkBaseType::Shop},
+  {"shop-books", BookmarkBaseType::Shop},
+  {"shop-bookmaker", BookmarkBaseType::Shop},
+  {"shop-bakery", BookmarkBaseType::Shop},
+  {"shop-beauty", BookmarkBaseType::Shop},
+  {"shop-cosmetics", BookmarkBaseType::Shop},
+  {"shop-beverages", BookmarkBaseType::Shop},
+  {"shop-bicycle", BookmarkBaseType::Shop},
+  {"shop-butcher", BookmarkBaseType::Shop},
+  {"shop-car", BookmarkBaseType::Shop},
+  {"shop-motorcycle", BookmarkBaseType::Shop},
+  {"shop-car_parts", BookmarkBaseType::Shop},
+  {"shop-car_repair", BookmarkBaseType::Shop},
+  {"shop-tyres", BookmarkBaseType::Shop},
+  {"shop-chemist", BookmarkBaseType::Shop},
+  {"shop-clothes", BookmarkBaseType::Shop},
+  {"shop-computer", BookmarkBaseType::Shop},
+  {"shop-tattoo", BookmarkBaseType::Shop},
+  {"shop-erotic", BookmarkBaseType::Shop},
+  {"shop-funeral_directors", BookmarkBaseType::Shop},
+  {"shop-confectionery", BookmarkBaseType::Shop},
+  {"shop-chocolate", BookmarkBaseType::Shop},
+  {"amenity-ice_cream", BookmarkBaseType::Shop},
+  {"shop-convenience", BookmarkBaseType::Shop},
+  {"shop-copyshop", BookmarkBaseType::Shop},
+  {"shop-photo", BookmarkBaseType::Shop},
+  {"shop-pet", BookmarkBaseType::Shop},
+  {"shop-department_store", BookmarkBaseType::Shop},
+  {"shop-doityourself", BookmarkBaseType::Shop},
+  {"shop-electronics", BookmarkBaseType::Shop},
+  {"shop-florist", BookmarkBaseType::Shop},
+  {"shop-furniture", BookmarkBaseType::Shop},
+  {"shop-garden_centre", BookmarkBaseType::Shop},
+  {"shop-gift", BookmarkBaseType::Shop},
+  {"shop-music", BookmarkBaseType::Shop},
+  {"shop-video", BookmarkBaseType::Shop},
+  {"shop-musical_instrument", BookmarkBaseType::Shop},
+  {"shop-greengrocer", BookmarkBaseType::Shop},
+  {"shop-hairdresser", BookmarkBaseType::Shop},
+  {"shop-hardware", BookmarkBaseType::Shop},
+  {"shop-jewelry", BookmarkBaseType::Shop},
+  {"shop-kiosk", BookmarkBaseType::Shop},
+  {"shop-laundry", BookmarkBaseType::Shop},
+  {"shop-dry_cleaning", BookmarkBaseType::Shop},
+  {"shop-mobile_phone", BookmarkBaseType::Shop},
+  {"shop-optician", BookmarkBaseType::Shop},
+  {"shop-outdoor", BookmarkBaseType::Shop},
+  {"shop-seafood", BookmarkBaseType::Shop},
+  {"shop-shoes", BookmarkBaseType::Shop},
+  {"shop-sports", BookmarkBaseType::Shop},
+  {"shop-ticket", BookmarkBaseType::Shop},
+  {"shop-toys", BookmarkBaseType::Shop},
+  {"shop-fabric", BookmarkBaseType::Shop},
+  {"shop-alcohol", BookmarkBaseType::Shop},
+
+  {"amenity-parking", BookmarkBaseType::Parking},
+  {"vending-parking_tickets", BookmarkBaseType::Parking},
+  {"tourism-caravan_site", BookmarkBaseType::Parking},
+  {"amenity-bicycle_parking", BookmarkBaseType::Parking},
+  {"amenity-taxi", BookmarkBaseType::Parking},
+  {"amenity-car_sharing", BookmarkBaseType::Parking},
+  {"tourism-camp_site", BookmarkBaseType::Parking},
+  {"amenity-motorcycle_parking", BookmarkBaseType::Parking},
+
+  {"amenity-place_of_worship", BookmarkBaseType::Religion},
+  {"amenity-place_of_worship-christian", BookmarkBaseType::Religion},
+  {"landuse-cemetery-christian", BookmarkBaseType::Religion},
+  {"amenity-grave_yard-christian", BookmarkBaseType::Religion},
+  {"amenity-place_of_worship-jewish", BookmarkBaseType::Religion},
+  {"amenity-place_of_worship-buddhist", BookmarkBaseType::Religion},
+  {"amenity-place_of_worship-muslim", BookmarkBaseType::Religion},
+
+  {"amenity-fuel", BookmarkBaseType::Gas},
+  {"amenity-charging_station", BookmarkBaseType::Gas},
+
+  {"amenity-fountain", BookmarkBaseType::Water},
+  {"natural-spring", BookmarkBaseType::Water},
+  {"amenity-drinking_water", BookmarkBaseType::Water},
+  {"man_made-water_tap", BookmarkBaseType::Water},
+  {"amenity-water_point", BookmarkBaseType::Water},
+
+  {"amenity-dentist", BookmarkBaseType::Medicine},
+  {"amenity-clinic", BookmarkBaseType::Medicine},
+  {"amenity-doctors", BookmarkBaseType::Medicine},
+  {"amenity-hospital", BookmarkBaseType::Medicine},
+  {"amenity-pharmacy", BookmarkBaseType::Medicine},
+  {"amenity-clinic", BookmarkBaseType::Medicine},
+  {"amenity-childcare", BookmarkBaseType::Medicine},
+  {"emergency-defibrillator", BookmarkBaseType::Medicine}
 };
 
 void ValidateKmlData(std::unique_ptr<kml::FileData> & data)
@@ -419,10 +627,40 @@ void ResetIds(kml::FileData & kmlData)
     trackData.m_id = kml::kInvalidTrackId;
 }
 
-kml::BookmarkType GetBookmarkTypeByFeatureType(uint32_t type)
+BookmarkBaseType GetBookmarkBaseTypeByFeatureTypes(std::vector<uint32_t> const & featureTypes)
+{
+  auto const & c = classif();
+  for (auto typeIndex : featureTypes)
+  {
+    auto const type = c.GetTypeForIndex(typeIndex);
+    auto const typeStr = c.GetReadableObjectName(type);
+
+    static std::string const kDelim = "-";
+
+    std::vector<std::string> tokens;
+    strings::Tokenize(typeStr, kDelim.c_str(), [&tokens](std::string const & s) { tokens.push_back(s); });
+
+    for (size_t sz = tokens.size(); sz > 0; --sz)
+    {
+      std::stringstream ss;
+      for (size_t i = 0; i < sz; ++i)
+      {
+        ss << tokens[i];
+        if (i + 1 < sz)
+          ss << kDelim;
+      }
+      auto const itType = kFeatureTypeToBookmarkType.find(ss.str());
+      if (itType != kFeatureTypeToBookmarkType.cend())
+        return itType->second;
+    }
+  }
+  return BookmarkBaseType::None;
+}
+
+kml::BookmarkIcon GetBookmarkIconByFeatureType(uint32_t type)
 {
   auto const typeStr = classif().GetReadableObjectName(type);
-  
+
   static std::string const kDelim = "-";
   std::vector<std::string> v;
   strings::Tokenize(typeStr, kDelim.c_str(), [&v] (std::string const & s) {v.push_back(s);});
@@ -435,11 +673,11 @@ kml::BookmarkType GetBookmarkTypeByFeatureType(uint32_t type)
       if (i + 1 < sz)
         ss << kDelim;
     }
-    auto const itType = kFeatureTypeToBookmarkType.find(ss.str());
-    if (itType != kFeatureTypeToBookmarkType.cend())
-      return itType->second;
+    auto const itIcon = kFeatureTypeToBookmarkIcon.find(ss.str());
+    if (itIcon != kFeatureTypeToBookmarkIcon.cend())
+      return itIcon->second;
   }
-  return kml::BookmarkType::None;
+  return kml::BookmarkIcon::None;
 }
 
 void SaveFeatureTypes(feature::TypesHolder const & types, kml::BookmarkData & bmData)
@@ -451,8 +689,8 @@ void SaveFeatureTypes(feature::TypesHolder const & types, kml::BookmarkData & bm
   for (auto it = copy.begin(); it != copy.end(); ++it)
   {
     bmData.m_featureTypes.push_back(c.GetIndexForType(*it));
-    if (bmData.m_icon == kml::BookmarkType::None)
-      bmData.m_icon = GetBookmarkTypeByFeatureType(*it);
+    if (bmData.m_icon == kml::BookmarkIcon::None)
+      bmData.m_icon = GetBookmarkIconByFeatureType(*it);
   }
 }
 
@@ -471,32 +709,29 @@ std::string GetLocalizedFeatureType(std::vector<uint32_t> const & types)
   return kml::GetLocalizedFeatureType(types);
 }
 
-std::string GetLocalizedBookmarkType(kml::BookmarkType type)
+std::string GetLocalizedBookmarkBaseType(BookmarkBaseType type)
 {
   switch (type)
   {
-  case kml::BookmarkType::None: return platform::GetLocalizedString("None");
-  case kml::BookmarkType::Hotel: return platform::GetLocalizedString("hotel");
-  case kml::BookmarkType::Animals: return platform::GetLocalizedString("animals_srt");
-  case kml::BookmarkType::Buddhism: return platform::GetLocalizedString("Buddhism");
-  case kml::BookmarkType::Building: return platform::GetLocalizedString("building_srt");
-  case kml::BookmarkType::Christianity: return platform::GetLocalizedString("Christianity");
-  case kml::BookmarkType::Entertainment: return platform::GetLocalizedString("entertainment");
-  case kml::BookmarkType::Exchange: return platform::GetLocalizedString("money_srt");
-  case kml::BookmarkType::Food: return platform::GetLocalizedString("food_srt");
-  case kml::BookmarkType::Gas: return platform::GetLocalizedString("fuel");
-  case kml::BookmarkType::Judaism: return platform::GetLocalizedString("Judaism");
-  case kml::BookmarkType::Medicine: return platform::GetLocalizedString("medicine_srt");
-  case kml::BookmarkType::Mountain: return platform::GetLocalizedString("mountain_srt");
-  case kml::BookmarkType::Museum: return platform::GetLocalizedString("museum_srt");
-  case kml::BookmarkType::Islam: return platform::GetLocalizedString("Islam");
-  case kml::BookmarkType::Park: return platform::GetLocalizedString("park_srt");
-  case kml::BookmarkType::Parking: return platform::GetLocalizedString("parking");
-  case kml::BookmarkType::Shop: return platform::GetLocalizedString("shop_srt");
-  case kml::BookmarkType::Sights: return platform::GetLocalizedString("tourism");
-  case kml::BookmarkType::Swim: return platform::GetLocalizedString("swim_srt");
-  case kml::BookmarkType::Water: return platform::GetLocalizedString("water_srt");
-  case kml::BookmarkType::Count: CHECK(false, ("Invalid bookmark type")); return "";
+  case BookmarkBaseType::None: return "";
+  case BookmarkBaseType::Hotel: return platform::GetLocalizedString("hotels");
+  case BookmarkBaseType::Animals: return platform::GetLocalizedString("animals");
+  case BookmarkBaseType::Building: return platform::GetLocalizedString("buildings");
+  case BookmarkBaseType::Entertainment: return platform::GetLocalizedString("entertainment");
+  case BookmarkBaseType::Exchange: return platform::GetLocalizedString("money");
+  case BookmarkBaseType::Food: return platform::GetLocalizedString("food_places");
+  case BookmarkBaseType::Gas: return platform::GetLocalizedString("fuel_places");
+  case BookmarkBaseType::Medicine: return platform::GetLocalizedString("medicine");
+  case BookmarkBaseType::Mountain: return platform::GetLocalizedString("mountains");
+  case BookmarkBaseType::Museum: return platform::GetLocalizedString("museums");
+  case BookmarkBaseType::Park: return platform::GetLocalizedString("parks");
+  case BookmarkBaseType::Parking: return platform::GetLocalizedString("parkings");
+  case BookmarkBaseType::Religion: return platform::GetLocalizedString("religious_places");
+  case BookmarkBaseType::Shop: return platform::GetLocalizedString("shops");
+  case BookmarkBaseType::Sights: return platform::GetLocalizedString("tourist_places");
+  case BookmarkBaseType::Swim: return platform::GetLocalizedString("swim_places");
+  case BookmarkBaseType::Water: return platform::GetLocalizedString("water");
+  case BookmarkBaseType::Count: CHECK(false, ("Invalid bookmark base type")); return "";
   }
   UNREACHABLE();
 }

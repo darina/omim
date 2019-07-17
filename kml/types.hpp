@@ -75,7 +75,7 @@ inline std::string DebugPrint(AccessRules accessRules)
   UNREACHABLE();
 }
 
-enum class BookmarkType : uint16_t
+enum class BookmarkIcon : uint16_t
 {
   // Do not change the order because of binary serialization.
   None = 0,
@@ -102,32 +102,32 @@ enum class BookmarkType : uint16_t
   Count
 };
 
-inline std::string DebugPrint(BookmarkType type)
+inline std::string DebugPrint(BookmarkIcon icon)
 {
-  switch (type)
+  switch (icon)
   {
-  case BookmarkType::None: return "None";
-  case BookmarkType::Hotel: return "Hotel";
-  case BookmarkType::Animals: return "Animals";
-  case BookmarkType::Buddhism: return "Buddhism";
-  case BookmarkType::Building: return "Building";
-  case BookmarkType::Christianity: return "Christianity";
-  case BookmarkType::Entertainment: return "Entertainment";
-  case BookmarkType::Exchange: return "Exchange";
-  case BookmarkType::Food: return "Food";
-  case BookmarkType::Gas: return "Gas";
-  case BookmarkType::Judaism: return "Judaism";
-  case BookmarkType::Medicine: return "Medicine";
-  case BookmarkType::Mountain: return "Mountain";
-  case BookmarkType::Museum: return "Museum";
-  case BookmarkType::Islam: return "Islam";
-  case BookmarkType::Park: return "Park";
-  case BookmarkType::Parking: return "Parking";
-  case BookmarkType::Shop: return "Shop";
-  case BookmarkType::Sights: return "Sights";
-  case BookmarkType::Swim: return "Swim";
-  case BookmarkType::Water: return "Water";
-  case BookmarkType::Count: return {};
+  case BookmarkIcon::None: return "None";
+  case BookmarkIcon::Hotel: return "Hotel";
+  case BookmarkIcon::Animals: return "Animals";
+  case BookmarkIcon::Buddhism: return "Buddhism";
+  case BookmarkIcon::Building: return "Building";
+  case BookmarkIcon::Christianity: return "Christianity";
+  case BookmarkIcon::Entertainment: return "Entertainment";
+  case BookmarkIcon::Exchange: return "Exchange";
+  case BookmarkIcon::Food: return "Food";
+  case BookmarkIcon::Gas: return "Gas";
+  case BookmarkIcon::Judaism: return "Judaism";
+  case BookmarkIcon::Medicine: return "Medicine";
+  case BookmarkIcon::Mountain: return "Mountain";
+  case BookmarkIcon::Museum: return "Museum";
+  case BookmarkIcon::Islam: return "Islam";
+  case BookmarkIcon::Park: return "Park";
+  case BookmarkIcon::Parking: return "Parking";
+  case BookmarkIcon::Shop: return "Shop";
+  case BookmarkIcon::Sights: return "Sights";
+  case BookmarkIcon::Swim: return "Swim";
+  case BookmarkIcon::Water: return "Water";
+  case BookmarkIcon::Count: return {};
   }
   UNREACHABLE();
 }
@@ -196,7 +196,7 @@ struct BookmarkData
   // Bookmark's color.
   ColorData m_color;
   // Bookmark's icon.
-  BookmarkType m_icon = BookmarkType::None;
+  BookmarkIcon m_icon = BookmarkIcon::None;
   // Viewport scale. 0 is a default value (no scale set).
   uint8_t m_viewportScale = 0;
   // Creation timestamp.
