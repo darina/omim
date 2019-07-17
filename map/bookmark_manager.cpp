@@ -431,7 +431,7 @@ void FixUpHotelPlacemarks(BookmarkManager::KMLDataCollectionPtr & collection,
     
     for (auto & b : kmlData->m_bookmarksData)
     {
-      if (b.m_icon == kml::BookmarkType::Hotel)
+      if (b.m_icon == kml::BookmarkIcon::Hotel)
         hotelBookmarks.push_back(std::move(b));
     }
   }
@@ -816,7 +816,6 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
   bool byDistanceChecked = false;
   bool byTypeChecked = false;
   bool byTimeChecked = false;
-  bool byLengthChecked = false;
 
   std::map<uint32_t, size_t> typesCount;
   for (auto markId : group->GetUserMarks())
@@ -853,8 +852,6 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
       if (byTimeChecked)
         break;
     }
-
-    byLengthChecked = group->GetUserLines().size() > 1;
   }
 
   std::set<SortingType> sortingTypes;
@@ -864,8 +861,6 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
     sortingTypes.insert(SortingType::ByDistance);
   if (byTimeChecked)
     sortingTypes.insert(SortingType::ByTime);
-  if (byLengthChecked)
-    sortingTypes.insert(SortingType::ByLength);
 
   return sortingTypes;
 }
@@ -1017,12 +1012,12 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
   }
 
   // Sort by types.
-  std::map<kml::BookmarkType, size_t> typesCount;
+  std::map<BookmarkBaseType, size_t> typesCount;
   size_t othersTypeMarksCount = 0;
   for (auto const mark : sortedMarks)
   {
-    auto const type = mark->m_icon;
-    if (type == kml::BookmarkType::None)
+    auto const type = GetBookmarkBaseTypeByFeatureTypes(mark->m_featureTypes);
+    if (type == BookmarkBaseType::None)
     {
       ++othersTypeMarksCount;
       continue;
@@ -1035,7 +1030,7 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
       typesCount.insert(std::make_pair(type, 1));
   }
 
-  std::vector<std::pair<kml::BookmarkType, size_t>> sortedTypes;
+  std::vector<std::pair<BookmarkBaseType, size_t>> sortedTypes;
   for (auto const & typeCount : typesCount)
   {
     if (typeCount.second < kMinCommonTypesCount)
@@ -1043,18 +1038,18 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
     else
       sortedTypes.push_back(std::make_pair(typeCount.first, typeCount.second));
   }
-  std::sort(sortedTypes.begin(), sortedTypes.end(), [](std::pair<kml::BookmarkType, size_t> const & l,
-                                                       std::pair<kml::BookmarkType, size_t> const & r)
+  std::sort(sortedTypes.begin(), sortedTypes.end(), [](std::pair<BookmarkBaseType, size_t> const & l,
+                                                       std::pair<BookmarkBaseType, size_t> const & r)
   {
     return l.second > r.second;
   });
 
-  std::map<kml::BookmarkType, size_t> blockIndices;
+  std::map<BookmarkBaseType, size_t> blockIndices;
   sortedBlocks.resize(sortedTypes.size() + (othersTypeMarksCount > 0 ? 1 : 0));
   for (size_t i = 0; i < sortedTypes.size(); ++i)
   {
     auto const type = sortedTypes[i].first;
-    sortedBlocks[i].m_blockName = GetLocalizedBookmarkType(type);
+    sortedBlocks[i].m_blockName = GetLocalizedBookmarkBaseType(type);
     sortedBlocks[i].m_markIds.reserve(sortedTypes[i].second);
     blockIndices[type] = i;
   }
@@ -1066,8 +1061,8 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
 
   for (auto const mark : sortedMarks)
   {
-    auto const type = mark->m_icon;
-    if (type == kml::BookmarkType::None || typesCount[type] < kMinCommonTypesCount)
+    auto const type = GetBookmarkBaseTypeByFeatureTypes(mark->m_featureTypes);
+    if (type == BookmarkBaseType::None || typesCount[type] < kMinCommonTypesCount)
       sortedBlocks.back().m_markIds.push_back(mark->m_id);
     else
       sortedBlocks[blockIndices[type]].m_markIds.push_back(mark->m_id);
@@ -3195,15 +3190,3 @@ bool IsBookmarksCloudEnabled()
 }
 }  // namespace impl
 }  // namespace lightweight
-
-std::string DebugPrint(BookmarkManager::SortingType type)
-{
-  switch (type)
-  {
-  case BookmarkManager::SortingType::ByTime: return "By time";
-  case BookmarkManager::SortingType::ByType: return "By type";
-  case BookmarkManager::SortingType::ByDistance: return "By distance";
-  case BookmarkManager::SortingType::ByLength: return "By length";
-  }
-  UNREACHABLE();
-}

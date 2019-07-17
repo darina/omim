@@ -184,8 +184,7 @@ public:
   {
     ByTime,
     ByDistance,
-    ByType,
-    ByLength
+    ByType
   };
 
   struct SortedBlock
@@ -654,5 +653,3 @@ namespace impl
 bool IsBookmarksCloudEnabled();
 }  // namespace impl
 }  //namespace lightweight
-
-std::string DebugPrint(BookmarkManager::SortingType type);

@@ -355,7 +355,7 @@ public:
     (*this)(static_cast<uint8_t>(color));
   }
 
-  void operator()(BookmarkType icon, char const * /* name */ = nullptr)
+  void operator()(BookmarkIcon icon, char const * /* name */ = nullptr)
   {
     (*this)(static_cast<uint16_t>(icon));
   }
@@ -531,9 +531,9 @@ public:
     rules = static_cast<AccessRules>(ReadPrimitiveFromSource<uint8_t>(m_source));
   }
 
-  void operator()(BookmarkType & icon, char const * /* name */ = nullptr)
+  void operator()(BookmarkIcon & icon, char const * /* name */ = nullptr)
   {
-    icon = static_cast<BookmarkType>(ReadPrimitiveFromSource<uint16_t>(m_source));
+    icon = static_cast<BookmarkIcon>(ReadPrimitiveFromSource<uint16_t>(m_source));
   }
 
   template <typename T>

@@ -318,32 +318,32 @@ std::string AccessRulesToString(AccessRules accessRules)
   }
 }
 
-std::string BookmarkTypeToString(BookmarkType icon)
+std::string BookmarkIconToString(BookmarkIcon icon)
 {
   switch (icon)
   {
-  case BookmarkType::None: return "NONE";
-  case BookmarkType::Hotel: return "HOTEL";
-  case BookmarkType::Animals: return "ANIMALS";
-  case BookmarkType::Buddhism: return "BUDDHISM";
-  case BookmarkType::Building: return "BUILDING";
-  case BookmarkType::Christianity: return "CHRISTIANITY";
-  case BookmarkType::Entertainment: return "ENTERTAINMENT";
-  case BookmarkType::Exchange: return "EXCHANGE";
-  case BookmarkType::Food: return "FOOD";
-  case BookmarkType::Gas: return "GAS";
-  case BookmarkType::Judaism: return "JUDAISM";
-  case BookmarkType::Medicine: return "MEDICINE";
-  case BookmarkType::Mountain: return "MOUNTAIN";
-  case BookmarkType::Museum: return "MUSEUM";
-  case BookmarkType::Islam: return "ISLAM";
-  case BookmarkType::Park: return "PARK";
-  case BookmarkType::Parking: return "PARKING";
-  case BookmarkType::Shop: return "SHOP";
-  case BookmarkType::Sights: return "SIGHTS";
-  case BookmarkType::Swim: return "SWIM";
-  case BookmarkType::Water: return "WATER";
-  case BookmarkType::Count: CHECK(false, ("Unknown bookmark icon")); return {};
+  case BookmarkIcon::None: return "NONE";
+  case BookmarkIcon::Hotel: return "HOTEL";
+  case BookmarkIcon::Animals: return "ANIMALS";
+  case BookmarkIcon::Buddhism: return "BUDDHISM";
+  case BookmarkIcon::Building: return "BUILDING";
+  case BookmarkIcon::Christianity: return "CHRISTIANITY";
+  case BookmarkIcon::Entertainment: return "ENTERTAINMENT";
+  case BookmarkIcon::Exchange: return "EXCHANGE";
+  case BookmarkIcon::Food: return "FOOD";
+  case BookmarkIcon::Gas: return "GAS";
+  case BookmarkIcon::Judaism: return "JUDAISM";
+  case BookmarkIcon::Medicine: return "MEDICINE";
+  case BookmarkIcon::Mountain: return "MOUNTAIN";
+  case BookmarkIcon::Museum: return "MUSEUM";
+  case BookmarkIcon::Islam: return "ISLAM";
+  case BookmarkIcon::Park: return "PARK";
+  case BookmarkIcon::Parking: return "PARKING";
+  case BookmarkIcon::Shop: return "SHOP";
+  case BookmarkIcon::Sights: return "SIGHTS";
+  case BookmarkIcon::Swim: return "SWIM";
+  case BookmarkIcon::Water: return "WATER";
+  case BookmarkIcon::Count: CHECK(false, ("Unknown bookmark icon")); return {};
   }
 }
 
@@ -671,27 +671,27 @@ BOOST_PYTHON_MODULE(pykmlib)
     .export_values();
 
   enum_<BookmarkIcon>("BookmarkIcon")
-    .value(BookmarkTypeToString(BookmarkType::None).c_str(), BookmarkType::None)
-    .value(BookmarkTypeToString(BookmarkType::Hotel).c_str(), BookmarkType::Hotel)
-    .value(BookmarkTypeToString(BookmarkType::Animals).c_str(), BookmarkType::Animals)
-    .value(BookmarkTypeToString(BookmarkType::Buddhism).c_str(), BookmarkType::Buddhism)
-    .value(BookmarkTypeToString(BookmarkType::Building).c_str(), BookmarkType::Building)
-    .value(BookmarkTypeToString(BookmarkType::Christianity).c_str(), BookmarkType::Christianity)
-    .value(BookmarkTypeToString(BookmarkType::Entertainment).c_str(), BookmarkType::Entertainment)
-    .value(BookmarkTypeToString(BookmarkType::Exchange).c_str(), BookmarkType::Exchange)
-    .value(BookmarkTypeToString(BookmarkType::Food).c_str(), BookmarkType::Food)
-    .value(BookmarkTypeToString(BookmarkType::Gas).c_str(), BookmarkType::Gas)
-    .value(BookmarkTypeToString(BookmarkType::Judaism).c_str(), BookmarkType::Judaism)
-    .value(BookmarkTypeToString(BookmarkType::Medicine).c_str(), BookmarkType::Medicine)
-    .value(BookmarkTypeToString(BookmarkType::Mountain).c_str(), BookmarkType::Mountain)
-    .value(BookmarkTypeToString(BookmarkType::Museum).c_str(), BookmarkType::Museum)
-    .value(BookmarkTypeToString(BookmarkType::Islam).c_str(), BookmarkType::Islam)
-    .value(BookmarkTypeToString(BookmarkType::Park).c_str(), BookmarkType::Park)
-    .value(BookmarkTypeToString(BookmarkType::Parking).c_str(), BookmarkType::Parking)
-    .value(BookmarkTypeToString(BookmarkType::Shop).c_str(), BookmarkType::Shop)
-    .value(BookmarkTypeToString(BookmarkType::Sights).c_str(), BookmarkType::Sights)
-    .value(BookmarkTypeToString(BookmarkType::Swim).c_str(), BookmarkType::Swim)
-    .value(BookmarkTypeToString(BookmarkType::Water).c_str(), BookmarkType::Water)
+    .value(BookmarkIconToString(BookmarkIcon::None).c_str(), BookmarkIcon::None)
+    .value(BookmarkIconToString(BookmarkIcon::Hotel).c_str(), BookmarkIcon::Hotel)
+    .value(BookmarkIconToString(BookmarkIcon::Animals).c_str(), BookmarkIcon::Animals)
+    .value(BookmarkIconToString(BookmarkIcon::Buddhism).c_str(), BookmarkIcon::Buddhism)
+    .value(BookmarkIconToString(BookmarkIcon::Building).c_str(), BookmarkIcon::Building)
+    .value(BookmarkIconToString(BookmarkIcon::Christianity).c_str(), BookmarkIcon::Christianity)
+    .value(BookmarkIconToString(BookmarkIcon::Entertainment).c_str(), BookmarkIcon::Entertainment)
+    .value(BookmarkIconToString(BookmarkIcon::Exchange).c_str(), BookmarkIcon::Exchange)
+    .value(BookmarkIconToString(BookmarkIcon::Food).c_str(), BookmarkIcon::Food)
+    .value(BookmarkIconToString(BookmarkIcon::Gas).c_str(), BookmarkIcon::Gas)
+    .value(BookmarkIconToString(BookmarkIcon::Judaism).c_str(), BookmarkIcon::Judaism)
+    .value(BookmarkIconToString(BookmarkIcon::Medicine).c_str(), BookmarkIcon::Medicine)
+    .value(BookmarkIconToString(BookmarkIcon::Mountain).c_str(), BookmarkIcon::Mountain)
+    .value(BookmarkIconToString(BookmarkIcon::Museum).c_str(), BookmarkIcon::Museum)
+    .value(BookmarkIconToString(BookmarkIcon::Islam).c_str(), BookmarkIcon::Islam)
+    .value(BookmarkIconToString(BookmarkIcon::Park).c_str(), BookmarkIcon::Park)
+    .value(BookmarkIconToString(BookmarkIcon::Parking).c_str(), BookmarkIcon::Parking)
+    .value(BookmarkIconToString(BookmarkIcon::Shop).c_str(), BookmarkIcon::Shop)
+    .value(BookmarkIconToString(BookmarkIcon::Sights).c_str(), BookmarkIcon::Sights)
+    .value(BookmarkIconToString(BookmarkIcon::Swim).c_str(), BookmarkIcon::Swim)
+    .value(BookmarkIconToString(BookmarkIcon::Water).c_str(), BookmarkIcon::Water)
     .export_values();
 
   class_<ColorData>("ColorData")
