@@ -475,6 +475,8 @@ public:
 
   MwmTopCityGeoIds const & GetMwmTopCityGeoIds() const { return m_mwmTopCityGeoIds; }
 
+  CountryNameGetter const & GetCountryNameGetter() const { return m_countryNameGetter; }
+
   /// \brief Calls |toDo| for each node for subtree with |root|.
   /// For example ForEachInSubtree(GetRootId()) calls |toDo| for every node including
   /// the result of GetRootId() call.

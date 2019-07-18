@@ -16,7 +16,6 @@
 #include "platform/platform.hpp"
 #include "platform/preferred_languages.hpp"
 
-#include "coding/file_name_utils.hpp"
 #include "coding/internal/file_data.hpp"
 #include "coding/string_utf8_multilang.hpp"
 

@@ -865,13 +865,6 @@ std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes
   return sortingTypes;
 }
 
-std::string GetDistanceBlockName(Toponym const & toponym)
-{
-  if (toponym.IsValid())
-    return GetLocalizedToponymName(toponym);
-  return platform::GetLocalizedString("near_me_sorttype");
-}
-
 enum class TimeBlockType : uint32_t
 {
   WeekAgo,
@@ -914,7 +907,7 @@ std::string GetTimeBlockName(TimeBlockType blockType)
 BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(kml::MarkGroupId groupId,
                                                                               SortingType sortingType,
                                                                               bool hasMyPosition,
-                                                                              m2::PointD const & myPosition) const
+                                                                              m2::PointD const & myPosition)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
 
@@ -926,6 +919,8 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
   // Sort by distance.
   if (sortingType == SortingType::ByDistance)
   {
+    PrepareBookmarksAddresses(groupId);
+
     CHECK(hasMyPosition, ());
     std::vector<std::pair<kml::MarkId, double>> sortedMarks;
     sortedMarks.reserve(group->GetUserMarks().size());
@@ -940,30 +935,34 @@ BookmarkManager::SortedBlocksCollection BookmarkManager::GetSortedBookmarkIds(km
       return lbm.second < rbm.second;
     });
 
-    boost::optional<Toponym> lastBlockToponym;
-    SortedBlock currentBlock;
+    std::map<search::ReverseGeocoder::RegionAddress, size_t> regionBlockIndices;
     for (auto const & mark : sortedMarks)
     {
       static double const kNearDistanceInMeters = 20 * 1000;
-      auto const currentBlockToponym = mark.second < kNearDistanceInMeters ? Toponym()
-                                                                           : GetBookmark(mark.first)->GetToponym();
+      auto const currentRegion = mark.second < kNearDistanceInMeters ? search::ReverseGeocoder::RegionAddress()
+                                                                     : GetBookmark(mark.first)->GetAddress();
 
-      if (!lastBlockToponym)
+      size_t blockIndex;
+      auto const it = regionBlockIndices.find(currentRegion);
+      if (it == regionBlockIndices.end())
       {
-        lastBlockToponym.reset(currentBlockToponym);
-        currentBlock.m_blockName = GetDistanceBlockName(currentBlockToponym);
+        SortedBlock regionBlock;
+        if (currentRegion.IsValid())
+          regionBlock.m_blockName = m_callbacks.m_getRegionAddressGetter()->GetLocalizedRegionAdress(currentRegion);
+        else
+          regionBlock.m_blockName = platform::GetLocalizedString("near_me_sorttype");
+
+        blockIndex = sortedBlocks.size();
+        regionBlockIndices[currentRegion] = blockIndex;
+        sortedBlocks.push_back(regionBlock);
+      }
+      else
+      {
+        blockIndex = it->second;
       }
 
-      if (currentBlockToponym != lastBlockToponym.get())
-      {
-        sortedBlocks.push_back(currentBlock);
-        currentBlock = SortedBlock();
-        currentBlock.m_blockName = GetDistanceBlockName(currentBlockToponym);
-      }
-      lastBlockToponym.reset(currentBlockToponym);
-      currentBlock.m_markIds.push_back(mark.first);
+      sortedBlocks[blockIndex].m_markIds.push_back(mark.first);
     }
-    sortedBlocks.push_back(currentBlock);
 
     return sortedBlocks;
   }
@@ -2264,6 +2263,21 @@ void BookmarkManager::SetAllCategoriesVisibility(CategoryFilterType const filter
     if (!IsValidFilterType(filter, fromCatalog))
       continue;
     category.second->SetIsVisible(visible);
+  }
+}
+
+void BookmarkManager::PrepareBookmarksAddresses(kml::MarkGroupId catId)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  CHECK(IsBookmarkCategory(catId), ());
+
+  auto session = GetEditSession();
+  auto * group = GetGroup(catId);
+  for (auto bmId : group->GetUserMarks())
+  {
+    auto * bookmark = GetBookmarkForEdit(bmId);
+    if (!bookmark->GetAddress().IsValid())
+      bookmark->SetAddress(m_callbacks.m_getRegionAddressGetter()->GetNearbyRegionAddress(bookmark->GetPivot()));
   }
 }
 

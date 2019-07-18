@@ -1,10 +1,11 @@
 #pragma once
 
-#include "map/toponym.hpp"
 #include "map/user_mark.hpp"
 #include "map/user_mark_layer.hpp"
 
 #include "kml/types.hpp"
+
+#include "search/region_address_getter.hpp"
 
 #include <memory>
 #include <string>
@@ -21,8 +22,8 @@ public:
   void SetData(kml::BookmarkData const & data);
   kml::BookmarkData const & GetData() const;
 
-  Toponym const & GetToponym() const;
-  void SetToponym(Toponym const & toponym);
+  search::ReverseGeocoder::RegionAddress const & GetAddress() const;
+  void SetAddress(search::ReverseGeocoder::RegionAddress const & address);
 
   bool HasCreationAnimation() const override;
 
@@ -62,7 +63,7 @@ public:
 private:
   kml::BookmarkData m_data;
   kml::MarkGroupId m_groupId;
-  Toponym m_toponym;
+  search::ReverseGeocoder::RegionAddress m_address;
 };
 
 class BookmarkCategory : public UserMarkLayer
