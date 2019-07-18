@@ -22,7 +22,7 @@ struct BookmarkInfo
 
   kml::MarkId m_bookmarkId;
   kml::BookmarkData m_bookmarkData;
-  Toponym m_toponym;
+  search::ReverseGeocoder::RegionAddress m_toponym;
 };
 
 struct BookmarkGroupInfo

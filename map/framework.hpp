@@ -52,6 +52,7 @@
 #include "search/displayed_categories.hpp"
 #include "search/mode.hpp"
 #include "search/query_saver.hpp"
+#include "search/region_address_getter.hpp"
 #include "search/result.hpp"
 #include "search/reverse_geocoder.hpp"
 
@@ -898,6 +899,7 @@ public:
 
 private:
   unique_ptr<search::CityFinder> m_cityFinder;
+  unique_ptr<search::RegionAddressGetter> m_regionAddressGetter;
   CachingAddressGetter m_addressGetter;
   unique_ptr<ads::Engine> m_adsEngine;
   // The order matters here: storage::CountryInfoGetter and
@@ -906,6 +908,7 @@ private:
   unique_ptr<taxi::Engine> m_taxiEngine;
 
   void InitCityFinder();
+  void InitRegionAddressGetter();
   void InitTaxiEngine();
 
   void SetPlacePageLocation(place_page::Info & info);

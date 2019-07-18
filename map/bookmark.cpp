@@ -71,14 +71,15 @@ kml::BookmarkData const & Bookmark::GetData() const
   return m_data;
 }
 
-Toponym const & Bookmark::GetToponym() const
+search::ReverseGeocoder::RegionAddress const & Bookmark::GetAddress() const
 {
-  return m_toponym;
+  return m_address;
 }
 
-void Bookmark::SetToponym(Toponym const & toponym)
+void Bookmark::SetAddress(search::ReverseGeocoder::RegionAddress const & address)
 {
-  m_toponym = toponym;
+  SetDirty();
+  m_address = address;
 }
 
 dp::Anchor Bookmark::GetAnchor() const

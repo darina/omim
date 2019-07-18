@@ -114,8 +114,6 @@ set(
   taxi_delegate.hpp
   tips_api.cpp
   tips_api.hpp
-  toponym.cpp
-  toponym.hpp
   track.cpp
   track.hpp
   traffic_manager.cpp

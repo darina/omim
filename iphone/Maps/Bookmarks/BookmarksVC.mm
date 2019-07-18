@@ -676,7 +676,7 @@ using namespace std;
 
 - (void)sort:(BookmarkManager::SortingType)type
 {
-  auto const & bm = GetFramework().GetBookmarkManager();
+  auto & bm = GetFramework().GetBookmarkManager();
   
   bool hasMyPosition = false;
   m2::PointD myPosition = m2::PointD::Zero();

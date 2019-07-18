@@ -1,6 +1,10 @@
 #include "search/reverse_geocoder.hpp"
 
+#include "search/city_finder.hpp"
 #include "search/mwm_context.hpp"
+
+#include "storage/country_info_getter.hpp"
+#include "storage/country_name_getter.hpp"
 
 #include "editor/osm_editor.hpp"
 
@@ -319,6 +323,37 @@ void ReverseGeocoder::GetNearbyBuildings(m2::PointD const & center, double radiu
 
   m_dataSource.ForClosestToPoint(addBuilding, stop, center, radius, kQueryScale);
   sort(buildings.begin(), buildings.end(), base::LessBy(&Building::m_distanceMeters));
+}
+
+ReverseGeocoder::RegionAddress ReverseGeocoder::GetNearbyRegionAddress(m2::PointD const & center,
+                                                                       storage::CountryInfoGetter const & infoGetter,
+                                                                       CityFinder & cityFinder) const
+{
+  RegionAddress addr;
+  addr.m_featureId = cityFinder.GetCityFeatureID(center);
+  if (!addr.m_featureId.IsValid())
+  {
+    auto const name = infoGetter.GetRegionCountryId(center);
+    addr.m_mwmId = m_dataSource.GetMwmIdByCountryFile(platform::CountryFile(name));
+  }
+  return addr;
+}
+
+std::string ReverseGeocoder::GetLocalizedRegionAdress(RegionAddress const & addr,
+                                                      storage::CountryNameGetter const & nameGetter) const
+{
+  std::string addrStr;
+
+  if (addr.m_featureId.IsValid())
+  {
+    m_dataSource.ReadFeature([&](FeatureType & ft) { ft.GetReadableName(addrStr); },
+                             addr.m_featureId);
+  }
+  else if (addr.m_mwmId.GetInfo() != nullptr)
+  {
+    addrStr = nameGetter.Get(addr.m_mwmId.GetInfo()->GetCountryName());
+  }
+  return addrStr;
 }
 
 // static
