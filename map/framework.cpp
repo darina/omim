@@ -3831,7 +3831,7 @@ void Framework::InitRegionAddressGetter()
   ASSERT(m_cityFinder, ());
 
   m_regionAddressGetter = make_unique<search::RegionAddressGetter>(m_model.GetDataSource(), *m_infoGetter,
-                                                                   m_storage.GetCountryNameGetter(), *m_cityFinder);
+                                                                   *m_cityFinder);
 }
 
 void Framework::InitTaxiEngine()
