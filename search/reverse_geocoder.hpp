@@ -4,6 +4,8 @@
 
 #include "indexer/feature_decl.hpp"
 
+#include "storage/storage_defines.hpp"
+
 #include "coding/string_utf8_multilang.hpp"
 
 #include "base/string_utils.hpp"
@@ -100,26 +102,26 @@ public:
 
   struct RegionAddress
   {
-    MwmSet::MwmId m_mwmId;
+    storage::CountryId m_countryId;
     FeatureID m_featureId;
 
     bool operator==(RegionAddress const & rhs) const
     {
-      return m_mwmId == rhs.m_mwmId && m_featureId == rhs.m_featureId;
+      return m_countryId == rhs.m_countryId && m_featureId == rhs.m_featureId;
     }
 
     bool operator!=(RegionAddress const & rhs) const { return !(*this == rhs); }
     bool operator<(RegionAddress const & rhs) const
     {
-      if (m_mwmId < rhs.m_mwmId)
+      if (m_countryId < rhs.m_countryId)
         return true;
       return m_featureId < rhs.m_featureId;
     }
 
     bool IsValid() const
     {
-      return (m_mwmId.IsAlive() && !m_featureId.IsValid()) ||
-          (!m_mwmId.IsAlive() && m_featureId.IsValid());
+      return (storage::IsCountryIdValid(m_countryId) && !m_featureId.IsValid()) ||
+          (!storage::IsCountryIdValid(m_countryId) && m_featureId.IsValid());
     }
   };
 
@@ -159,8 +161,8 @@ public:
   bool GetExactAddress(FeatureID const & fid, Address & addr) const;
 
   /// @return The nearest region address where mwm or exact city known.
-  RegionAddress GetNearbyRegionAddress(m2::PointD const & center, storage::CountryInfoGetter const & infoGetter,
-                                       CityFinder & cityFinder) const;
+  static RegionAddress GetNearbyRegionAddress(m2::PointD const & center, storage::CountryInfoGetter const & infoGetter,
+                                              CityFinder & cityFinder);
   std::string GetLocalizedRegionAdress(RegionAddress const & addr,
                                        storage::CountryNameGetter const & nameGetter) const;
 
