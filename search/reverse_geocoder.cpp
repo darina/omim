@@ -2,9 +2,9 @@
 
 #include "search/city_finder.hpp"
 #include "search/mwm_context.hpp"
+#include "search/region_info_getter.hpp"
 
 #include "storage/country_info_getter.hpp"
-#include "storage/country_name_getter.hpp"
 
 #include "editor/osm_editor.hpp"
 
@@ -332,25 +332,45 @@ ReverseGeocoder::RegionAddress ReverseGeocoder::GetNearbyRegionAddress(m2::Point
 {
   RegionAddress addr;
   addr.m_featureId = cityFinder.GetCityFeatureID(center);
-  if (!addr.m_featureId.IsValid())
+  if (!addr.m_featureId.IsValid() || addr.m_featureId.m_mwmId.GetInfo()->GetType() == MwmInfo::WORLD)
     addr.m_countryId = infoGetter.GetRegionCountryId(center);
   return addr;
 }
 
 std::string ReverseGeocoder::GetLocalizedRegionAdress(RegionAddress const & addr,
-                                                      storage::CountryNameGetter const & nameGetter) const
+                                                      RegionInfoGetter const & nameGetter) const
 {
-  std::string addrStr;
+  if (!addr.IsValid())
+    return {};
 
+  std::string addrStr;
   if (addr.m_featureId.IsValid())
   {
-    m_dataSource.ReadFeature([&](FeatureType & ft) { ft.GetReadableName(addrStr); },
+    m_dataSource.ReadFeature([&addrStr](FeatureType & ft) { ft.GetReadableName(addrStr); },
                              addr.m_featureId);
+
+    auto const countryName = addr.GetCountryName();
+    if (!countryName.empty())
+    {
+      std::vector<std::string> nameParts;
+      nameGetter.GetLocalizedFullName(countryName, nameParts);
+
+      std::vector<std::string> uniqueParts;
+      uniqueParts.push_back(addrStr);
+      for (auto part : nameParts)
+      {
+        if (uniqueParts.back() != part)
+          uniqueParts.push_back(part);
+      }
+      addrStr = strings::JoinStrings(uniqueParts, ", ");
+    }
   }
-  else if (storage::IsCountryIdValid(addr.m_countryId))
+  else
   {
-    addrStr = nameGetter.Get(addr.m_countryId);
+    ASSERT(storage::IsCountryIdValid(addr.m_countryId), ());
+    addrStr = nameGetter.GetLocalizedFullName(addr.m_countryId);
   }
+
   return addrStr;
 }
 
