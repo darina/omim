@@ -216,6 +216,18 @@ public:
   SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType, bool hasMyPosition,
                                               m2::PointD const & myPosition);
 
+  enum class SortedByTimeBlockType : uint32_t
+  {
+    WeekAgo,
+    MonthAgo,
+    MoreThanMonthAgo,
+    MoreThanYearAgo,
+    Others
+  };
+  static std::string GetSortedByTimeBlockName(SortedByTimeBlockType blockType);
+  static std::string GetOthersBlockName();
+  static std::string GetNearMeBlockName();
+
   bool IsVisible(kml::MarkGroupId groupId) const;
 
   kml::MarkGroupId CreateBookmarkCategory(kml::CategoryData && data, bool autoSave = true);

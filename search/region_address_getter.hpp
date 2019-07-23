@@ -20,6 +20,7 @@ public:
 
   ReverseGeocoder::RegionAddress GetNearbyRegionAddress(m2::PointD const & center);
   std::string GetLocalizedRegionAdress(ReverseGeocoder::RegionAddress const & addr) const;
+  std::string GetLocalizedRegionAdress(m2::PointD const & center);
 
 private:
   ReverseGeocoder m_reverseGeocoder;

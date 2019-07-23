@@ -421,13 +421,13 @@ std::map<std::string, BookmarkBaseType> const kFeatureTypeToBookmarkType = {
   {"tourism-camp_site", BookmarkBaseType::Parking},
   {"amenity-motorcycle_parking", BookmarkBaseType::Parking},
 
-  {"amenity-place_of_worship", BookmarkBaseType::Religion},
-  {"amenity-place_of_worship-christian", BookmarkBaseType::Religion},
-  {"landuse-cemetery-christian", BookmarkBaseType::Religion},
-  {"amenity-grave_yard-christian", BookmarkBaseType::Religion},
-  {"amenity-place_of_worship-jewish", BookmarkBaseType::Religion},
-  {"amenity-place_of_worship-buddhist", BookmarkBaseType::Religion},
-  {"amenity-place_of_worship-muslim", BookmarkBaseType::Religion},
+  {"amenity-place_of_worship", BookmarkBaseType::ReligiousPlace},
+  {"amenity-place_of_worship-christian", BookmarkBaseType::ReligiousPlace},
+  {"landuse-cemetery-christian", BookmarkBaseType::ReligiousPlace},
+  {"amenity-grave_yard-christian", BookmarkBaseType::ReligiousPlace},
+  {"amenity-place_of_worship-jewish", BookmarkBaseType::ReligiousPlace},
+  {"amenity-place_of_worship-buddhist", BookmarkBaseType::ReligiousPlace},
+  {"amenity-place_of_worship-muslim", BookmarkBaseType::ReligiousPlace},
 
   {"amenity-fuel", BookmarkBaseType::Gas},
   {"amenity-charging_station", BookmarkBaseType::Gas},
@@ -726,7 +726,7 @@ std::string GetLocalizedBookmarkBaseType(BookmarkBaseType type)
   case BookmarkBaseType::Museum: return platform::GetLocalizedString("museums");
   case BookmarkBaseType::Park: return platform::GetLocalizedString("parks");
   case BookmarkBaseType::Parking: return platform::GetLocalizedString("parkings");
-  case BookmarkBaseType::Religion: return platform::GetLocalizedString("religious_places");
+  case BookmarkBaseType::ReligiousPlace: return platform::GetLocalizedString("religious_places");
   case BookmarkBaseType::Shop: return platform::GetLocalizedString("shops");
   case BookmarkBaseType::Sights: return platform::GetLocalizedString("tourist_places");
   case BookmarkBaseType::Swim: return platform::GetLocalizedString("swim_places");
