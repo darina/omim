@@ -27,4 +27,10 @@ std::string RegionAddressGetter::GetLocalizedRegionAdress(ReverseGeocoder::Regio
 {
   return m_reverseGeocoder.GetLocalizedRegionAdress(addr, m_nameGetter);
 }
+
+std::string RegionAddressGetter::GetLocalizedRegionAdress(m2::PointD const & center)
+{
+  auto const addr = ReverseGeocoder::GetNearbyRegionAddress(center, m_infoGetter, m_cityFinder);
+  return m_reverseGeocoder.GetLocalizedRegionAdress(addr, m_nameGetter);
+}
 }  // namespace search

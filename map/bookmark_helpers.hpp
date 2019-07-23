@@ -52,7 +52,7 @@ enum class BookmarkBaseType : uint16_t
   Museum,
   Park,
   Parking,
-  Religion,
+  ReligiousPlace,
   Shop,
   Sights,
   Swim,

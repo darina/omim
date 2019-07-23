@@ -344,6 +344,7 @@ public:
   storage::Storage const & GetStorage() const { return m_storage; }
   search::DisplayedCategories const & GetDisplayedCategories();
   storage::CountryInfoGetter & GetCountryInfoGetter() { return *m_infoGetter; }
+  search::RegionAddressGetter & GetRegionAddressGetter() { return *m_regionAddressGetter; }
   StorageDownloadingPolicy & GetDownloadingPolicy() { return m_storageDownloadingPolicy; }
 
   DataSource const & GetDataSource() const { return m_model.GetDataSource(); }
