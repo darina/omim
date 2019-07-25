@@ -54,7 +54,8 @@ std::string const kLastEditedBookmarkColor = "LastBookmarkColor";
 std::string const kDefaultBookmarksFileName = "Bookmarks";
 std::string const kHotelsBookmarks = "Hotels";
 std::string const kBookmarkCloudSettingsParam = "BookmarkCloudParam";
-
+std::string const kMetadataFileName = "bm.json";
+std::string const kSortingTypeProperty = "sortingType";
 size_t const kMinCommonTypesCount = 3;
 
 // Returns extension with a dot in a lower case.
@@ -213,6 +214,19 @@ Cloud::ConvertionResult ConvertAfterDownloading(std::string const & filePath,
   result.m_hash = hash;
   result.m_isSuccessful = SaveKmlFile(*kmlData, convertedFilePath, KmlFileType::Binary);
   return result;
+}
+
+bool GetSortingType(std::string const & typeStr, BookmarkManager::SortingType & type)
+{
+  if (typeStr == DebugPrint(BookmarkManager::SortingType::ByTime))
+    type = BookmarkManager::SortingType::ByTime;
+  else if (typeStr == DebugPrint(BookmarkManager::SortingType::ByType))
+    type = BookmarkManager::SortingType::ByType;
+  else if (typeStr == DebugPrint(BookmarkManager::SortingType::ByDistance))
+    type = BookmarkManager::SortingType::ByDistance;
+  else
+    return false;
+  return true;
 }
 }  // namespace
 
@@ -802,6 +816,30 @@ kml::TrackIdSet const & BookmarkManager::GetTrackIds(kml::MarkGroupId groupId) c
   return GetGroup(groupId)->GetUserLines();
 }
 
+bool BookmarkManager::GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  auto const entryName = GetMetadataEntryName(groupId);
+  if (entryName.empty())
+    return false;
+
+  std::string sortingTypeStr;
+  if (m_metadata.GetEntryProperty(entryName, kSortingTypeProperty, sortingTypeStr))
+    return GetSortingType(sortingTypeStr, sortingType);
+  return false;
+}
+
+void BookmarkManager::SetLastSortingType(kml::MarkGroupId groupId, SortingType sortingType)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  auto const entryName = GetMetadataEntryName(groupId);
+  if (entryName.empty())
+    return;
+
+  m_metadata.m_entriesProperties[entryName].m_values[kSortingTypeProperty] = DebugPrint(sortingType);
+  SaveMetadata();
+}
+
 std::set<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes(kml::MarkGroupId groupId,
                                                                                  bool hasMyPosition,
                                                                                  m2::PointD const & myPosition) const
@@ -1323,6 +1361,96 @@ void BookmarkManager::LoadState()
   }
 }
 
+std::string BookmarkManager::GetMetadataEntryName(kml::MarkGroupId groupId) const
+{
+  return GetCategoryFileName(groupId);
+}
+
+void BookmarkManager::CleanupInvalidMetadata()
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+
+  std::set<std::string> activeEntries;
+  for (auto const & cat : m_categories)
+  {
+    auto const entryName = GetMetadataEntryName(cat.first);
+    if (!entryName.empty())
+      activeEntries.insert(entryName);
+  }
+
+  auto it = m_metadata.m_entriesProperties.begin();
+  while (it != m_metadata.m_entriesProperties.end())
+  {
+    if (activeEntries.find(it->first) == activeEntries.end())
+      it = m_metadata.m_entriesProperties.erase(it);
+    else
+      ++it;
+  }
+}
+
+void BookmarkManager::SaveMetadata()
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+
+  CleanupInvalidMetadata();
+
+  auto const metadataFilePath = base::JoinPath(GetPlatform().WritableDir(), kMetadataFileName);
+  std::string jsonStr;
+  {
+    using Sink = MemWriter<std::string>;
+    Sink sink(jsonStr);
+    coding::SerializerJson<Sink> ser(sink);
+    ser(m_metadata);
+  }
+  
+  try
+  {
+    FileWriter w(metadataFilePath);
+    w.Write(jsonStr.c_str(), jsonStr.length());
+  }
+  catch (FileWriter::Exception const & exception)
+  {
+    LOG(LWARNING, ("Exception while writing file:", metadataFilePath, "reason:", exception.what()));
+  }
+}
+
+void BookmarkManager::LoadMetadata()
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+
+  auto const metadataFilePath = base::JoinPath(GetPlatform().WritableDir(), kMetadataFileName);
+  if (!GetPlatform().IsFileExistsByFullPath(metadataFilePath))
+    return;
+
+  Metadata metadata;
+  std::string jsonStr;
+  try
+  {
+    {
+      FileReader r(metadataFilePath);
+      r.ReadAsString(jsonStr);
+    }
+    
+    if (jsonStr.empty())
+      return;
+
+    coding::DeserializerJson des(jsonStr);
+    des(metadata);
+  }
+  catch (FileReader::Exception const & exception)
+  {
+    LOG(LWARNING, ("Exception while reading file:", metadataFilePath, "reason:", exception.what()));
+    return;
+  }
+  catch (base::Json::Exception const & exception)
+  {
+    LOG(LWARNING, ("Exception while parsing file:", metadataFilePath, "reason:", exception.what(), "json:", jsonStr));
+    return;
+  }
+
+  m_metadata = metadata;
+}
+
 void BookmarkManager::ClearCategories()
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
@@ -1370,6 +1498,7 @@ void BookmarkManager::LoadBookmarks()
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
   ClearCategories();
+  LoadMetadata();
   m_loadBookmarksFinished = false;
   if (!IsMigrated())
     m_migrationInProgress = true;
@@ -3223,6 +3352,17 @@ bool BookmarkManager::EditSession::DeleteBmCategory(kml::MarkGroupId groupId)
 void BookmarkManager::EditSession::NotifyChanges()
 {
   m_bmManager.NotifyChanges();
+}
+
+std::string DebugPrint(BookmarkManager::SortingType type)
+{
+  switch (type)
+  {
+  case BookmarkManager::SortingType::ByTime: return "ByTime";
+  case BookmarkManager::SortingType::ByType: return "ByType";
+  case BookmarkManager::SortingType::ByDistance: return "ByDistance";
+  }
+  UNREACHABLE();
 }
 
 namespace lightweight

@@ -17,6 +17,7 @@
 #include "base/macros.hpp"
 #include "base/strings_bundle.hpp"
 #include "base/thread_checker.hpp"
+#include "base/visitor.hpp"
 
 #include <atomic>
 #include <functional>
@@ -215,6 +216,8 @@ public:
                                                  m2::PointD const & myPosition) const;
   SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType, bool hasMyPosition,
                                               m2::PointD const & myPosition);
+  bool GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const;
+  void SetLastSortingType(kml::MarkGroupId groupId, SortingType sortingType);
 
   enum class SortedByTimeBlockType : uint32_t
   {
@@ -552,6 +555,12 @@ private:
 
   void SaveState() const;
   void LoadState();
+
+  void SaveMetadata();
+  void LoadMetadata();
+  void CleanupInvalidMetadata();
+  std::string GetMetadataEntryName(kml::MarkGroupId groupId) const;
+
   void NotifyAboutStartAsyncLoading();
   void NotifyAboutFinishAsyncLoading(KMLDataCollectionPtr && collection);
   boost::optional<std::string> GetKMLPath(std::string const & filePath);
@@ -664,10 +673,49 @@ private:
 
   std::vector<kml::MarkGroupId> m_invalidCategories;
 
+
+  struct Properties
+  {
+    std::map<std::string, std::string> m_values;
+
+    bool GetProperty(std::string const & propertyName, std::string & value) const
+    {
+      auto const it = m_values.find(propertyName);
+      if (it == m_values.end())
+        return false;
+      value = it->second;
+      return true;
+    }
+
+    DECLARE_VISITOR_AND_DEBUG_PRINT(Properties, visitor(m_values, "values"))
+  };
+
+  struct Metadata
+  {
+    std::map<std::string, Properties> m_entriesProperties;
+    Properties m_commonProperties;
+
+    bool GetEntryProperty(std::string const & entryName, std::string const & propertyName, std::string & value) const
+    {
+      auto const it = m_entriesProperties.find(entryName);
+      if (it == m_entriesProperties.end())
+        return false;
+
+      return it->second.GetProperty(propertyName, value);
+    }
+
+    DECLARE_VISITOR_AND_DEBUG_PRINT(Metadata, visitor(m_entriesProperties, "entriesProperties"),
+                                    visitor(m_commonProperties, "commonProperties"))
+  };
+
+  Metadata m_metadata;
+
   bool m_testModeEnabled = false;
 
   DISALLOW_COPY_AND_MOVE(BookmarkManager);
 };
+
+std::string DebugPrint(BookmarkManager::SortingType type);
 
 namespace lightweight
 {
