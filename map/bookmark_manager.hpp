@@ -17,6 +17,7 @@
 #include "base/macros.hpp"
 #include "base/strings_bundle.hpp"
 #include "base/thread_checker.hpp"
+#include "base/visitor.hpp"
 
 #include <atomic>
 #include <functional>
@@ -122,7 +123,7 @@ public:
     void DeleteUserMarks(UserMark::Type type, F && deletePredicate)
     {
       return m_bmManager.DeleteUserMarks<UserMarkT>(type, std::move(deletePredicate));
-    };
+    }
 
     void DeleteUserMark(kml::MarkId markId);
     void DeleteBookmark(kml::MarkId bmId);
@@ -188,6 +189,47 @@ public:
 
   kml::MarkIdSet const & GetUserMarkIds(kml::MarkGroupId groupId) const;
   kml::TrackIdSet const & GetTrackIds(kml::MarkGroupId groupId) const;
+
+  enum class SortingType
+  {
+    ByTime,
+    ByDistance,
+    ByType
+  };
+
+  struct SortedBlock
+  {
+    std::string m_blockName;
+    kml::MarkIdCollection m_markIds;
+    kml::MarkIdCollection m_trackIds;
+
+    bool IsMarksBlock() { return !m_markIds.empty(); }
+
+    bool operator==(SortedBlock const & other) const
+    {
+      return m_blockName == other.m_blockName && m_markIds == other.m_markIds && m_trackIds == other.m_trackIds;
+    }
+  };
+  using SortedBlocksCollection = std::vector<SortedBlock>;
+
+  std::set<SortingType> GetAvailableSortingTypes(kml::MarkGroupId groupId, bool hasMyPosition,
+                                                 m2::PointD const & myPosition) const;
+  SortedBlocksCollection GetSortedBookmarkIds(kml::MarkGroupId groupId, SortingType sortingType, bool hasMyPosition,
+                                              m2::PointD const & myPosition);
+  bool GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const;
+  void SetLastSortingType(kml::MarkGroupId groupId, SortingType sortingType);
+
+  enum class SortedByTimeBlockType : uint32_t
+  {
+    WeekAgo,
+    MonthAgo,
+    MoreThanMonthAgo,
+    MoreThanYearAgo,
+    Others
+  };
+  static std::string GetSortedByTimeBlockName(SortedByTimeBlockType blockType);
+  static std::string GetOthersBlockName();
+  static std::string GetNearMeBlockName();
 
   bool IsVisible(kml::MarkGroupId groupId) const;
 
@@ -463,7 +505,7 @@ private:
     // Delete after iterating to avoid iterators invalidation issues.
     for (auto markId : marksToDelete)
       DeleteUserMark(markId);
-  };
+  }
 
   UserMark * GetUserMarkForEdit(kml::MarkId markId);
   void DeleteUserMark(kml::MarkId markId);
@@ -513,6 +555,12 @@ private:
 
   void SaveState() const;
   void LoadState();
+
+  void SaveMetadata();
+  void LoadMetadata();
+  void CleanupInvalidMetadata();
+  std::string GetMetadataEntryName(kml::MarkGroupId groupId) const;
+
   void NotifyAboutStartAsyncLoading();
   void NotifyAboutFinishAsyncLoading(KMLDataCollectionPtr && collection);
   boost::optional<std::string> GetKMLPath(std::string const & filePath);
@@ -625,10 +673,49 @@ private:
 
   std::vector<kml::MarkGroupId> m_invalidCategories;
 
+
+  struct Properties
+  {
+    std::map<std::string, std::string> m_values;
+
+    bool GetProperty(std::string const & propertyName, std::string & value) const
+    {
+      auto const it = m_values.find(propertyName);
+      if (it == m_values.end())
+        return false;
+      value = it->second;
+      return true;
+    }
+
+    DECLARE_VISITOR_AND_DEBUG_PRINT(Properties, visitor(m_values, "values"))
+  };
+
+  struct Metadata
+  {
+    std::map<std::string, Properties> m_entriesProperties;
+    Properties m_commonProperties;
+
+    bool GetEntryProperty(std::string const & entryName, std::string const & propertyName, std::string & value) const
+    {
+      auto const it = m_entriesProperties.find(entryName);
+      if (it == m_entriesProperties.end())
+        return false;
+
+      return it->second.GetProperty(propertyName, value);
+    }
+
+    DECLARE_VISITOR_AND_DEBUG_PRINT(Metadata, visitor(m_entriesProperties, "entriesProperties"),
+                                    visitor(m_commonProperties, "commonProperties"))
+  };
+
+  Metadata m_metadata;
+
   bool m_testModeEnabled = false;
 
   DISALLOW_COPY_AND_MOVE(BookmarkManager);
 };
+
+std::string DebugPrint(BookmarkManager::SortingType type);
 
 namespace lightweight
 {
