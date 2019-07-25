@@ -514,6 +514,8 @@ using namespace std;
 {
   [MWMLocationManager addObserver:self];
 
+  auto const & bm = GetFramework().GetBookmarkManager();
+  
   // Display Edit button only if table is not empty
   if ([[MWMBookmarksManager sharedManager] isCategoryEditable:m_categoryId])
   {
@@ -523,6 +525,14 @@ using namespace std;
     {
       self.navigationItem.rightBarButtonItem = self.editButtonItem;
       self.sortItem.enabled = YES;
+      
+      BookmarkManager::SortingType type;
+      if (bm.GetLastSortingType(m_categoryId, type))
+      {
+        auto const availableSortingTypes = [self getAvailableSortingTypes];
+        if (availableSortingTypes.find(type) != availableSortingTypes.end())
+          [self sort:type];
+      }
     }
     else
     {
@@ -537,7 +547,6 @@ using namespace std;
 
   [super viewWillAppear:animated];
 
-  auto const & bm = GetFramework().GetBookmarkManager();
   self.title = @(bm.GetCategoryName(m_categoryId).c_str());
 }
 
@@ -691,6 +700,7 @@ using namespace std;
   }
   
   m_sortedBlocks = bm.GetSortedBookmarkIds(m_categoryId, type, hasMyPosition, myPosition);
+  
   [self calculateSections];
   [self.tableView reloadData];
 }
@@ -706,22 +716,26 @@ using namespace std;
   UNREACHABLE();
 }
 
+- (std::set<BookmarkManager::SortingType>)getAvailableSortingTypes
+{
+  CLLocation * lastLocation = [MWMLocationManager lastLocation];
+  bool const hasMyPosition = lastLocation != nil;
+  m2::PointD myPosition = m2::PointD::Zero();
+  if (hasMyPosition)
+    myPosition = MercatorBounds::FromLatLon(lastLocation.coordinate.latitude, lastLocation.coordinate.longitude);
+  
+  auto const & bm = GetFramework().GetBookmarkManager();
+  auto const sortingTypes = bm.GetAvailableSortingTypes(m_categoryId, hasMyPosition, myPosition);
+  return sortingTypes;
+}
+
 - (IBAction)onSort:(UIBarButtonItem *)sender
 {
   auto actionSheet = [UIAlertController alertControllerWithTitle:nil
                                                          message:nil
                                                   preferredStyle:UIAlertControllerStyleActionSheet];
   
-  auto const & bm = GetFramework().GetBookmarkManager();
-  
-  CLLocation * lastLocation = [MWMLocationManager lastLocation];
-  bool const hasMyPosition = lastLocation != nil;
-  m2::PointD myPosition = m2::PointD::Zero();
-  if (hasMyPosition)
-    myPosition = MercatorBounds::FromLatLon(lastLocation.coordinate.latitude, lastLocation.coordinate.longitude);
-
-  
-  auto const sortingTypes = bm.GetAvailableSortingTypes(m_categoryId, hasMyPosition, myPosition);
+  auto const sortingTypes = [self getAvailableSortingTypes];
   
   for (auto type : sortingTypes)
   {
@@ -729,6 +743,8 @@ using namespace std;
                                                     style:UIAlertActionStyleDefault
                                                   handler:^(UIAlertAction * _Nonnull action)
                             {
+                              auto & bm = GetFramework().GetBookmarkManager();
+                              bm.SetLastSortingType(self->m_categoryId, type);
                               [self sort:type];
                             }]];
   }
@@ -859,11 +875,11 @@ using namespace std;
   return YES;
 }
 
-- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar
+- (void)cancelSearch
 {
-  self.searchBar.text = @"";
-  [self.searchBar resignFirstResponder];
-
+  GetFramework().CancelSearch(search::Mode::Bookmarks);
+  m_searchResults.clear();
+  
   [self showNoResultsView:NO];
   [self showSpinner:NO];
   
@@ -871,17 +887,18 @@ using namespace std;
   [self.tableView reloadData];
 }
 
+- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar
+{
+  self.searchBar.text = @"";
+  [self.searchBar resignFirstResponder];
+  [self cancelSearch];
+}
+
 - (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText
 {
   if (!searchText || searchText.length == 0)
   {
-    GetFramework().CancelSearch(search::Mode::Bookmarks);
-    m_searchResults.clear();
-    [self showNoResultsView:NO];
-    [self showSpinner:NO];
-    
-    [self calculateSections];
-    [self.tableView reloadData];
+    [self cancelSearch];
     return;
   }
   
@@ -902,8 +919,6 @@ using namespace std;
     
     if (status == search::BookmarksSearchParams::Status::Cancelled)
     {
-      m_searchResults.clear();
-      //[self showNoResultsView:NO];
       [self showSpinner:NO];
     }
     else if (status == search::BookmarksSearchParams::Status::Completed)
