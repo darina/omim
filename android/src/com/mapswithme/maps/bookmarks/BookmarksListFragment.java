@@ -322,6 +322,7 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   {
     mSearchMode = true;
     BookmarkManager.INSTANCE.setNotificationsEnabled(true);
+    BookmarkManager.INSTANCE.prepareForSearch(mCategoryDataSource.getData().getId());
     updateSearchVisibility();
   }
 

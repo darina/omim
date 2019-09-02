@@ -612,7 +612,8 @@ using namespace std;
 
   // Allow to send all notifications in BM.
   [[MWMBookmarksManager sharedManager] setNotificationsEnabled:YES];
-
+  [[MWMBookmarksManager sharedManager] prepareForSearch:self.categoryId];
+  
   return YES;
 }
 

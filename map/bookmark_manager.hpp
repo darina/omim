@@ -240,9 +240,11 @@ public:
   void SetLastSortingType(kml::MarkGroupId groupId, SortingType sortingType);
   void ResetLastSortingType(kml::MarkGroupId groupId);
 
-  bool IsVisible(kml::MarkGroupId groupId) const;
   bool IsSearchAllowed(kml::MarkGroupId groupId) const;
-  
+  void PrepareForSearch(kml::MarkGroupId groupId);
+
+  bool IsVisible(kml::MarkGroupId groupId) const;
+
   kml::MarkGroupId CreateBookmarkCategory(kml::CategoryData && data, bool autoSave = true);
   kml::MarkGroupId CreateBookmarkCategory(std::string const & name, bool autoSave = true);
 
@@ -438,7 +440,7 @@ private:
     explicit MarksChangesTracker(BookmarkManager & bmManager) : m_bmManager(bmManager) {}
 
     void OnAddMark(kml::MarkId markId);
-    void OnDeleteMark(kml::MarkId markId);
+    void OnDeleteMark(kml::MarkId markId, bool wasIndexed);
     void OnUpdateMark(kml::MarkId markId);
 
     void OnAddLine(kml::TrackId lineId);
@@ -456,6 +458,7 @@ private:
     using GroupMarkIdSet = std::map<kml::MarkGroupId, kml::MarkIdSet>;
     GroupMarkIdSet const & GetAttachedBookmarks() const { return m_attachedBookmarks; }
     GroupMarkIdSet const & GetDetachedBookmarks() const { return m_detachedBookmarks; }
+    kml::MarkIdSet const & GetRemovedIndexedMarkIds() const { return m_removedIndexedMarks; }
 
     // UserMarksProvider
     kml::GroupIdSet GetAllGroupIds() const override;
@@ -480,6 +483,7 @@ private:
 
     kml::MarkIdSet m_createdMarks;
     kml::MarkIdSet m_removedMarks;
+    kml::MarkIdSet m_removedIndexedMarks;
     kml::MarkIdSet m_updatedMarks;
 
     kml::TrackIdSet m_createdLines;
@@ -604,6 +608,9 @@ private:
   void UpdateBmGroupIdList();
 
   void SendBookmarksChanges();
+  bool IsIndexedCategory(kml::MarkGroupId groupId) const;
+  void MarkCategoryIndexed(kml::MarkGroupId categoryId);
+  void UpdateIndexedBookmarksCount();
   void GetBookmarksInfo(kml::MarkIdSet const & marks, std::vector<BookmarkInfo> & bookmarks);
   void GetBookmarkGroupsInfo(MarksChangesTracker::GroupMarkIdSet const & groups,
                              std::vector<BookmarkGroupInfo> & groupsInfo);
@@ -780,6 +787,9 @@ private:
   };
 
   Metadata m_metadata;
+
+  size_t m_indexedBookmarksCount = 0;
+  std::set<kml::MarkGroupId> m_indexedCategories;
 
   bool m_testModeEnabled = false;
 
