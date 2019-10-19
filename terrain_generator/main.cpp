@@ -24,7 +24,10 @@ int main(int argc, char ** argv)
     LOG(LINFO, ("Terrain generation failed: mwm_name must be set."));
     return 1;
   }
+
   TerrainGenerator generator(FLAGS_srtm_path, FLAGS_out_path);
-  generator.Generate(FLAGS_mwm_name);
+  generator.ParseTracks("/Users/daravolvenkova/Downloads/outdoor_tracks.csv",
+    "/Users/daravolvenkova/terrains");
+  //generator.Generate(FLAGS_mwm_name);
   return 0;
 }

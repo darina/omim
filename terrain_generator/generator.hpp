@@ -18,6 +18,8 @@ public:
   void Generate(std::string const & countryId);
   void OnTaskFinished(threads::IRoutine * task);
 
+  void ParseTracks(std::string const & csvPath, std::string const & outDir);
+
 private:
   std::string m_outDir;
   generator::SrtmTileManager m_srtmManager;

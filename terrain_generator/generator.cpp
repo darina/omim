@@ -1,4 +1,5 @@
 #include "generator.hpp"
+#include "tracks_processor.hpp"
 
 #include "platform/platform.hpp"
 
@@ -65,8 +66,11 @@ public:
         m_minHeight = min(m_minHeight, height);
         m_maxHeight = max(m_maxHeight, height);
 
-        m_data.push_back(static_cast<int>(m_leftOffset + j * stepInMeters));
-        m_data.push_back(static_cast<int>(m_bottomOffset + i * stepInMeters));
+        double const x = ms::DistanceOnEarth(pos.m_lat, m_leftBottom.m_lon, pos.m_lat, pos.m_lon);
+        double const y = ms::DistanceOnEarth(m_leftBottom.m_lat, pos.m_lon, pos.m_lat, pos.m_lon);
+
+        m_data.push_back(static_cast<int>(m_leftOffset + x));
+        m_data.push_back(static_cast<int>(m_bottomOffset + y));
         m_data.push_back(static_cast<int>(height));
       }
       pos.m_lat += step;
@@ -114,6 +118,12 @@ TerrainGenerator::TerrainGenerator(std::string const & srtmDir, std::string cons
 
   m_threadsPool = make_unique<base::thread_pool::routine::ThreadPool>(
     kThreadsCount, std::bind(&TerrainGenerator::OnTaskFinished, this, _1));
+}
+
+void TerrainGenerator::ParseTracks(std::string const & csvPath, std::string const & outDir)
+{
+  TracksProcessor processor(m_infoReader);
+  processor.ParseTracks(csvPath, outDir);
 }
 
 void TerrainGenerator::OnTaskFinished(threads::IRoutine * task)
