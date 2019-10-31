@@ -26,8 +26,10 @@ int main(int argc, char ** argv)
   }
 
   TerrainGenerator generator(FLAGS_srtm_path, FLAGS_out_path);
-  generator.ParseTracks("/Users/daravolvenkova/Downloads/outdoor_tracks.csv",
-    "/Users/daravolvenkova/terrains");
-  //generator.Generate(FLAGS_mwm_name);
+
+  //generator.ParseTracks("/Users/daravolvenkova/Downloads/outdoor_tracks.csv",
+  //  "/Users/daravolvenkova/terrains");
+
+  generator.GenerateTracksMesh("/Users/daravolvenkova/terrains/", FLAGS_mwm_name);
   return 0;
 }

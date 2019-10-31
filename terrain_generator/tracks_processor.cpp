@@ -4,6 +4,7 @@
 
 #include "geometry/distance_on_sphere.hpp"
 #include "geometry/mercator.hpp"
+#include "geometry/point3d.hpp"
 
 #include "base/logging.hpp"
 #include "base/file_name_utils.hpp"
@@ -69,6 +70,23 @@ void DumpCountries(string const & countriesDir, map<string, vector<size_t>> cons
       fout << setw(5) << c.first << " " << c.second << endl;
     fout.close();
   }
+}
+
+double TracksProcessor::CalculateCoordinatesFactor(m2::RectD const & limitRect)
+{
+  ms::LatLon leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
+  ms::LatLon rightTop = MercatorBounds::ToLatLon(limitRect.RightTop());
+
+  auto const heightInMeters = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
+                                                  rightTop.m_lat, leftBottom.m_lon);
+  auto const widthInMetersBottom = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
+                                                       leftBottom.m_lat, rightTop.m_lon);
+  auto const widthInMetersTop = ms::DistanceOnEarth(rightTop.m_lat, leftBottom.m_lon,
+                                                    rightTop.m_lat, rightTop.m_lon);
+
+  auto const maxAbs = max(heightInMeters, max(widthInMetersTop, widthInMetersBottom));
+  auto const factor = 1000.0 / maxAbs;
+  return factor;
 }
 
 void TracksProcessor::ParseTracks(string const & csvFilePath, string const & outputDir)
@@ -140,26 +158,133 @@ void TracksProcessor::ParseTracks(string const & csvFilePath, string const & out
   DumpCountries(countriesDir, mwmTracks);
 }
 
-void TracksProcessor::GenerateTracksMesh(std::string const & countryId, std::string const & dataDir)
+void TracksProcessor::GenerateTracksMesh(std::string const & countryId, std::string const & dataDir,
+                                         std::string const & outDir)
 {
+  vector<string> tracks;
   //auto const tracksDir = base::JoinPath(outputDir, "tracks");
-  auto const countryFileName = base::JoinPath(dataDir, "countries", countryId);
-  string trackId;
-  ifstream fin(countryFileName);
-  if (!fin.good())
   {
-    LOG(LWARNING, ("Couldn't load tracks from", countryFileName));
-    return;
+    auto const countryFileName = base::JoinPath(dataDir, "countries", countryId + ".txt");
+    string trackId;
+    ifstream fin(countryFileName);
+    if (!fin.good())
+    {
+      LOG(LWARNING, ("Couldn't load tracks from", countryFileName));
+      return;
+    }
+
+    while (getline(fin, trackId))
+    {
+      if (!trackId.empty())
+        tracks.push_back(trackId);
+    }
   }
 
-  vector<string> tracks;
-  while (getline(fin, trackId))
-  {
-    tracks.push_back(trackId);
-  }
+  m2::RectD const limitRect = m_infoReader->GetLimitRectForLeaf(countryId);
+  auto const factor = CalculateCoordinatesFactor(limitRect);
+  auto const trackHWidthInMeters = 15 * factor;
+
+  ms::LatLon const leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
+
+  vector<m3::PointD> vertices;
+  vector<size_t> indices;
 
   for (auto const & track : tracks)
   {
+    auto const trackFileName = base::JoinPath(dataDir, "tracks", track + ".txt");
+    ifstream fin(trackFileName);
+    if (!fin.good())
+    {
+      LOG(LWARNING, ("Can't open track file", trackFileName));
+      continue;
+    }
 
+    vector<m3::PointD> points;
+    double lat, lon, height;
+    while (fin >> lat >> lon >> height)
+    {
+      auto const mPos = MercatorBounds::FromLatLon(lat, lon);
+      if (!limitRect.IsPointInside(mPos))
+        continue;
+      auto const x = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon, leftBottom.m_lat, lon);
+      auto const y = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon, lat, leftBottom.m_lon);
+      auto pt = m3::PointD(x * factor, y * factor, height * factor);
+      if (!points.empty() && ((points.back() - pt).Length() < 200 * factor))
+        continue;
+      auto const heightSRTM = m_srtmManager->GetHeight(ms::LatLon(lat, lon));
+      if (heightSRTM != feature::kInvalidAltitude && heightSRTM > height)
+        height = heightSRTM;
+      height += 50;
+      points.emplace_back(x * factor, y * factor, height * factor);
+    }
+
+    CHECK_GREATER_OR_EQUAL(points.size(), 2, ());
+
+    vertices.reserve(vertices.size() + (points.size() - 1) * 4);
+    indices.reserve(indices.size() + (points.size() - 1) * 6);
+    m3::PointD prevN;
+    size_t prevInd2;
+    size_t prevInd3;
+    for (size_t i = 0; i + 1 < points.size(); ++i)
+    {
+      auto const & p1 = points[i];
+      auto const & p2 = points[i + 1];
+      auto const v = p2 - p1;
+      auto const n = m3::PointD(-v.y, v.x, 0.0).Normalize();
+
+
+      //if (v.z > 0)
+      //  n = m3::CrossProduct(v, p).Normalize();
+      //else
+      //  n = m3::CrossProduct(p, v).Normalize();
+
+      auto const ind = vertices.size();
+      indices.push_back(ind);
+      indices.push_back(ind + 1);
+      indices.push_back(ind + 2);
+      indices.push_back(ind);
+      indices.push_back(ind + 2);
+      indices.push_back(ind + 3);
+
+
+      if (i > 0)
+      {
+        if (m2::CrossProduct(m2::PointD(n.x, n.y), m2::PointD(prevN.x, prevN.y)) < 0)
+        {
+          indices.push_back(prevInd3);
+          indices.push_back(ind + 4);
+          indices.push_back(ind);
+        }
+        else
+        {
+          indices.push_back(ind + 4);
+          indices.push_back(prevInd2);
+          indices.push_back(ind + 1);
+        }
+      }
+
+      vertices.push_back(p1 - (n * trackHWidthInMeters));
+      vertices.push_back(p1 + (n * trackHWidthInMeters));
+      vertices.push_back(p2 + (n * trackHWidthInMeters));
+      vertices.push_back(p2 - (n * trackHWidthInMeters));
+      vertices.push_back(p1);
+
+      prevInd2 = ind + 2;
+      prevInd3 = ind + 3;
+      prevN = n;
+    }
+  }
+
+  {
+    ofstream fout(base::JoinPath(outDir, countryId + "_tracks_vertices.txt"));
+    fout << fixed << setprecision(5);
+    for (auto const & vert : vertices)
+      fout << vert.x << " " << vert.y << " " << vert.z << endl;
+  }
+
+  {
+    ofstream fout(base::JoinPath(outDir, countryId + "_tracks_indices.txt"));
+    for (auto ind : indices)
+      fout << ind << " ";
   }
 }

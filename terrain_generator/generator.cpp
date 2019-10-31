@@ -122,7 +122,7 @@ TerrainGenerator::TerrainGenerator(std::string const & srtmDir, std::string cons
 
 void TerrainGenerator::ParseTracks(std::string const & csvPath, std::string const & outDir)
 {
-  TracksProcessor processor(m_infoReader);
+  TracksProcessor processor(m_infoReader, &m_srtmManager);
   processor.ParseTracks(csvPath, outDir);
 }
 
@@ -168,6 +168,8 @@ void TerrainGenerator::Generate(string const & countryId)
 
   ms::LatLon leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
   ms::LatLon rightTop = MercatorBounds::ToLatLon(limitRect.RightTop());
+
+  auto const factor = TracksProcessor::CalculateCoordinatesFactor(limitRect);
 
   auto const heightInMeters = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
                                                   rightTop.m_lat, leftBottom.m_lon);
@@ -230,12 +232,9 @@ void TerrainGenerator::Generate(string const & countryId)
     maxHeight = max(maxHeight, tasks[i]->GetMaxHeight());
     minHeight = min(minHeight, tasks[i]->GetMinHeight());
   }
-  double maxAbs = max(heightInMeters, max(widthInMetersTop, widthInMetersBottom));
-  double maxAbsW = max(widthInMetersTop, widthInMetersBottom);
-  double maxAbsH = heightInMeters;
 
-  size_t width = static_cast<size_t>(fabs(rightTop.m_lon - leftBottom.m_lon) * (kArcSecondsInDegree / stepMult));
-  size_t height = static_cast<size_t>(fabs(rightTop.m_lat - leftBottom.m_lat) * (kArcSecondsInDegree / stepMult));
+  auto width = static_cast<size_t>(fabs(rightTop.m_lon - leftBottom.m_lon) * (kArcSecondsInDegree / stepMult));
+  auto height = static_cast<size_t>(fabs(rightTop.m_lat - leftBottom.m_lat) * (kArcSecondsInDegree / stepMult));
   {
     ofstream fout(base::JoinPath(m_outDir, countryId + "_terrain_info.txt"), ofstream::out);
     fout << "Lat bottom " << leftBottom.m_lat << " top " << rightTop.m_lat << endl;
@@ -247,7 +246,6 @@ void TerrainGenerator::Generate(string const & countryId)
     fout << "Stored vertices count " << verticesCount << " (width * height = " << width * height << ")" << endl;
   }
 
-  double const factor = 1000.0 / maxAbs;
   {
     ofstream fout(base::JoinPath(m_outDir, countryId + "_terrain.txt"), ofstream::out);
     fout << fixed << setprecision(5);
@@ -282,4 +280,10 @@ void TerrainGenerator::Generate(string const & countryId)
       }
     }
   }
+}
+
+void TerrainGenerator::GenerateTracksMesh(std::string const & dataDir, std::string const & countryId)
+{
+  TracksProcessor processor(m_infoReader, &m_srtmManager);
+  processor.GenerateTracksMesh(countryId, dataDir, m_outDir);
 }
