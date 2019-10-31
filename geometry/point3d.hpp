@@ -15,13 +15,26 @@ public:
   constexpr Point() : x(T()), y(T()), z(T()) {}
   constexpr Point(T const & x, T const & y, T const & z) : x(x), y(y), z(z) {}
 
+  static Point<T> Zero() { return Point<T>(0, 0, 0); }
+
   T Length() const { return std::sqrt(x * x + y * y + z * z); }
 
   Point RotateAroundX(double angleDegree) const;
   Point RotateAroundY(double angleDegree) const;
   Point RotateAroundZ(double angleDegree) const;
 
+  Point<T> Normalize() const
+  {
+    double const length = this->Length();
+    if (fabs(length) < 1e-7)
+      return Zero();
+    return Point<T>(x / length, y / length, z / length);
+  }
+
   bool operator==(Point<T> const & rhs) const;
+  Point<T> operator+(Point<T> const & rhs) const;
+  Point<T> operator-(Point<T> const & rhs) const;
+  Point<T> operator*(T scale) const;
 
   T x;
   T y;
@@ -62,9 +75,27 @@ Point<T> Point<T>::RotateAroundZ(double angleDegree) const
 }
 
 template <typename T>
-bool Point<T>::operator==(m3::Point<T> const & rhs) const
+bool Point<T>::operator==(Point<T> const & rhs) const
 {
   return x == rhs.x && y == rhs.y && z == rhs.z;
+}
+
+template <typename T>
+Point<T> Point<T>::operator+(Point<T> const & rhs) const
+{
+  return m3::Point<T>(x + rhs.x, y + rhs.y, z + rhs.z);
+}
+
+template <typename T>
+Point<T> Point<T>::operator-(Point<T> const & rhs) const
+{
+  return Point<T>(x - rhs.x, y - rhs.y, z - rhs.z);
+}
+
+template <typename T>
+Point<T> Point<T>::operator*(T scale) const
+{
+  return Point<T>(x * scale, y * scale, z * scale);
 }
 
 template <typename T>
