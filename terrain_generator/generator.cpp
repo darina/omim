@@ -53,7 +53,7 @@ public:
       pos.m_lon = m_leftBottom.m_lon;
       for (size_t j = 0; j < lonStepsCount; ++j)
       {
-        auto const mPos = MercatorBounds::FromLatLon(pos);
+        auto const mPos = mercator::FromLatLon(pos);
         pos.m_lon += step;
 
         if (!RegionsContain(m_regions, mPos))
@@ -126,6 +126,13 @@ void TerrainGenerator::ParseTracks(std::string const & csvPath, std::string cons
   processor.ParseTracks(csvPath, outDir);
 }
 
+void TerrainGenerator::GenerateContours(std::vector<std::string> const & csvPaths, std::string const & countryId,
+                                        std::string const & outDir)
+{
+  TracksProcessor processor(m_infoReader, &m_srtmManager);
+  processor.ParseContours(countryId, csvPaths, outDir);
+}
+
 void TerrainGenerator::OnTaskFinished(threads::IRoutine * task)
 {
   ASSERT(dynamic_cast<ReadTask *>(task) != NULL, ());
@@ -166,8 +173,8 @@ void TerrainGenerator::Generate(string const & countryId)
   std::vector<m2::RegionD> regions;
   m_infoReader->LoadRegionsFromDisk(id, regions);
 
-  ms::LatLon leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
-  ms::LatLon rightTop = MercatorBounds::ToLatLon(limitRect.RightTop());
+  ms::LatLon leftBottom = mercator::ToLatLon(limitRect.LeftBottom());
+  ms::LatLon rightTop = mercator::ToLatLon(limitRect.RightTop());
 
   auto const factor = TracksProcessor::CalculateCoordinatesFactor(limitRect);
 
@@ -268,8 +275,8 @@ void TerrainGenerator::Generate(string const & countryId)
       vector<m2::PointD> const & points = regions[i].Data();
       for (size_t j = 0; j < points.size(); ++j)
       {
-        double const x = MercatorBounds::DistanceOnEarth(points[j], m2::PointD(limitRect.LeftBottom().x, points[j].y));
-        double const y = MercatorBounds::DistanceOnEarth(points[j], m2::PointD(points[j].x, limitRect.LeftBottom().y));
+        double const x = mercator::DistanceOnEarth(points[j], m2::PointD(limitRect.LeftBottom().x, points[j].y));
+        double const y = mercator::DistanceOnEarth(points[j], m2::PointD(points[j].x, limitRect.LeftBottom().y));
         fout << x * factor << " " << y * factor << endl;
       }
 

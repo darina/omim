@@ -2,9 +2,13 @@
 
 #include "platform/platform.hpp"
 
+#include "generator/feature_helpers.hpp"
+
 #include "geometry/distance_on_sphere.hpp"
 #include "geometry/mercator.hpp"
 #include "geometry/point3d.hpp"
+
+#include "coding/geometry_coding.hpp"
 
 #include "base/logging.hpp"
 #include "base/file_name_utils.hpp"
@@ -34,17 +38,37 @@ bool PrepareDir(std::string const & dirPath)
 
 bool ParsePoint(std::string const & s, double & lat, double & lon, double & height)
 {
-  // Order in string is: lon, lat, z.
+  // Order in string is: lat, lon, z.
   strings::SimpleTokenizer iter(s, ',');
   if (!iter)
     return false;
 
-  if (strings::to_double(*iter, lat) && MercatorBounds::ValidLat(lat) && ++iter)
+  if (strings::to_double(*iter, lat) && mercator::ValidLat(lat) && ++iter)
   {
-    if (strings::to_double(*iter, lon) && MercatorBounds::ValidLon(lon) && ++iter)
+    if (strings::to_double(*iter, lon) && mercator::ValidLon(lon) && ++iter)
     {
       if (strings::to_double(*iter, height))
         return true;
+    }
+  }
+  return false;
+}
+
+bool ParsePointFromContour(std::string const & s, m2::PointD & pt)
+{
+  // Order in string is: lon, lat
+  strings::SimpleTokenizer iter(s, ' ');
+  if (!iter)
+    return false;
+
+  double lat;
+  double lon;
+  if (strings::to_double(*iter, lon) && mercator::ValidLon(lon) && ++iter)
+  {
+    if (strings::to_double(*iter, lat) && mercator::ValidLat(lat))
+    {
+      pt = mercator::FromLatLon(lat, lon);
+      return true;
     }
   }
   return false;
@@ -74,8 +98,8 @@ void DumpCountries(string const & countriesDir, map<string, vector<size_t>> cons
 
 double TracksProcessor::CalculateCoordinatesFactor(m2::RectD const & limitRect)
 {
-  ms::LatLon leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
-  ms::LatLon rightTop = MercatorBounds::ToLatLon(limitRect.RightTop());
+  ms::LatLon leftBottom = mercator::ToLatLon(limitRect.LeftBottom());
+  ms::LatLon rightTop = mercator::ToLatLon(limitRect.RightTop());
 
   auto const heightInMeters = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
                                                   rightTop.m_lat, leftBottom.m_lon);
@@ -87,6 +111,175 @@ double TracksProcessor::CalculateCoordinatesFactor(m2::RectD const & limitRect)
   auto const maxAbs = max(heightInMeters, max(widthInMetersTop, widthInMetersBottom));
   auto const factor = 1000.0 / maxAbs;
   return factor;
+}
+
+void TracksProcessor::GetCountryRegions(std::string const & countryId,
+                                        storage::CountryInfoReader * infoReader,
+                                        m2::RectD & limitRect,
+                                        std::vector<m2::RegionD> & regions)
+{
+  limitRect = infoReader->GetLimitRectForLeaf(countryId);
+  LOG(LINFO, ("Limit rect", limitRect));
+
+  if (limitRect.IsEmptyInterior())
+  {
+    LOG(LWARNING, ("Invalid mwm rect for", countryId));
+    return;
+  }
+
+  size_t id;
+  for (id = 0; id < infoReader->GetCountries().size(); ++id)
+  {
+    if (infoReader->GetCountries().at(id).m_countryId == countryId)
+      break;
+  }
+  CHECK_LESS(id, infoReader->GetCountries().size(), ());
+
+  infoReader->LoadRegionsFromDisk(id, regions);
+}
+
+void TracksProcessor::ParseContours(std::string const & countryId,
+                                    std::vector<std::string> const & csvFilePaths,
+                                    std::string const & outputDir)
+{
+  std::vector<int> zoomLevels = {10, 12, 14, 17};
+  std::vector<unique_ptr<FileWriter>> writers;
+  std::vector<std::ofstream> files;
+  std::vector<size_t> totalPointsCount(zoomLevels.size(), 0);
+  std::vector<size_t> totalRejectedPointsCount(zoomLevels.size(), 0);
+
+  std::vector<size_t> testPointsCount(zoomLevels.size(), 0);
+
+  m2::RectD testWindow = m2::RectD(mercator::FromLatLon(45.9122269, 6.9125985),
+    mercator::FromLatLon(45.9593981, 6.9966812));
+  double testArea = mercator::AreaOnEarth(testWindow);
+  double testAreaMerc = testWindow.SizeX() * testWindow.SizeY();
+
+  for (size_t i = 0; i < zoomLevels.size(); ++i)
+  {
+    auto const postfix = strings::to_string(zoomLevels[i]);
+    auto const basePath = base::JoinPath(outputDir, countryId + "_contour_" + postfix);
+    writers.emplace_back(make_unique<FileWriter>(basePath + ".dat"));
+    files.emplace_back(basePath + ".txt");
+    files[i] << fixed << setprecision(6);
+  }
+
+  m2::RectD limitRect;
+  std::vector<m2::RegionD> regions;
+  GetCountryRegions(countryId, m_infoReader, limitRect, regions);
+
+  //int zoomLevelsRaw = {10, 12, 14, 16};
+  //feature::DataHeader header;
+  //header.SetBounds(limitRect);
+  //header.SetScales(zoomLevelsRaw);
+  //header.SetType(feature::DataHeader::MapType::Country);
+  //header.SetGeometryCodingParams(serial::GeometryCodingParams());
+
+  serial::GeometryCodingParams codingParams(kFeatureSorterPointCoordBits, 0);
+
+  auto saveContour = [&](int height, std::vector<m2::PointD> & points)
+  {
+    int zoomInd = 0;
+    if (height % 200 == 0)
+      zoomInd = 0;
+    else if (height % 100 == 0)
+      zoomInd = 1;
+    else if (height % 50 == 0)
+      zoomInd = 2;
+    else if (height % 10 == 0)
+      zoomInd = 3;
+    else
+    {
+      LOG(LWARNING, ("Unknown height", height));
+      return;
+    }
+
+    for (size_t i = zoomInd; i < zoomLevels.size(); ++i)
+    {
+      std::vector<m2::PointD> pointsSimple;
+      feature::SimplifyPoints(m2::SquaredDistanceFromSegmentToPoint<m2::PointD>(),
+                              zoomLevels[i], points, pointsSimple);
+
+      if (pointsSimple.size() < 2)
+      {
+        LOG(LWARNING, ("Empty simplified contour!"));
+        continue;
+      }
+
+      totalPointsCount[i] += pointsSimple.size();
+      totalRejectedPointsCount[i] += points.size() - pointsSimple.size();
+
+      codingParams.SetBasePoint(pointsSimple[0]);
+      std::vector<m2::PointD> toSave(pointsSimple.begin() + 1, pointsSimple.end());
+      serial::SaveInnerPath(toSave, codingParams, *writers[i].get());
+
+      for (size_t ptInd = 0; ptInd < pointsSimple.size(); ++ptInd)
+      {
+        if (testWindow.IsPointInside(pointsSimple[ptInd]))
+          ++testPointsCount[i];
+
+        ms::LatLon latPt = mercator::ToLatLon(pointsSimple[ptInd]);
+        files[i] << latPt.m_lat << " " << latPt.m_lon <<
+                 ((ptInd + 1 == pointsSimple.size()) ? "" : ", ");
+      }
+      files[i] << std::endl;
+
+      LOG(LINFO, ("---", zoomLevels[i], "Current points count", totalPointsCount[i],
+        "rejected points count", totalRejectedPointsCount[i]));
+    }
+  };
+
+  for (auto csvFilePath : csvFilePaths)
+  {
+    ifstream fin(csvFilePath);
+    string line;
+    // skip field names line
+    getline(fin, line);
+
+    while (getline(fin, line))
+    {
+      auto const startPos = line.find('(');
+      auto const endPos = line.find(')');
+      auto const coordinates = line.substr(startPos + 1, endPos - startPos - 1);
+
+      double height;
+      CHECK(strings::to_double(line.substr(line.rfind(',') + 1), height), ());
+
+      strings::SimpleTokenizer iter(coordinates, ',');
+      m2::PointD pt;
+      std::vector<m2::PointD> points;
+      while (iter)
+      {
+        if (ParsePointFromContour(*iter, pt))
+        {
+          if (limitRect.IsPointInside(pt) && RegionsContain(regions, pt))
+          {
+            points.push_back(pt);
+          }
+          else
+          {
+            if (points.size() > 2)
+              saveContour(static_cast<int>(height), points);
+            points.clear();
+          }
+        }
+        ++iter;
+      }
+      if (points.size() > 2)
+        saveContour(static_cast<int>(height), points);
+    }
+  }
+
+  LOG(LWARNING, ("=== Test window area in m2", testArea, ", in merc", testAreaMerc,
+    ", test window", testWindow));
+  for (size_t i = 0; i < zoomLevels.size(); ++i)
+  {
+    LOG(LWARNING, ("---", zoomLevels[i], "Total points count", totalPointsCount[i],
+                         "rejected points count", totalRejectedPointsCount[i]));
+    LOG(LWARNING, ("---", zoomLevels[i], "Points factor", testPointsCount[i] / testArea,
+      "points factor merc", testPointsCount[i] / testAreaMerc,
+      "test points count", testPointsCount[i]));
+  }
 }
 
 void TracksProcessor::ParseTracks(string const & csvFilePath, string const & outputDir)
@@ -125,7 +318,7 @@ void TracksProcessor::ParseTracks(string const & csvFilePath, string const & out
         fout << lat << " " << lon << " " << height << endl;
         if (ms::DistanceOnEarth(prevPt.m_lat, prevPt.m_lon, lat, lon) > 200)
         {
-          auto pt = MercatorBounds::FromLatLon(lat, lon);
+          auto pt = mercator::FromLatLon(lat, lon);
           auto countryId = m_infoReader->GetRegionCountryId(pt);
           if (countryId.empty())
             countryId = "#unknown";
@@ -184,7 +377,7 @@ void TracksProcessor::GenerateTracksMesh(std::string const & countryId, std::str
   auto const factor = CalculateCoordinatesFactor(limitRect);
   auto const trackHWidthInMeters = 15 * factor;
 
-  ms::LatLon const leftBottom = MercatorBounds::ToLatLon(limitRect.LeftBottom());
+  ms::LatLon const leftBottom = mercator::ToLatLon(limitRect.LeftBottom());
 
   vector<m3::PointD> vertices;
   vector<size_t> indices;
@@ -203,7 +396,7 @@ void TracksProcessor::GenerateTracksMesh(std::string const & countryId, std::str
     double lat, lon, height;
     while (fin >> lat >> lon >> height)
     {
-      auto const mPos = MercatorBounds::FromLatLon(lat, lon);
+      auto const mPos = mercator::FromLatLon(lat, lon);
       if (!limitRect.IsPointInside(mPos))
         continue;
       auto const x = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon, leftBottom.m_lat, lon);

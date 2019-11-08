@@ -30,6 +30,14 @@ int main(int argc, char ** argv)
   //generator.ParseTracks("/Users/daravolvenkova/Downloads/outdoor_tracks.csv",
   //  "/Users/daravolvenkova/terrains");
 
-  generator.GenerateTracksMesh("/Users/daravolvenkova/terrains/", FLAGS_mwm_name);
+  //generator.GenerateTracksMesh("/Users/daravolvenkova/terrains/", FLAGS_mwm_name);
+  generator.GenerateContours({"/Users/daravolvenkova/srtm/N45E005_10.csv",
+                              "/Users/daravolvenkova/srtm/N45E006_10.csv",
+                              "/Users/daravolvenkova/srtm/N45E007_10.csv",
+                              "/Users/daravolvenkova/srtm/N46E005_10.csv",
+                              "/Users/daravolvenkova/srtm/N46E006_10.csv",
+                              "/Users/daravolvenkova/srtm/N46E007_10.csv"},
+                                FLAGS_mwm_name,
+                                "/Users/daravolvenkova/");
   return 0;
 }

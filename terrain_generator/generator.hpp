@@ -20,6 +20,8 @@ public:
 
   void ParseTracks(std::string const & csvPath, std::string const & outDir);
   void GenerateTracksMesh(std::string const & dataDir, std::string const & countryId);
+  void GenerateContours(std::vector<std::string> const & csvPaths, std::string const & countryId,
+                        std::string const & outDir);
 
 private:
   std::string m_outDir;
