@@ -43,6 +43,7 @@ public:
   ~RuleDrawer();
 
   void operator()(FeatureType & f);
+  void DrawTestContours();
 
 private:
   void ProcessAreaStyle(FeatureType & f, Stylist const & s, TInsertShapeFn const & insertShape,

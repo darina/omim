@@ -23,6 +23,7 @@
 #include "base/logging.hpp"
 
 #include "drape_frontend/text_shape.hpp"
+#include "drape_frontend/line_shape.hpp"
 #ifdef DRAW_TILE_NET
 #include "drape_frontend/line_shape.hpp"
 #include "drape_frontend/text_shape.hpp"
@@ -525,6 +526,84 @@ void RuleDrawer::operator()(FeatureType & f)
 #ifdef DRAW_TILE_NET
   DrawTileNet(insertShape);
 #endif
+
+  if (CheckCancelled())
+    return;
+
+  for (auto const & shape : m_mapShapes[df::GeometryType])
+    shape->Prepare(m_context->GetTextureManager());
+
+  if (!m_mapShapes[df::GeometryType].empty())
+  {
+    TMapShapes geomShapes;
+    geomShapes.swap(m_mapShapes[df::GeometryType]);
+    m_context->Flush(std::move(geomShapes));
+  }
+}
+
+void RuleDrawer::DrawTestContours()
+{
+  int minVisibleScale = 0;
+  auto insertShape = [this, &minVisibleScale](drape_ptr<MapShape> && shape)
+  {
+    int const index = static_cast<int>(shape->GetType());
+    ASSERT_LESS(index, static_cast<int>(m_mapShapes.size()), ());
+
+    shape->SetFeatureMinZoom(minVisibleScale);
+    m_mapShapes[index].push_back(std::move(shape));
+  };
+
+  TileKey key = m_context->GetTileKey();
+
+  m2::RectD r = key.GetGlobalRect();
+  double s = mercator::AreaOnEarth(r);
+  double const kPointsFactor17 = 0.00286462;
+  double const kPointsFactor14 = 0.000109096;
+  double const kPointsFactor12 = 1.68808e-05;
+  double const kPointsFactor10 = 2.92562e-06;
+
+  double pointsFactor = 1;
+  if (key.m_zoomLevel >= 17)
+    pointsFactor = kPointsFactor17;
+  else if (key.m_zoomLevel >= 14)
+    pointsFactor = kPointsFactor14;
+  else if (key.m_zoomLevel >= 12)
+    pointsFactor = kPointsFactor12;
+  else
+    pointsFactor = kPointsFactor10;
+
+  size_t pointsCount = pointsFactor * s;
+
+  //LOG(LWARNING, ("pointsCount", pointsCount));
+  if (key.m_zoomLevel <= 10 || pointsCount < 2)
+    return;
+
+  int pointsInCircle = 50;
+  double angleStep = 2.0 * math::pi / pointsInCircle;
+  double radiusStep = r.SizeX() / (2.0 * pointsCount);
+
+  std::vector<m2::PointD> path;
+  path.reserve(pointsCount);
+  for (size_t i = 0; i < pointsCount; ++i)
+  {
+    m2::PointD v = m2::PointD(radiusStep * i, 0);
+    v.Rotate(angleStep * i);
+    m2::PointD pt = r.Center() + v;
+    path.push_back(pt);
+  }
+
+  m2::SharedSpline spline(path);
+  df::LineViewParams p;
+  p.m_tileCenter = m_globalRect.Center();
+  p.m_baseGtoPScale = 1.0;
+  p.m_cap = dp::ButtCap;
+  p.m_color = dp::Color::Blue();
+  p.m_depth = 20000;
+  p.m_depthLayer = DepthLayer::GeometryLayer;
+  p.m_width = 1;
+  p.m_join = dp::RoundJoin;
+
+  insertShape(make_unique_dp<LineShape>(spline, p));
 
   if (CheckCancelled())
     return;
