@@ -175,3 +175,13 @@
 @shield_text_halo: #000000;
 @shield: #000000;
 @shield_outline: #b2b2b2;
+
+@isoline1: #6c6960;
+@isoline2: #7a7666;
+@isoline3: #7a7666;
+@isoline4: #7a7666;
+
+@label_isoline1: #6c6960;
+@label_isoline2: #6c6960;
+@label_isoline3: #6c6960;
+@label_isoline4: #7a7666;

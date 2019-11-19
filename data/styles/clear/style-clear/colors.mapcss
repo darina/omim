@@ -175,3 +175,13 @@
 @shield: #FFFFFF;
 @shield_outline: #000000;
 /* blue - #2E89B0; #687E94; #598DBE; */
+
+@isoline1: #6c6960;
+@isoline2: #6c6960;
+@isoline3: #6c6960;
+@isoline4: #7a7666;
+
+@label_isoline1: #6c6960;
+@label_isoline2: #6c6960;
+@label_isoline3: #6c6960;
+@label_isoline4: #7a7666;

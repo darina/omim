@@ -117,6 +117,12 @@ line[waterway=ditch],
 line[waterway=drain],
 {z-index: 50;}
 
+line[isoline=1],
+line[isoline=2],
+line[isoline=3],
+line[isoline=4],
+{z-index: 70;}
+
 area[natural=lake],
 area[natural=pond],
 area[natural=water],
@@ -378,6 +384,41 @@ area|z11-[natural=wetland]
 {fill-color: @wetland;}
 
 /* 6.2 Line water(river,canal etc.) */
+line|z10-[isoline=1],
+{color: @isoline1;}
+
+line|z12-[isoline=2],
+{color: @isoline2;}
+
+line|z13-[isoline=3],
+{color: @isoline3;}
+
+line|z16-[isoline=4],
+{color: @isoline4;}
+
+line|z10-11[isoline=1],
+{width: 0.4;opacity: 0.5;}
+
+line|z12-14[isoline=1],
+{width: 0.7;opacity: 0.6;}
+
+line|z15-[isoline=1],
+{width: 1.0;opacity: 0.7;}
+
+line|z12-14[isoline=2],
+{width: 0.3;opacity: 0.5;}
+
+line|z15-[isoline=2],
+{width: 0.5;opacity: 0.6;}
+
+line|z15-17[isoline=3],
+{width: 0.3;opacity: 0.6;}
+
+line|z18-[isoline=3],
+{width: 0.8;opacity: 0.6;}
+
+line|z16-[isoline=4],
+{width: 0.3;opacity: 0.5;}
 
 line|z10[waterway=river],
 line|z10[waterway=riverbank],

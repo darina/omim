@@ -104,6 +104,9 @@ line[waterway=canal],
 line[waterway],
 {z-index: 10000;}
 
+line[isoline],
+{z-index: 10000;}
+
 /* 2.CONTINENTS */
 
 *[place]
@@ -529,6 +532,24 @@ area|z14-[natural=water],
 node|z16-[natural=wetland],
 area|z16-[natural=wetland],
 {text:name;text-color: @water_label;}
+
+line[isoline]
+{text-position: line;}
+
+line|z10-11[isoline=1],
+{text:name;font-size: 7;fill-opacity: 0.5;text-color: @label_isoline1;}
+
+line|z12-14[isoline=1],
+{text:name;font-size: 7;fill-opacity: 0.6;text-color: @label_isoline1;}
+
+line|z15-[isoline=1],
+{text:name;font-size: 7;fill-opacity: 0.7;text-color: @label_isoline1;}
+
+line|z17-[isoline=2],
+{text:name;font-size: 7;fill-opacity: 0.5;text-color: @label_isoline2;}
+
+line|z18-[isoline=3],
+{text:name;font-size: 7;fill-opacity: 0.6;text-color: @label_isoline3;}
 
 /*6.1 Area water(ocean,sea,lake,pond etc.)*/
 
