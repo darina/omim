@@ -3,6 +3,8 @@
 #include "base/logging.hpp"
 #include "base/string_utils.hpp"
 
+#include "coding/point_coding.hpp"
+
 using namespace std;
 
 namespace generator
@@ -74,5 +76,61 @@ void MixFakeNodes(istream & stream, function<void(OsmElement &)> processor)
   }
 
   LOG(LINFO, ("Added", count, "fake nodes."));
+}
+
+void MixFakeLines(std::istream & stream, std::function<void(OsmElement &, std::vector<m2::PointD> const &)> processor)
+{
+  if (stream.fail())
+    return;
+
+  // Max node id on 12.02.2018 times hundred — good enough until ~2030.
+  uint64_t constexpr baseNodeId = 5396734321 * 100;
+
+  uint64_t count = 0;
+  OsmElement p;
+  p.m_id = baseNodeId;
+  p.m_type = OsmElement::EntityType::Way;
+
+  string line;
+  while (getline(stream, line))
+  {
+    std::istringstream ss(line);
+    int height;
+    size_t pointsCount;
+    ss >> height >> pointsCount;
+    int kPointCoordBits = 30;
+    std::vector<m2::PointD> points;
+    points.reserve(pointsCount);
+    for (size_t i = 0; i < pointsCount; ++i)
+    {
+      double x;
+      double y;
+      ss >> x >> y;
+      points.emplace_back(x, y);
+      p.AddNd(PointToInt64Obsolete(x, y, kPointCoordBits));
+    }
+    string isolineClass;
+    if (height % 200 == 0)
+      isolineClass = "1";
+    else if (height % 100 == 0)
+      isolineClass = "2";
+    else if (height % 50 == 0)
+      isolineClass = "3";
+    else if (height % 10 == 0)
+      isolineClass = "4";
+    else
+      LOG(LWARNING, ("Invalid height", height));
+
+    p.AddTag("isoline", isolineClass);
+    p.AddTag("name", strings::to_string(height));
+
+    processor(p, points);
+    count++;
+    p.Clear();
+    p.m_id = baseNodeId + count;
+    p.m_type = OsmElement::EntityType::Way;
+  }
+
+  LOG(LINFO, ("Added", count, "fake lines."));
 }
 }  // namespace generator

@@ -142,6 +142,87 @@ void TracksProcessor::ParseContours(std::string const & countryId,
                                     std::vector<std::string> const & csvFilePaths,
                                     std::string const & outputDir)
 {
+  std::ofstream dstFile(base::JoinPath(outputDir, countryId + "_isolines.txt"));
+
+  m2::RectD limitRect = m2::RectD(mercator::FromLatLon(45.7656, 6.7236),
+                                  mercator::FromLatLon(46.0199, 7.0444));
+
+  m2::RectD countryRect;
+  std::vector<m2::RegionD> regions;
+  GetCountryRegions(countryId, m_infoReader, countryRect, regions);
+
+
+  auto saveContour = [&](int height, std::vector<m2::PointD> & points)
+  {
+    int kBaseSimplificationZoom = 17;
+
+    std::vector<m2::PointD> & pointsSimple = points;
+    /*feature::SimplifyPoints(m2::SquaredDistanceFromSegmentToPoint<m2::PointD>(),
+                            kBaseSimplificationZoom, points, pointsSimple);
+*/
+    if (pointsSimple.size() < 2)
+    {
+      LOG(LWARNING, ("Empty simplified contour!"));
+      return;
+    }
+
+    dstFile << height << " " << pointsSimple.size() << " ";
+
+    for (size_t ptInd = 0; ptInd < pointsSimple.size(); ++ptInd)
+    {
+      dstFile << pointsSimple[ptInd].x << " " << pointsSimple[ptInd].y
+        << ((ptInd + 1 == pointsSimple.size()) ? "" : " ");
+    }
+
+    dstFile << std::endl;
+  };
+
+  for (auto csvFilePath : csvFilePaths)
+  {
+    ifstream fin(csvFilePath);
+    string line;
+    // skip field names line
+    getline(fin, line);
+
+    while (getline(fin, line))
+    {
+      auto const startPos = line.find('(');
+      auto const endPos = line.find(')');
+      auto const coordinates = line.substr(startPos + 1, endPos - startPos - 1);
+
+      double height;
+      CHECK(strings::to_double(line.substr(line.rfind(',') + 1), height), ());
+
+      strings::SimpleTokenizer iter(coordinates, ',');
+      m2::PointD pt;
+      std::vector<m2::PointD> points;
+      while (iter)
+      {
+        if (ParsePointFromContour(*iter, pt))
+        {
+          if (limitRect.IsPointInside(pt) && RegionsContain(regions, pt))
+          {
+            points.push_back(pt);
+          }
+          else
+          {
+            if (points.size() > 2)
+              saveContour(static_cast<int>(height), points);
+            points.clear();
+          }
+        }
+        ++iter;
+      }
+      if (points.size() > 2)
+        saveContour(static_cast<int>(height), points);
+    }
+  }
+}
+/*
+void TracksProcessor::ParseContours(std::string const & countryId,
+                                    std::vector<std::string> const & csvFilePaths,
+                                    std::string const & outputDir)
+{
   std::vector<int> zoomLevels = {10, 12, 14, 17};
   std::vector<unique_ptr<FileWriter>> writers;
   std::vector<std::ofstream> files;
@@ -167,13 +248,6 @@ void TracksProcessor::ParseContours(std::string const & countryId,
   m2::RectD limitRect;
   std::vector<m2::RegionD> regions;
   GetCountryRegions(countryId, m_infoReader, limitRect, regions);
-
-  //int zoomLevelsRaw = {10, 12, 14, 16};
-  //feature::DataHeader header;
-  //header.SetBounds(limitRect);
-  //header.SetScales(zoomLevelsRaw);
-  //header.SetType(feature::DataHeader::MapType::Country);
-  //header.SetGeometryCodingParams(serial::GeometryCodingParams());
 
   serial::GeometryCodingParams codingParams(kFeatureSorterPointCoordBits, 0);
 
@@ -281,7 +355,7 @@ void TracksProcessor::ParseContours(std::string const & countryId,
       "test points count", testPointsCount[i]));
   }
 }
-
+*/
 void TracksProcessor::ParseTracks(string const & csvFilePath, string const & outputDir)
 {
   auto const tracksDir = base::JoinPath(outputDir, "tracks");

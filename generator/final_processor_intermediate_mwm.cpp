@@ -452,9 +452,32 @@ void CountryFinalProcessor::AddFakeNodes()
     ftype::GetNameAndType(&element, fb.GetParams());
     fbs.emplace_back(std::move(fb));
   });
+
+  MixFakeLines("/Users/daravolvenkova/France_Rhone-Alpes_Haute-Savoie_isolines.txt",
+    [&](OsmElement & element, std::vector<m2::PointD> const & points) {
+      FeatureBuilder fb;
+      for (auto const & pt : points)
+      {
+        fb.AddPoint(pt);
+      }
+      fb.SetLinear(false);//params.m_reverseGeometry);
+      fb.SetOsmId(base::MakeOsmWay(element.m_id));
+
+      uint32_t const type = classif().GetTypeByPath({"isoline", element.GetTagValue("isoline", "")});
+      fb.AddType(type);
+
+      ftype::GetNameAndType(&element, fb.GetParams());
+      LOG(LWARNING, (fb.GetParams()));
+      fbs.emplace_back(std::move(fb));
+  });
+
+  LOG(LWARNING, ("Step 1"));
   auto const affiliation = CountriesFilesIndexAffiliation(m_borderPath, m_haveBordersForWholeWorld);
+  LOG(LWARNING, ("Step 2"));
   auto const affiliations = GetAffiliations(fbs, affiliation, m_threadsCount);
+  LOG(LWARNING, ("Step 3"));
   AppendToCountries(fbs, affiliations, m_temporaryMwmPath, m_threadsCount);
+  LOG(LWARNING, ("Step 4"));
 }
 
 void CountryFinalProcessor::Finish()
