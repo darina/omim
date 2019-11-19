@@ -494,6 +494,12 @@ world  +
     internet_access  +
         wlan  -
         {}
+    isoline  +
+        1  -
+        2  -
+        3  -
+        4  -
+        {}
     junction  +
         roundabout  -
         {}

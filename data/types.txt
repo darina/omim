@@ -1328,3 +1328,7 @@ amenity|parking_space|underground
 amenity|parking_space|private
 amenity|parking_space|permissive
 landuse|churchyard
+isoline|1
+isoline|2
+isoline|3
+isoline|4
