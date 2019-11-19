@@ -1,11 +1,11 @@
 [Main]
-MAIN_OUT_PATH: ~/maps_build
-DEBUG: 1
+MAIN_OUT_PATH: /Users/daravolvenkova/maps_build
+DEBUG: 0
 
 
 [Developer]
-BUILD_PATH: ~/omim-build-release
-OMIM_PATH: ~/omim
+BUILD_PATH: /Users/daravolvenkova/Dev/omim/cmake-build-release
+OMIM_PATH: /Users/daravolvenkova/Dev/omim
 
 
 [Generator tool]
@@ -24,19 +24,19 @@ OSM_TOOLS_PATH: ~/osmctools
 
 
 [External]
-# PLANET_URL:
+PLANET_URL: file:////Users/daravolvenkova/Downloads/montblanc.pbf
 # PLANET_MD5_URL:
-# PLANET_COASTS_URL:
-SUBWAY_URL: http://osm-subway.maps.me/mapsme/latest.json
-# UGC_URL:
-# HOTELS_URL:
-# PROMO_CATALOG_CITIES_URL:
-# PROMO_CATALOG_COUNTRIES_URL:
-# POPULARITY_URL:
-# FOOD_URL:
-# FOOD_TRANSLATIONS_URL:
-# POSTCODES_URL:
-# SRTM_PATH:
+PLANET_COASTS_URL:http://generator.testdata.mapsme.cloud.devmail.ru/coasts/
+SUBWAY_URL: http://generator.testdata.mapsme.cloud.devmail.ru/subway/latest.json
+UGC_URL: https://ugc-front.maps.me/data/merged_latest.sqlite3
+HOTELS_URL: http://generator.testdata.mapsme.cloud.devmail.ru/booking/latest.csv
+PROMO_CATALOG_CITIES_URL: https://bookmarks-front-mobile.maps.me/gallery/v1/cities/?min_paid=2
+PROMO_CATALOG_COUNTRIES_URL: https://bookmarks-catalogue.mapsme.devmail.ru/manager/countries/with_paid_counts
+POPULARITY_URL: http://generator.testdata.mapsme.cloud.devmail.ru/popularity/latest.csv
+FOOD_URL: http://generator.testdata.mapsme.cloud.devmail.ru/food/latest.json
+FOOD_TRANSLATIONS_URL: http://generator.testdata.mapsme.cloud.devmail.ru/food_translations/latest.json
+POSTCODES_URL: http://generator.testdata.mapsme.cloud.devmail.ru/postcodes/uk.latest
+SRTM_PATH: /Users/daravolvenkova/srtm/2000.02.11/
 
 [Stats]
 STATS_TYPES_CONFIG: ${Developer:OMIM_PATH}/tools/python/maps_generator/var/etc/stats_types_config.txt
