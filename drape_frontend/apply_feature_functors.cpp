@@ -863,12 +863,13 @@ ApplyLineFeatureGeometry::ApplyLineFeatureGeometry(TileKey const & tileKey,
                                                    TInsertShapeFn const & insertShape,
                                                    FeatureID const & id, double currentScaleGtoP,
                                                    int minVisibleScale, uint8_t rank,
-                                                   size_t pointsCount)
+                                                   size_t pointsCount, bool smooth)
   : TBase(tileKey, insertShape, id, minVisibleScale, rank, CaptionDescription())
   , m_currentScaleGtoP(static_cast<float>(currentScaleGtoP))
   , m_sqrScale(currentScaleGtoP * currentScaleGtoP)
   , m_simplify(tileKey.m_zoomLevel >= kLineSimplifyLevelStart &&
                tileKey.m_zoomLevel <= kLineSimplifyLevelEnd)
+  , m_smooth(smooth)
   , m_initialPointsCount(pointsCount)
 #ifdef LINES_GENERATION_CALC_FILTERED_POINTS
   , m_readCount(0)
@@ -900,9 +901,77 @@ void ApplyLineFeatureGeometry::operator() (m2::PointD const & point)
     }
     else
     {
+      if (m_smooth && point.EqualDxDy(m_spline->GetPath().back(), 1e-4))
+      {
+        //LOG(LWARNING, ("???", point, m_spline->GetPath().back()));
+        return;
+      }
       m_spline->AddPoint(point);
       m_lastAddedPoint = point;
     }
+  }
+}
+
+void ApplyLineFeatureGeometry::Smooth()
+{
+  for (auto & clippedSpline : m_clippedSplines)
+  {
+    std::vector<m2::PointD> const & spline = clippedSpline->GetPath();
+    std::vector<m2::PointD> smoothedSpline;
+    if (spline.size() < 3)
+    {
+      LOG(LWARNING, ("###########"));
+      continue;
+    }
+    m2::PointD ptStart = spline[0] * 2.0 - spline[1];
+    m2::PointD ptEnd = spline[spline.size() - 1] * 2.0 - spline[spline.size() - 2];
+
+    static double avgSegmentLength = pow(10 * df::VisualParams::Instance().GetVisualScale(), 2);
+
+    for (size_t i = 0; i + 1 < spline.size(); ++i)
+    {
+      if (spline[i].EqualDxDy(spline[i + 1], 1e-5))
+        LOG(LWARNING, ("!!!", i, spline[i], spline[i + 1]));
+    }
+
+    smoothedSpline.push_back(spline.front());
+    for (size_t i = 0; i + 1 < spline.size(); ++i)
+    {
+      m2::PointD const & pt0 = i > 0 ? spline[i - 1] : ptStart;
+      m2::PointD const & pt1 = spline[i];
+      m2::PointD const & pt2 = spline[i + 1];
+      m2::PointD const & pt3 = i + 2 < spline.size() ? spline[i + 2] : ptEnd;
+
+      double const currentLength = pt1.SquaredLength(pt2) * m_sqrScale;
+      size_t extrapolatedPointsCount = 10; //round(1.5 * sqrt(currentLength / avgSegmentLength));
+
+      if (smoothedSpline.back().EqualDxDy(pt2, 1e-5))
+        continue;
+
+      for (size_t iEx = 1; iEx < extrapolatedPointsCount; ++iEx)
+      {
+        double const t = static_cast<double>(iEx) / extrapolatedPointsCount;
+        double const t2 = t * t;
+        double const t3 = t2 * t;
+
+        double const k0 = -t + 2 * t2 - t3;
+        double const k1 = 2 - 5 * t2 + 3 * t3;
+        double const k2 = t + 4 * t2 - 3 * t3;
+        double const k3 = t3 - t2;
+
+        //m2::PointD pt = (pt1 * 2.0 + (pt2 - pt0) * t +
+        //  (pt0 * 2.0 - pt1 * 5.0 + pt2 * 4.0 - pt3) * t2 +
+        //  (pt1 * 3.0 - pt2 * 3.0 + pt3 - pt0) * t3) * 0.5;
+
+        m2::PointD pt = (pt0 * k0 + pt1 * k1 + pt2 * k2 + pt3 * k3) * 0.5;
+
+        if (smoothedSpline.back().EqualDxDy(pt, 1e-5))
+          continue;
+        smoothedSpline.push_back(pt);
+      }
+      smoothedSpline.push_back(pt2);
+    }
+    clippedSpline.Reset(smoothedSpline);
   }
 }
 
@@ -924,6 +993,9 @@ void ApplyLineFeatureGeometry::ProcessLineRule(Stylist::TRuleWrapper const & rul
   m_clippedSplines = m2::ClipSplineByRect(m_tileRect, m_spline);
   if (m_clippedSplines.empty())
     return;
+
+  if (m_smooth)
+    Smooth();
 
   if (pLineRule->has_pathsym())
   {

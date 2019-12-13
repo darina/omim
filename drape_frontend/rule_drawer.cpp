@@ -351,9 +351,11 @@ void RuleDrawer::ProcessLineStyle(FeatureType & f, Stylist const & s,
 {
   int const zoomLevel = m_context->GetTileKey().m_zoomLevel;
 
+  bool const isIsoline = ftypes::IsIsolineChecker::Instance()(f);
+
   ApplyLineFeatureGeometry applyGeom(m_context->GetTileKey(), insertShape, f.GetID(),
                                      m_currentScaleGtoP, minVisibleScale, f.GetRank(),
-                                     f.GetPointsCount());
+                                     f.GetPointsCount(), isIsoline);
   f.ForEachPoint(applyGeom, zoomLevel);
 
   if (CheckCancelled())

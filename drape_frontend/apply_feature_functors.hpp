@@ -173,7 +173,7 @@ class ApplyLineFeatureGeometry : public BaseApplyFeature
 public:
   ApplyLineFeatureGeometry(TileKey const & tileKey, TInsertShapeFn const & insertShape,
                            FeatureID const & id, double currentScaleGtoP, int minVisibleScale,
-                           uint8_t rank, size_t pointsCount);
+                           uint8_t rank, size_t pointsCount, bool smooth);
 
   void operator() (m2::PointD const & point);
   bool HasGeometry() const;
@@ -183,12 +183,15 @@ public:
   std::vector<m2::SharedSpline> const & GetClippedSplines() const { return m_clippedSplines; }
 
 private:
+  void Smooth();
+
   m2::SharedSpline m_spline;
   std::vector<m2::SharedSpline> m_clippedSplines;
   float m_currentScaleGtoP;
   double m_sqrScale;
   m2::PointD m_lastAddedPoint;
   bool m_simplify;
+  bool m_smooth;
   size_t m_initialPointsCount;
 
 #ifdef LINES_GENERATION_CALC_FILTERED_POINTS
