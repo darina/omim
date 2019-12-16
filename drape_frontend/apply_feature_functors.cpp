@@ -971,7 +971,9 @@ void ApplyLineFeatureGeometry::Smooth()
       }
       smoothedSpline.push_back(pt2);
     }
-    clippedSpline.Reset(smoothedSpline);
+
+    if (smoothedSpline.size() > 2)
+      clippedSpline.Reset(smoothedSpline);
   }
 }
 

@@ -479,7 +479,7 @@ void TracksProcessor::GenerateTracksMesh(std::string const & countryId, std::str
       if (!points.empty() && ((points.back() - pt).Length() < 200 * factor))
         continue;
       auto const heightSRTM = m_srtmManager->GetHeight(ms::LatLon(lat, lon));
-      if (heightSRTM != feature::kInvalidAltitude && heightSRTM > height)
+      if (heightSRTM != geometry::kInvalidAltitude && heightSRTM > height)
         height = heightSRTM;
       height += 50;
       points.emplace_back(x * factor, y * factor, height * factor);

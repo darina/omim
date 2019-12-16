@@ -22,6 +22,7 @@ public:
   void GenerateTracksMesh(std::string const & dataDir, std::string const & countryId);
   void GenerateContours(std::vector<std::string> const & csvPaths, std::string const & countryId,
                         std::string const & outDir);
+  void GenerateIsolines(std::string const & countryId, std::string const & outputDir);
 
 private:
   std::string m_outDir;

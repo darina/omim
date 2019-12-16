@@ -1,4 +1,5 @@
 #include "generator.hpp"
+#include "marching_squares.hpp"
 #include "tracks_processor.hpp"
 
 #include "platform/platform.hpp"
@@ -60,7 +61,7 @@ public:
           continue;
 
         auto const height = m_srtmManager.GetHeight(pos);
-        if (height == feature::kInvalidAltitude)
+        if (height == geometry::kInvalidAltitude)
           continue;
 
         m_minHeight = min(m_minHeight, height);
@@ -131,6 +132,72 @@ void TerrainGenerator::GenerateContours(std::vector<std::string> const & csvPath
 {
   TracksProcessor processor(m_infoReader, &m_srtmManager);
   processor.ParseContours(countryId, csvPaths, outDir);
+}
+
+void TerrainGenerator::GenerateIsolines(std::string const & countryId,
+                                        std::string const & outputDir)
+{
+  auto const leftBottom = ms::LatLon(45.7656, 6.7236);
+  auto const rightTop = ms::LatLon(46.0199, 7.0444);
+  auto const step = 1.0 / kArcSecondsInDegree;
+  uint16_t const altitudeStep = 10;
+
+  SRTMAltExtractor altExtractor(m_srtmManager);
+  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, altExtractor);
+
+  std::vector<IsolinesList> isolines;
+  geometry::Altitude minAltitude;
+  marchingSquares.GenerateIsolines(isolines, minAltitude);
+
+  m2::RectD limitRect = m2::RectD(mercator::FromLatLon(leftBottom),
+                                  mercator::FromLatLon(rightTop));
+  m2::RectD countryRect;
+  std::vector<m2::RegionD> regions;
+  TracksProcessor::GetCountryRegions(countryId, m_infoReader,
+                                     countryRect, regions);
+
+  std::ofstream dstFile(base::JoinPath(outputDir, countryId + "_isolines2.txt"));
+
+  auto saveIsoline = [&](geometry::Altitude altitude, std::vector<m2::PointD> & points)
+  {
+    dstFile << altitude << " " << points.size() << " ";
+
+    for (size_t ptInd = 0; ptInd < points.size(); ++ptInd)
+    {
+      dstFile << points[ptInd].x << " " << points[ptInd].y
+              << ((ptInd + 1 == points.size()) ? "" : " ");
+    }
+
+    dstFile << std::endl;
+  };
+
+  geometry::Altitude currentAltitude = minAltitude;
+  for (auto const & isolineList : isolines)
+  {
+    for (auto const & isoline : isolineList)
+    {
+      std::vector<m2::PointD> points;
+      points.reserve(isoline.size());
+
+      for (auto const & ptLatLon : isoline)
+      {
+        auto const pt = mercator::FromLatLon(ptLatLon);
+        if (limitRect.IsPointInside(pt) && RegionsContain(regions, pt))
+        {
+          points.push_back(pt);
+        }
+        else
+        {
+          if (points.size() >= 2)
+            saveIsoline(static_cast<int>(currentAltitude), points);
+          points.clear();
+        }
+      }
+      if (points.size() >= 2)
+        saveIsoline(static_cast<int>(currentAltitude), points);
+    }
+    currentAltitude += altitudeStep;
+  }
 }
 
 void TerrainGenerator::OnTaskFinished(threads::IRoutine * task)

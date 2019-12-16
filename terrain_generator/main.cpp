@@ -31,6 +31,8 @@ int main(int argc, char ** argv)
   //  "/Users/daravolvenkova/terrains");
 
   //generator.GenerateTracksMesh("/Users/daravolvenkova/terrains/", FLAGS_mwm_name);
+
+  /*
   generator.GenerateContours({"/Users/daravolvenkova/srtm/N45E005_10.csv",
                               "/Users/daravolvenkova/srtm/N45E006_10.csv",
                               "/Users/daravolvenkova/srtm/N45E007_10.csv",
@@ -39,5 +41,10 @@ int main(int argc, char ** argv)
                               "/Users/daravolvenkova/srtm/N46E007_10.csv"},
                                 FLAGS_mwm_name,
                                 "/Users/daravolvenkova/");
+  */
+
+  generator.GenerateIsolines(FLAGS_mwm_name,
+                             "/Users/daravolvenkova/");
+
   return 0;
 }

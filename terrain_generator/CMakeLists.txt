@@ -7,6 +7,8 @@ include_directories(
 set(
   SRC
   generator.cpp
+  marching_squares.cpp
+  marching_squares.hpp
   tracks_processor.cpp
   tracks_processor.hpp
   main.cpp
