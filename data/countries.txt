@@ -1,5 +1,5 @@
 {
- "v": 191118,
+ "v": 191216,
  "id": "Countries",
  "g": [
   {
@@ -14,12 +14,9 @@
       "Auvergne-Rh\u00f4ne-Alpes",
       "France"
      ],
-     "s": 6827399,
-     "sha1_base64": "li4t+nh8OivI0hgnojxakTaZNpQ="
+     "s": 6634247,
+     "sha1_base64": "tfaVmYTAdxIyKexrJemjogh2Neg="
     }
-   ],
-   "top_countries_geo_ids": [
-    4611686018676787266
    ]
   }
  ]

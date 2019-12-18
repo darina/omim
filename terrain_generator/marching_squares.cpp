@@ -1,5 +1,10 @@
 #include "marching_squares.hpp"
 
+geometry::Altitude BluredAltitudeExtractor::GetAltitude(ms::LatLon const & pos)
+{
+
+}
+
 IsolinesWriter::IsolinesWriter(std::vector<IsolinesList> & isolines)
 : m_isolines(isolines)
 //, m_unsolvedSegments(isolines.size())

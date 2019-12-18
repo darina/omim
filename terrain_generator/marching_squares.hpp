@@ -11,6 +11,23 @@ public:
   virtual geometry::Altitude GetAltitude(ms::LatLon const & pos) = 0;
 };
 
+class BluredAltitudeExtractor : public AltitudeExtractor
+{
+public:
+  BluredAltitudeExtractor(AltitudeExtractor & altitudeExtractor, double step, size_t kernelSize)
+    : m_altitudeExtractor(altitudeExtractor)
+    , m_step(step)
+    , m_kernelSize(kernelSize)
+  {}
+
+  geometry::Altitude GetAltitude(ms::LatLon const & pos) override;
+
+private:
+  AltitudeExtractor & m_altitudeExtractor;
+  double m_step;
+  size_t m_kernelSize;
+};
+
 class SRTMAltExtractor : public AltitudeExtractor
 {
 public:
