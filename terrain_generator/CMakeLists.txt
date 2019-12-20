@@ -6,6 +6,8 @@ include_directories(
 
 set(
   SRC
+  altitude_extractor.cpp
+  altitude_extractor.hpp
   generator.cpp
   marching_squares.cpp
   marching_squares.hpp

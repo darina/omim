@@ -1,47 +1,9 @@
 #pragma once
 
-#include "generator/srtm_parser.hpp"
+#include "altitude_extractor.hpp"
 
 #include <deque>
 #include <vector>
-
-class AltitudeExtractor
-{
-public:
-  virtual geometry::Altitude GetAltitude(ms::LatLon const & pos) = 0;
-};
-
-class BluredAltitudeExtractor : public AltitudeExtractor
-{
-public:
-  BluredAltitudeExtractor(AltitudeExtractor & altitudeExtractor, double step, size_t kernelSize)
-    : m_altitudeExtractor(altitudeExtractor)
-    , m_step(step)
-    , m_kernelSize(kernelSize)
-  {}
-
-  geometry::Altitude GetAltitude(ms::LatLon const & pos) override;
-
-private:
-  AltitudeExtractor & m_altitudeExtractor;
-  double m_step;
-  size_t m_kernelSize;
-};
-
-class SRTMAltExtractor : public AltitudeExtractor
-{
-public:
-  explicit SRTMAltExtractor(generator::SrtmTileManager & srtmManager)
-  : m_srtmManager(srtmManager) {}
-
-  geometry::Altitude GetAltitude(ms::LatLon const & pos) override
-  {
-    return m_srtmManager.GetHeight(pos);
-  }
-
-private:
-  generator::SrtmTileManager & m_srtmManager;
-};
 
 using Isoline = std::list<ms::LatLon>;
 using IsolinesList = std::list<Isoline>;
