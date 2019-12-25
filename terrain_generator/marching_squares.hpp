@@ -42,7 +42,7 @@ private:
 class Square
 {
 public:
-  Square(ms::LatLon const & leftBottom, double size, AltitudeExtractor & altExtractor);
+  Square(ms::LatLon const & leftBottom, double size, generator::AltitudeExtractor & altExtractor);
 
   void generateSegments(geometry::Altitude firstAltitude, uint16_t altStep, IsolinesWriter & writer);
 
@@ -76,7 +76,7 @@ class MarchingSquares
 {
 public:
   MarchingSquares(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
-         double step, uint16_t heightStep, AltitudeExtractor & altExtractor);
+         double step, uint16_t heightStep, generator::AltitudeExtractor & altExtractor);
 
   void GenerateIsolines(std::vector<IsolinesList> & isolines,
                         geometry::Altitude & minAltitude);
@@ -86,7 +86,7 @@ private:
   ms::LatLon const m_rightTop;
   double const m_step;
   uint16_t const m_heightStep;
-  AltitudeExtractor & m_altExtractor;
+  generator::AltitudeExtractor & m_altExtractor;
 
   size_t m_stepsCountLon;
   size_t m_stepsCountLat;

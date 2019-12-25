@@ -21,7 +21,6 @@ void IsolinesWriter::addSegment(size_t ind, ms::LatLon const & beginPos, ms::Lat
   {
     lineIterBefore->splice(lineIterBefore->end(), *lineIterAfter);
     m_isolines[ind].erase(lineIterAfter);
-    LOG(LWARNING, ("Splice for height", ind * 10, "points", lineIterBefore->size()));
     // No new points to check unsolved segments with.
     //return;
   }
@@ -123,7 +122,7 @@ uint8_t IsolinesWriter::checkUnsolvedSegment(UnsolvedSegment const & segment,
 }*/
 
 Square::Square(ms::LatLon const & leftBottom,
-               double size, AltitudeExtractor & altExtractor)
+               double size, generator::AltitudeExtractor & altExtractor)
   : m_left(leftBottom.m_lon)
   , m_right(leftBottom.m_lon + size)
   , m_bottom(leftBottom.m_lat)
@@ -306,7 +305,7 @@ ms::LatLon Square::interpolatePoint(Square::Rib rib, geometry::Altitude alt)
 }
 
 MarchingSquares::MarchingSquares(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
-                    double step, uint16_t heightStep, AltitudeExtractor & altExtractor)
+                    double step, uint16_t heightStep, generator::AltitudeExtractor & altExtractor)
                     : m_leftBottom(leftBottom)
                     , m_rightTop(rightTop)
                     , m_step(step)

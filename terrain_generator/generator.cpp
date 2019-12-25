@@ -142,8 +142,9 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
   auto const step = 1.0 / kArcSecondsInDegree;
   uint16_t const altitudeStep = 10;
 
-  SRTMAltExtractor altExtractor(m_srtmManager);
-  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, altExtractor);
+  generator::SRTMAltExtractor altExtractor(m_srtmManager);
+  generator::BluredAltitudeExtractor bluredAltExtractor(altExtractor, kArcSecondsInDegree);
+  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);
 
   std::vector<IsolinesList> isolines;
   geometry::Altitude minAltitude;
