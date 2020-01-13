@@ -1,5 +1,7 @@
 #include "marching_squares.hpp"
 
+#include "geometry/rect2d.hpp"
+
 IsolinesWriter::IsolinesWriter(std::vector<IsolinesList> & isolines)
   : m_isolines(isolines)
 //, m_unsolvedSegments(isolines.size())
@@ -12,7 +14,7 @@ void IsolinesWriter::addSegment(size_t ind, ms::LatLon const & beginPos, ms::Lat
   if (beginPos.EqualDxDy(endPos, EPS))
     return;
 
-  ASSERT(ind < m_isolines.size(), ());
+  CHECK(ind < m_isolines.size(), ());
   auto lineIterBefore = findLineEndsWith(ind, beginPos);
   auto lineIterAfter = findLineStartsWith(ind, endPos);
   bool connectStart = lineIterBefore != m_isolines[ind].end();
@@ -128,6 +130,18 @@ Square::Square(ms::LatLon const & leftBottom,
   , m_bottom(leftBottom.m_lat)
   , m_top(leftBottom.m_lat + size)
 {
+  if (leftBottom.EqualDxDy(ms::LatLon(45.8628024, 6.8869322), 1e-4))
+  {
+    LOG(LWARNING, ("Our magic rect!"));
+    int i = 0;
+    i++;
+    LOG(LWARNING, ("I:", i));
+  }
+
+  //45.863077, 6.8863286
+  //45.8630783, 6.8864105
+  //45.8632623, 6.8855211
+  //45.8612715, 6.8880459
   m_hLB = altExtractor.GetAltitude(leftBottom);
   m_hLT = altExtractor.GetAltitude(ms::LatLon(m_top, m_left));
   m_hRT = altExtractor.GetAltitude(ms::LatLon(m_top, m_right));
@@ -144,7 +158,7 @@ void Square::generateSegments(geometry::Altitude firstAltitude, uint16_t altStep
   else
     minAlt = altStep * (minAlt / altStep);
   if (maxAlt > 0)
-    maxAlt = altStep * ((maxAlt + altStep - 1) / altStep);
+    maxAlt = altStep * ((maxAlt + altStep) / altStep);
   else
     maxAlt = altStep * (maxAlt / altStep);
 
@@ -189,20 +203,29 @@ void Square::writeSegments(geometry::Altitude alt, uint16_t ind, IsolinesWriter 
       uint8_t pRB : 1;
     };
     uint8_t value;
-  } pattern;
+  } pattern, pattern2;
   pattern.value = 0;
   pattern.pLB = m_hLB > alt;
   pattern.pLT = m_hLT > alt;
   pattern.pRT = m_hRT > alt;
   pattern.pRB = m_hRB > alt;
 
+  pattern2.pLB = m_hLB < alt;
+  pattern2.pLT = m_hLT < alt;
+  pattern2.pRT = m_hRT < alt;
+  pattern2.pRB = m_hRB < alt;
+
   //uint8_t pt = (m_hLB > alt ? 1u : 0u) | ((m_hLT > alt ? 1u : 0u) << 1)
   //  | ((m_hRT > alt ? 1u : 0u) << 2) | ((m_hRB > alt ? 1u : 0u) << 3);
 
   auto ribs = intersectedRibs[pattern.value];
+  auto ribs2 = intersectedRibs[pattern2.value];
 
-  if (ribs.first == NONE)
+  if (ribs.first == NONE || (ribs.first == UNCLEAR && ribs2.first == NONE))
     return;
+
+  if (ribs.first == UNCLEAR && ribs2.first != UNCLEAR)
+    ribs = intersectedRibs[~pattern2.value & 0xF];
 
   if (ribs.first != UNCLEAR)
   {
@@ -343,7 +366,7 @@ void MarchingSquares::GenerateIsolines(
   else
     minHeight = m_heightStep * (minHeight / m_heightStep);
   if (maxHeight > 0)
-    maxHeight = m_heightStep * ((maxHeight + m_heightStep - 1) / m_heightStep);
+    maxHeight = m_heightStep * ((maxHeight + m_heightStep) / m_heightStep);
   else
     maxHeight = m_heightStep * (maxHeight / m_heightStep);
 
@@ -354,15 +377,25 @@ void MarchingSquares::GenerateIsolines(
   IsolinesWriter writer(isolines);
 
   auto const startPos = ms::LatLon(
-    m_leftBottom.m_lat - m_step,
-    m_leftBottom.m_lon - m_step);
-  for (size_t i = 0; i < m_stepsCountLat + 1; ++i)
+    m_leftBottom.m_lat,
+    m_leftBottom.m_lon);
+  for (size_t i = 0; i < m_stepsCountLat; ++i)
   {
-    for (size_t j = 0; j < m_stepsCountLon + 1; ++j)
+    for (size_t j = 0; j < m_stepsCountLon; ++j)
     {
       auto const pos = ms::LatLon(startPos.m_lat + m_step * i, startPos.m_lon + m_step * j);
       Square square(pos, m_step, m_altExtractor);
       square.generateSegments(minHeight, m_heightStep, writer);
+
+      static m2::RectD limitRect(m2::PointD(45.88, 6.90), m2::PointD(45.90, 6.95));
+      if (limitRect.IsPointInside(m2::PointD(pos.m_lat, pos.m_lon)) && (i & 1) && (j & 1))
+      {
+        //LOG(LWARNING, ("!!!", i, j));
+        writer.addSegment(0, ms::LatLon(square.m_bottom, square.m_left), ms::LatLon(square.m_top, square.m_left));
+        writer.addSegment(0, ms::LatLon(square.m_top, square.m_left), ms::LatLon(square.m_top, square.m_right));
+        writer.addSegment(0, ms::LatLon(square.m_top, square.m_right), ms::LatLon(square.m_bottom, square.m_right));
+        writer.addSegment(0, ms::LatLon(square.m_bottom, square.m_right), ms::LatLon(square.m_bottom, square.m_left));
+      }
     }
   }
 }

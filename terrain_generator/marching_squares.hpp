@@ -12,7 +12,7 @@ using IsolineIter = IsolinesList::iterator;
 class IsolinesWriter
 {
 public:
-  double static constexpr EPS = 1e-5;
+  double static constexpr EPS = 1e-7;
 
   explicit IsolinesWriter(std::vector<IsolinesList> & isolines);
 
@@ -46,7 +46,8 @@ public:
 
   void generateSegments(geometry::Altitude firstAltitude, uint16_t altStep, IsolinesWriter & writer);
 
-private:
+//private:
+public:
 
   enum Rib
   {

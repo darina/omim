@@ -144,7 +144,7 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
 
   generator::SRTMAltExtractor altExtractor(m_srtmManager);
   generator::BluredAltitudeExtractor bluredAltExtractor(altExtractor, kArcSecondsInDegree);
-  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);
+  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, altExtractor);//bluredAltExtractor);
 
   std::vector<IsolinesList> isolines;
   geometry::Altitude minAltitude;
@@ -158,6 +158,8 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
                                      countryRect, regions);
 
   std::ofstream dstFile(base::JoinPath(outputDir, countryId + "_isolines2.txt"));
+
+  dstFile << fixed << setprecision(10);
 
   auto saveIsoline = [&](geometry::Altitude altitude, std::vector<m2::PointD> & points)
   {

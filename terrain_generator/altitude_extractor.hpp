@@ -13,15 +13,25 @@ public:
 class FilteredTile
 {
 public:
-  FilteredTile(AltitudeExtractor & altitudeExtractor, size_t stepsInDegree,
-               std::vector<double> const & kernel)
+  FilteredTile(AltitudeExtractor & altitudeExtractor, size_t stepsInDegree, size_t medianKernelSize,
+               std::vector<double> const & kernel, bool linearKernel)
     : m_altitudeExtractor(altitudeExtractor)
     , m_stepsInDegree(stepsInDegree)
     , m_kernel(kernel)
+    , m_linearKernel(linearKernel)
+    , m_medianKernelRadius(medianKernelSize)
   {
-    m_kernelSize = static_cast<size_t>(sqrt(m_kernel.size()));
-    CHECK_EQUAL(m_kernelSize * m_kernelSize, m_kernel.size(), ());
+    if (m_linearKernel)
+    {
+      m_kernelSize = m_kernel.size();
+    }
+    else
+    {
+      m_kernelSize = static_cast<size_t>(sqrt(m_kernel.size()));
+      CHECK_EQUAL(m_kernelSize * m_kernelSize, m_kernel.size(), ());
+    }
   }
+
   FilteredTile(FilteredTile && rhs) = default;
 
   void Init(std::string const & dir, ms::LatLon const & coord);
@@ -32,10 +42,22 @@ public:
 
   static std::string GetBase(ms::LatLon const & coord);
 private:
+  void ProcessMedian(size_t stepsCount, std::vector<geometry::Altitude> const & origAltitudes,
+                     std::vector<geometry::Altitude> & dstAltitudes);
+  void ProcessWithLinearKernel(size_t stepsCount,
+                               std::vector<geometry::Altitude> const & originalAltitudes,
+                               std::vector<geometry::Altitude> & dstAltitudes);
+  void ProcessWithSquareKernel(size_t stepsCount,
+                               std::vector<geometry::Altitude> const & originalAltitudes,
+                               std::vector<geometry::Altitude> & dstAltitudes);
+  void Finalize(size_t stepsCount, std::vector<geometry::Altitude> & originalAltitudes);
+
   AltitudeExtractor & m_altitudeExtractor;
   size_t m_stepsInDegree;
   std::vector<double> const & m_kernel;
+  bool m_linearKernel;
   size_t m_kernelSize;
+  size_t m_medianKernelRadius;
   std::vector<geometry::Altitude> m_altitudes;
   bool m_valid = false;
 

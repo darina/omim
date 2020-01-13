@@ -558,6 +558,14 @@ void RuleDrawer::DrawTestContours()
   TileKey key = m_context->GetTileKey();
 
   m2::RectD r = key.GetGlobalRect();
+
+  std::vector<m2::PointD> path;
+  path.reserve(4);
+  path.push_back(r.LeftBottom());
+  path.push_back(r.LeftTop());
+  path.push_back(r.RightTop());
+  path.push_back(r.RightBottom());
+  /*
   double s = mercator::AreaOnEarth(r);
   double const kPointsFactor17 = 0.00286462;
   double const kPointsFactor14 = 0.000109096;
@@ -593,7 +601,7 @@ void RuleDrawer::DrawTestContours()
     m2::PointD pt = r.Center() + v;
     path.push_back(pt);
   }
-
+  */
   m2::SharedSpline spline(path);
   df::LineViewParams p;
   p.m_tileCenter = m_globalRect.Center();

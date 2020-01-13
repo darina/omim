@@ -904,7 +904,7 @@ void ApplyLineFeatureGeometry::operator() (m2::PointD const & point)
       if (m_smooth && point.EqualDxDy(m_spline->GetPath().back(), 1e-4))
       {
         //LOG(LWARNING, ("???", point, m_spline->GetPath().back()));
-        return;
+        //return;
       }
       m_spline->AddPoint(point);
       m_lastAddedPoint = point;
@@ -912,27 +912,118 @@ void ApplyLineFeatureGeometry::operator() (m2::PointD const & point)
   }
 }
 
+void ApplyLineFeatureGeometry::SmoothUniform(m2::PointD const & pt0,
+                                             m2::PointD const & pt1,
+                                             m2::PointD const & pt2,
+                                             m2::PointD const & pt3,
+                                             size_t pointsCount,
+                                             std::vector<m2::PointD> & spline)
+{
+  for (size_t i = 1; i < pointsCount; ++i)
+  {
+    double const t = static_cast<double>(i) / pointsCount;
+    double const t2 = t * t;
+    double const t3 = t2 * t;
+
+    double const k0 = -t + 2 * t2 - t3;
+    double const k1 = 2 - 5 * t2 + 3 * t3;
+    double const k2 = t + 4 * t2 - 3 * t3;
+    double const k3 = t3 - t2;
+
+    //m2::PointD pt = (pt1 * 2.0 + (pt2 - pt0) * t +
+    //  (pt0 * 2.0 - pt1 * 5.0 + pt2 * 4.0 - pt3) * t2 +
+    //  (pt1 * 3.0 - pt2 * 3.0 + pt3 - pt0) * t3) * 0.5;
+
+    m2::PointD pt = (pt0 * k0 + pt1 * k1 + pt2 * k2 + pt3 * k3) * 0.5;
+
+    //if (spline.back().EqualDxDy(pt, 1e-5))
+    //  continue;
+    spline.push_back(pt);
+  }
+}
+
+void ApplyLineFeatureGeometry::SmoothGeneric(m2::PointD const & pt0,
+  m2::PointD const & pt1, m2::PointD const & pt2, m2::PointD const & pt3,
+  double alpha, size_t pointsCount, std::vector<m2::PointD> & spline)
+{
+  auto const calcNextT = [alpha](double prevT, m2::PointD const & prevP, m2::PointD const & nextP)
+  {
+    auto const dx = nextP.x - prevP.x;
+    auto const dy = nextP.y - prevP.y;
+    return pow(dx * dx + dy * dy, alpha * 0.5) + prevT;
+  };
+
+  double const t0 = 0.0;
+  double const t1 = calcNextT(t0, pt0, pt1);
+  double const t2 = calcNextT(t1, pt1, pt2);
+  double const t3 = calcNextT(t2, pt2, pt3);
+
+  size_t partsCount = pointsCount + 1;
+  for (size_t i = 1; i < partsCount; ++i)
+  {
+    double const t = t1 + (t2 - t1) * i / partsCount;
+
+    auto const a1 = pt0 * (t1 - t) / (t1 - t0) + pt1 * (t - t0) / (t1 - t0);
+    auto const a2 = pt1 * (t2 - t) / (t2 - t1) + pt2 * (t - t1) / (t2 - t1);
+    auto const a3 = pt2 * (t3 - t) / (t3 - t2) + pt3 * (t - t2) / (t3 - t2);
+
+    auto const b1 = a1 * (t2 - t) / (t2 - t0) + a2 * (t - t0) / (t2 - t0);
+    auto const b2 = a2 * (t3 - t) / (t3 - t1) + a3 * (t - t1) / (t3 - t1);
+
+    auto const pt = b1 * (t2 - t) / (t2 - t1) + b2 * (t - t1) / (t2 - t1);
+    if (!spline.back().EqualDxDy(pt, 1e-5))
+      spline.push_back(pt);
+  }
+}
+
 void ApplyLineFeatureGeometry::Smooth()
 {
+  /*
   for (auto & clippedSpline : m_clippedSplines)
   {
-    std::vector<m2::PointD> const & spline = clippedSpline->GetPath();
+    std::vector<m2::PointD> spline = clippedSpline->GetPath();
+    spline.erase(spline.begin());
+    spline.pop_back();
+    if (spline.size() > 1)
+      clippedSpline.Reset(spline);
+  }
+  return;
+  */
+  for (auto & clippedSpline : m_clippedSplines)
+  {
+    std::vector<m2::PointD> const & origSpline = clippedSpline->GetPath();
+    std::vector<m2::PointD> spline;
+    spline.reserve(origSpline.size());
+    double baseX = origSpline.front().x;
+    double baseY = origSpline.front().y;
+    for (size_t i = 0; i < origSpline.size(); ++i)
+    {
+      //if (spline.empty() || !spline.back().EqualDxDy(origSpline[i], 1e-5))
+      //  spline.emplace_back((origSpline[i].x - baseX) * 1000.0, (origSpline[i].y - baseY) * 1000.0);
+      spline.push_back(origSpline[i]);
+        //LOG(LWARNING, ("!!!", i, mercator::ToLatLon(spline[i]), mercator::ToLatLon(spline[i + 1])));
+    }
+
     std::vector<m2::PointD> smoothedSpline;
     if (spline.size() < 3)
     {
       LOG(LWARNING, ("###########"));
       continue;
     }
-    m2::PointD ptStart = spline[0] * 2.0 - spline[1];
-    m2::PointD ptEnd = spline[spline.size() - 1] * 2.0 - spline[spline.size() - 2];
 
-    static double avgSegmentLength = pow(10 * df::VisualParams::Instance().GetVisualScale(), 2);
-
-    for (size_t i = 0; i + 1 < spline.size(); ++i)
+    m2::PointD ptStart;
+    m2::PointD ptEnd;
+    if (spline.front().EqualDxDy(spline.back(), 1e-5))
     {
-      if (spline[i].EqualDxDy(spline[i + 1], 1e-5))
-        LOG(LWARNING, ("!!!", i, spline[i], spline[i + 1]));
+      ptStart = spline[spline.size() - 2];
+      ptEnd = spline[1];
     }
+    else
+    {
+      ptStart = spline[0] + (spline[0] - spline[1]) * 2.0;
+      ptEnd = spline[spline.size() - 1] + (spline[spline.size() - 1] - spline[spline.size() - 2]) * 2.0;
+    }
+    static double avgSegmentLength = pow(10 * df::VisualParams::Instance().GetVisualScale(), 2);
 
     smoothedSpline.push_back(spline.front());
     for (size_t i = 0; i + 1 < spline.size(); ++i)
@@ -948,32 +1039,24 @@ void ApplyLineFeatureGeometry::Smooth()
       if (smoothedSpline.back().EqualDxDy(pt2, 1e-5))
         continue;
 
-      for (size_t iEx = 1; iEx < extrapolatedPointsCount; ++iEx)
-      {
-        double const t = static_cast<double>(iEx) / extrapolatedPointsCount;
-        double const t2 = t * t;
-        double const t3 = t2 * t;
+      //SmoothUniform(pt0, pt1, pt2, pt3, extrapolatedPointsCount, smoothedSpline);
+      SmoothGeneric(pt0, pt1, pt2, pt3, 0.5, extrapolatedPointsCount, smoothedSpline);
 
-        double const k0 = -t + 2 * t2 - t3;
-        double const k1 = 2 - 5 * t2 + 3 * t3;
-        double const k2 = t + 4 * t2 - 3 * t3;
-        double const k3 = t3 - t2;
-
-        //m2::PointD pt = (pt1 * 2.0 + (pt2 - pt0) * t +
-        //  (pt0 * 2.0 - pt1 * 5.0 + pt2 * 4.0 - pt3) * t2 +
-        //  (pt1 * 3.0 - pt2 * 3.0 + pt3 - pt0) * t3) * 0.5;
-
-        m2::PointD pt = (pt0 * k0 + pt1 * k1 + pt2 * k2 + pt3 * k3) * 0.5;
-
-        if (smoothedSpline.back().EqualDxDy(pt, 1e-5))
-          continue;
-        smoothedSpline.push_back(pt);
-      }
-      smoothedSpline.push_back(pt2);
+      if (smoothedSpline.back().EqualDxDy(pt2, 1e-5))
+        smoothedSpline.back() = pt2;
+      else
+        smoothedSpline.push_back(pt2);
     }
 
     if (smoothedSpline.size() > 2)
+    {
+      /*for (auto & pt : smoothedSpline)
+      {
+        pt.x = pt.x / 1000.0 + baseX;
+        pt.y = pt.y / 1000.0 + baseY;
+      }*/
       clippedSpline.Reset(smoothedSpline);
+    }
   }
 }
 

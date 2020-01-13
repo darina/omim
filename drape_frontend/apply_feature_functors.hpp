@@ -185,6 +185,13 @@ public:
 private:
   void Smooth();
 
+  void SmoothUniform(m2::PointD const & pt0, m2::PointD const & pt1, m2::PointD const & pt2,
+    m2::PointD const & pt3, size_t pointsCount, std::vector<m2::PointD> & spline);
+
+  void SmoothGeneric(m2::PointD const & pt0, m2::PointD const & pt1,
+    m2::PointD const & pt2, m2::PointD const & pt3,
+    double alpha, size_t pointsCount, std::vector<m2::PointD> & spline);
+
   m2::SharedSpline m_spline;
   std::vector<m2::SharedSpline> m_clippedSplines;
   float m_currentScaleGtoP;
