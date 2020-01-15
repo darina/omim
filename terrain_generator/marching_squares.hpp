@@ -7,36 +7,38 @@
 
 using Isoline = std::list<ms::LatLon>;
 using IsolinesList = std::list<Isoline>;
-using IsolineIter = IsolinesList::iterator;
+
+struct ActiveIsoline
+{
+  ActiveIsoline(Isoline && isoline) : m_isoline(std::move(isoline)) {}
+
+  Isoline m_isoline;
+  bool m_active = true;
+};
+using ActiveIsolinesList = std::list<ActiveIsoline>;
+using ActiveIsolineIter = ActiveIsolinesList::iterator;
 
 class IsolinesWriter
 {
 public:
   double static constexpr EPS = 1e-7;
 
-  explicit IsolinesWriter(std::vector<IsolinesList> & isolines);
+  explicit IsolinesWriter(size_t isolineLevelsCount);
 
-  void addSegment(size_t ind, ms::LatLon const & beginPos, ms::LatLon const & endPos);
-  /*void addUnsolvedSegments(size_t ind,
-                           ms::LatLon const & start1,
-                           ms::LatLon const & end1,
-                           ms::LatLon const & start2,
-                           ms::LatLon const & end2);*/
+  void addSegment(size_t levelInd, ms::LatLon const & beginPos, ms::LatLon const & endPos);
+  void beginLine();
+  void endLine(bool finalLine);
 
-  std::vector<IsolinesList> & getIsolines() const { return m_isolines; }
+  void getIsolines(std::vector<IsolinesList> & isolines);
 
 private:
-  using UnsolvedSegment = ms::LatLon[4];
-  using UnsolvedList = std::list<UnsolvedSegment>;
+  ActiveIsolineIter findLineStartsWith(size_t levelInd, ms::LatLon const & pos);
+  ActiveIsolineIter findLineEndsWith(size_t levelInd, ms::LatLon const & pos);
 
-  IsolineIter findLineStartsWith(size_t ind, ms::LatLon const & pos);
-  IsolineIter findLineEndsWith(size_t ind, ms::LatLon const & pos);
+  size_t const m_isolineLevelsCount;
 
-  std::vector<IsolinesList> & m_isolines;
-
-  /*void resolveSegments(size_t ind, Isoline & line, bool start, bool end);
-  uint8_t checkUnsolvedSegment(UnsolvedSegment const & segment, ms::LatLon const & pos);
-  std::vector<UnsolvedList> m_unsolvedSegments;*/
+  std::vector<IsolinesList> m_finalizedIsolines;
+  std::vector<ActiveIsolinesList> m_activeIsolines;
 };
 
 class Square

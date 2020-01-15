@@ -2,126 +2,104 @@
 
 #include "geometry/rect2d.hpp"
 
-IsolinesWriter::IsolinesWriter(std::vector<IsolinesList> & isolines)
-  : m_isolines(isolines)
-//, m_unsolvedSegments(isolines.size())
+IsolinesWriter::IsolinesWriter(size_t isolineLevelsCount)
+  : m_isolineLevelsCount(isolineLevelsCount)
 {
-
+  m_finalizedIsolines.resize(m_isolineLevelsCount);
+  m_activeIsolines.resize(m_isolineLevelsCount);
 }
 
-void IsolinesWriter::addSegment(size_t ind, ms::LatLon const & beginPos, ms::LatLon const & endPos)
+void IsolinesWriter::addSegment(size_t levelInd, ms::LatLon const & beginPos, ms::LatLon const & endPos)
 {
   if (beginPos.EqualDxDy(endPos, EPS))
     return;
 
-  CHECK(ind < m_isolines.size(), ());
-  auto lineIterBefore = findLineEndsWith(ind, beginPos);
-  auto lineIterAfter = findLineStartsWith(ind, endPos);
-  bool connectStart = lineIterBefore != m_isolines[ind].end();
-  bool connectEnd = lineIterAfter != m_isolines[ind].end();
+  CHECK_LESS(levelInd, m_isolineLevelsCount, ());
+
+  auto lineIterBefore = findLineEndsWith(levelInd, beginPos);
+  auto lineIterAfter = findLineStartsWith(levelInd, endPos);
+  bool connectStart = lineIterBefore != m_activeIsolines[levelInd].end();
+  bool connectEnd = lineIterAfter != m_activeIsolines[levelInd].end();
+
   if (connectStart && connectEnd && lineIterBefore != lineIterAfter)
   {
-    lineIterBefore->splice(lineIterBefore->end(), *lineIterAfter);
-    m_isolines[ind].erase(lineIterAfter);
-    // No new points to check unsolved segments with.
-    //return;
+    lineIterBefore->m_isoline.splice(lineIterBefore->m_isoline.end(), lineIterAfter->m_isoline);
+    lineIterBefore->m_active = true;
+    m_activeIsolines[levelInd].erase(lineIterAfter);
   }
   else if (connectStart)
   {
-    lineIterBefore->push_back(endPos);
-    //resolveSegments(ind, *lineIterBefore, false, true);
+    lineIterBefore->m_isoline.push_back(endPos);
+    lineIterBefore->m_active = true;
   }
   else if (connectEnd)
   {
-    lineIterAfter->push_front(beginPos);
-    //resolveSegments(ind, *lineIterAfter, true, false);
+    lineIterAfter->m_isoline.push_front(beginPos);
+    lineIterBefore->m_active = true;
   }
   else
   {
     Isoline line = { beginPos, endPos };
-    m_isolines[ind].push_back(std::move(line));
-    //resolveSegments(ind, m_isolines[ind].back(), true, true);
+    m_activeIsolines[levelInd].emplace_back(std::move(line));
   }
 }
 
-IsolineIter IsolinesWriter::findLineStartsWith(size_t ind, ms::LatLon const & pos)
+void IsolinesWriter::beginLine()
 {
-  auto & lines = m_isolines[ind];
-  for (auto it = lines.begin(); it != lines.end(); ++it)
+  for (auto & isolinesList : m_activeIsolines)
   {
-    if (it->front().EqualDxDy(pos, EPS))
-      return it;
+    for (auto & activeIsoline : isolinesList)
+      activeIsoline.m_active = false;
   }
-  return lines.end();
 }
 
-IsolineIter IsolinesWriter::findLineEndsWith(size_t ind, ms::LatLon const & pos)
+void IsolinesWriter::endLine(bool finalLine)
 {
-  auto & lines = m_isolines[ind];
-  for (auto it = lines.begin(); it != lines.end(); ++it)
+  for (size_t levelInd = 0; levelInd < m_activeIsolines.size(); ++levelInd)
   {
-    if (it->back().EqualDxDy(pos, EPS))
-      return it;
-  }
-  return lines.end();
-}
-
-/*void IsolinesWriter::addUnsolvedSegments(size_t ind,
-                                         ms::LatLon const & start1,
-                                         ms::LatLon const & end1,
-                                         ms::LatLon const & start2,
-                                         ms::LatLon const & end2)
-{
-  ASSERT(ind < m_unsolvedSegments.size(), ());
-  UnsolvedSegment unsolved = {start1, end1, start2, end2};
-  m_unsolvedSegments[ind].push_back(std::move(unsolved));
-}*/
-
-/*void IsolinesWriter::resolveSegments(size_t ind, Isoline & line, bool start, bool end)
-{
-  auto & list = m_unsolvedSegments[ind];
-  bool found = false;
-  do
-  {
-    for (auto it = list.begin(); it != list.end(); ++it)
+    auto & isolines = m_activeIsolines[levelInd];
+    auto it = isolines.begin();
+    while (it != isolines.end())
     {
-      if (start)
+      if (!it->m_active || finalLine)
       {
-        uint8_t ptInd = checkUnsolvedSegment(*it, line.front());
-        if (ptInd != 4)
-        {
-         found = true;
-          // TODO: resolve
-         list.erase(it);
-         break;
-        }
+        m_finalizedIsolines[levelInd].push_back(std::move(it->m_isoline));
+        it = isolines.erase(it);
       }
-      if (end)
+      else
       {
-        uint8_t ptInd = checkUnsolvedSegment(*it, line.back());
-        if (ptInd != 4)
-        {
-          found = true;
-          // TODO: resolve
-          list.erase(it);
-          break;
-        }
+        ++it;
       }
     }
-  } while (found);
+  }
 }
 
-uint8_t IsolinesWriter::checkUnsolvedSegment(UnsolvedSegment const & segment,
-                                          ms::LatLon const & pos)
+void IsolinesWriter::getIsolines(std::vector<IsolinesList> & isolines)
 {
-  uint8_t pointInd;
-  for (pointInd = 0; pointInd < 4; ++pointInd)
+  m_finalizedIsolines.swap(isolines);
+}
+
+ActiveIsolineIter IsolinesWriter::findLineStartsWith(size_t levelInd, ms::LatLon const & pos)
+{
+  auto & isolines = m_activeIsolines[levelInd];
+  for (auto it = isolines.begin(); it != isolines.end(); ++it)
   {
-    if (pos.EqualDxDy(segment[pointInd], EPS))
-      break;
+    if (it->m_isoline.front().EqualDxDy(pos, EPS))
+      return it;
   }
-  return pointInd;
-}*/
+  return isolines.end();
+}
+
+ActiveIsolineIter IsolinesWriter::findLineEndsWith(size_t levelInd, ms::LatLon const & pos)
+{
+  auto & isolines = m_activeIsolines[levelInd];
+  for (auto it = isolines.begin(); it != isolines.end(); ++it)
+  {
+    if (it->m_isoline.back().EqualDxDy(pos, EPS))
+      return it;
+  }
+  return isolines.end();
+}
 
 Square::Square(ms::LatLon const & leftBottom,
                double size, generator::AltitudeExtractor & altExtractor)
@@ -150,6 +128,15 @@ Square::Square(ms::LatLon const & leftBottom,
 
 void Square::generateSegments(geometry::Altitude firstAltitude, uint16_t altStep, IsolinesWriter & writer)
 {
+  if (m_hLB % altStep == 0)
+    m_hLB += 1;
+  if (m_hLT % altStep == 0)
+    m_hLT += 1;
+  if (m_hRT % altStep == 0)
+    m_hRT += 1;
+  if (m_hRB % altStep == 0)
+    m_hRB += 1;
+
   geometry::Altitude minAlt = std::min(m_hLB, std::min(m_hLT, std::min(m_hRT, m_hRB)));
   geometry::Altitude maxAlt = std::max(m_hLB, std::max(m_hLT, std::max(m_hRT, m_hRB)));
 
@@ -162,7 +149,7 @@ void Square::generateSegments(geometry::Altitude firstAltitude, uint16_t altStep
   else
     maxAlt = altStep * (maxAlt / altStep);
 
-  ASSERT(minAlt >= firstAltitude, ());
+  CHECK_GREATER_OR_EQUAL(minAlt, firstAltitude, ());
 
   for (auto alt = minAlt; alt < maxAlt; alt += altStep)
   {
@@ -266,10 +253,6 @@ void Square::writeSegments(geometry::Altitude alt, uint16_t ind, IsolinesWriter 
         writer.addSegment(ind, bottomPos, rightPos);
       }
     }
-    /*if (m_hLB > alt)
-      writer.addUnsolvedSegments(ind, leftPos, topPos, rightPos, bottomPos);
-    else
-      writer.addUnsolvedSegments(ind, topPos, leftPos, bottomPos, rightPos);*/
   }
 }
 
@@ -329,12 +312,12 @@ ms::LatLon Square::interpolatePoint(Square::Rib rib, geometry::Altitude alt)
 }
 
 MarchingSquares::MarchingSquares(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
-                    double step, uint16_t heightStep, generator::AltitudeExtractor & altExtractor)
-                    : m_leftBottom(leftBottom)
-                    , m_rightTop(rightTop)
-                    , m_step(step)
-                    , m_heightStep(heightStep)
-                    , m_altExtractor(altExtractor)
+  double step, uint16_t heightStep, generator::AltitudeExtractor & altExtractor)
+  : m_leftBottom(leftBottom)
+  , m_rightTop(rightTop)
+  , m_step(step)
+  , m_heightStep(heightStep)
+  , m_altExtractor(altExtractor)
 {
   ASSERT(m_rightTop.m_lon > m_leftBottom.m_lon, ());
   ASSERT(m_rightTop.m_lat > m_leftBottom.m_lat, ());
@@ -374,14 +357,12 @@ void MarchingSquares::GenerateIsolines(
   ASSERT(maxHeight >= minHeight, ());
   uint16_t const isolinesCount = static_cast<uint16_t>(maxHeight - minHeight) / m_heightStep;
   minAltitude = minHeight;
-  isolines.resize(isolinesCount);
-  IsolinesWriter writer(isolines);
+  IsolinesWriter writer(isolinesCount);
 
-  auto const startPos = ms::LatLon(
-    m_leftBottom.m_lat,
-    m_leftBottom.m_lon);
+  auto const startPos = ms::LatLon(m_leftBottom.m_lat, m_leftBottom.m_lon);
   for (size_t i = 0; i < m_stepsCountLat - 1; ++i)
   {
+    writer.beginLine();
     for (size_t j = 0; j < m_stepsCountLon - 1; ++j)
     {
       auto const pos = ms::LatLon(startPos.m_lat + m_step * i, startPos.m_lon + m_step * j);
@@ -399,5 +380,9 @@ void MarchingSquares::GenerateIsolines(
         writer.addSegment(0, ms::LatLon(square.m_bottom, square.m_right), ms::LatLon(square.m_bottom, square.m_left));
       }
     }
+    auto const isLastLine = i == m_stepsCountLat - 2;
+    writer.endLine(isLastLine);
   }
+
+  writer.getIsolines(isolines);
 }
