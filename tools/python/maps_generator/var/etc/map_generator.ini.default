@@ -24,7 +24,8 @@ OSM_TOOLS_PATH: ~/osmctools
 
 
 [External]
-PLANET_URL: file:////Users/daravolvenkova/Downloads/montblanc.pbf
+PLANET_URL: file:////Users/daravolvenkova/Downloads/France_Rhone-Alpes_Haute-Savoie_small.pbf
+#PLANET_URL: file:////Users/daravolvenkova/Downloads/montblanc.pbf
 # PLANET_MD5_URL:
 PLANET_COASTS_URL:http://generator.testdata.mapsme.cloud.devmail.ru/coasts/
 SUBWAY_URL: http://generator.testdata.mapsme.cloud.devmail.ru/subway/latest.json

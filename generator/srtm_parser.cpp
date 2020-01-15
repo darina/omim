@@ -51,7 +51,11 @@ void SrtmTile::Init(std::string const & dir, ms::LatLon const & coord)
   Invalidate();
 
   std::string const base = GetBase(coord);
-  std::string const cont = dir + base + ".SRTMGL1.hgt.zip";
+  std::string  cont;
+  if (coord.m_lat >= 60.0)
+    cont = "/Users/daravolvenkova/Downloads/aster_rectangle/" + base + ".SRTMGL1.hgt.zip";
+  else
+    cont = dir + base + ".SRTMGL1.hgt.zip";
   std::string file = base + ".hgt";
 
   UnzipMemDelegate delegate(m_data);
@@ -97,8 +101,8 @@ geometry::Altitude SrtmTile::GetHeight(ms::LatLon const & coord)
     lt += 1;
   lt = 1 - lt;  // from North to South
 
-  size_t const row = kArcSecondsInDegree * lt;
-  size_t const col = kArcSecondsInDegree * ln;
+  size_t const row = kArcSecondsInDegree * lt + 0.5;
+  size_t const col = kArcSecondsInDegree * ln + 0.5;
 
   size_t const ix = row * (kArcSecondsInDegree + 1) + col;
 

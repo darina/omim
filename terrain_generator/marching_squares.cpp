@@ -130,7 +130,7 @@ Square::Square(ms::LatLon const & leftBottom,
   , m_bottom(leftBottom.m_lat)
   , m_top(leftBottom.m_lat + size)
 {
-  if (leftBottom.EqualDxDy(ms::LatLon(45.8628024, 6.8869322), 1e-4))
+  if (leftBottom.EqualDxDy(ms::LatLon(59.9511041, 56.9386135), 1e-4))
   {
     LOG(LWARNING, ("Our magic rect!"));
     int i = 0;
@@ -210,6 +210,7 @@ void Square::writeSegments(geometry::Altitude alt, uint16_t ind, IsolinesWriter 
   pattern.pRT = m_hRT > alt;
   pattern.pRB = m_hRB > alt;
 
+  pattern2.value = 0;
   pattern2.pLB = m_hLB < alt;
   pattern2.pLT = m_hLT < alt;
   pattern2.pRT = m_hRT < alt;
@@ -379,16 +380,17 @@ void MarchingSquares::GenerateIsolines(
   auto const startPos = ms::LatLon(
     m_leftBottom.m_lat,
     m_leftBottom.m_lon);
-  for (size_t i = 0; i < m_stepsCountLat; ++i)
+  for (size_t i = 0; i < m_stepsCountLat - 1; ++i)
   {
-    for (size_t j = 0; j < m_stepsCountLon; ++j)
+    for (size_t j = 0; j < m_stepsCountLon - 1; ++j)
     {
       auto const pos = ms::LatLon(startPos.m_lat + m_step * i, startPos.m_lon + m_step * j);
       Square square(pos, m_step, m_altExtractor);
       square.generateSegments(minHeight, m_heightStep, writer);
 
-      static m2::RectD limitRect(m2::PointD(45.88, 6.90), m2::PointD(45.90, 6.95));
-      if (limitRect.IsPointInside(m2::PointD(pos.m_lat, pos.m_lon)) && (i & 1) && (j & 1))
+      //59.9479036, 56.9451127
+      static m2::RectD limitRect(m2::PointD(59.92, 56.92), m2::PointD(59.96, 56.96));
+      if (false)//limitRect.IsPointInside(m2::PointD(pos.m_lat, pos.m_lon)) && (i & 1) && (j & 1))
       {
         //LOG(LWARNING, ("!!!", i, j));
         writer.addSegment(0, ms::LatLon(square.m_bottom, square.m_left), ms::LatLon(square.m_top, square.m_left));

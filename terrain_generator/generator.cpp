@@ -137,8 +137,11 @@ void TerrainGenerator::GenerateContours(std::vector<std::string> const & csvPath
 void TerrainGenerator::GenerateIsolines(std::string const & countryId,
                                         std::string const & outputDir)
 {
-  auto const leftBottom = ms::LatLon(45.7656, 6.7236);
-  auto const rightTop = ms::LatLon(46.0199, 7.0444);
+  //France_Rhone-Alpes_Haute-Savoie small
+  //auto const leftBottom = ms::LatLon(45.7656, 6.7236);
+  //auto const rightTop = ms::LatLon(46.0199, 7.0444);
+  auto const leftBottom = ms::LatLon(58.5, 56.5);
+  auto const rightTop = ms::LatLon(61.5, 57.5);
   auto const step = 1.0 / kArcSecondsInDegree;
   uint16_t const altitudeStep = 10;
 
@@ -153,9 +156,9 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
   m2::RectD limitRect = m2::RectD(mercator::FromLatLon(leftBottom),
                                   mercator::FromLatLon(rightTop));
   m2::RectD countryRect;
-  std::vector<m2::RegionD> regions;
-  TracksProcessor::GetCountryRegions(countryId, m_infoReader,
-                                     countryRect, regions);
+  //std::vector<m2::RegionD> regions;
+  //TracksProcessor::GetCountryRegions(countryId, m_infoReader,
+  //                                   countryRect, regions);
 
   std::ofstream dstFile(base::JoinPath(outputDir, countryId + "_isolines2.txt"));
 
@@ -185,7 +188,7 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
       for (auto const & ptLatLon : isoline)
       {
         auto const pt = mercator::FromLatLon(ptLatLon);
-        if (limitRect.IsPointInside(pt) && RegionsContain(regions, pt))
+        if (limitRect.IsPointInside(pt))// && RegionsContain(regions, pt))
         {
           points.push_back(pt);
         }
