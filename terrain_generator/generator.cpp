@@ -140,14 +140,14 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
   //France_Rhone-Alpes_Haute-Savoie small
   //auto const leftBottom = ms::LatLon(45.7656, 6.7236);
   //auto const rightTop = ms::LatLon(46.0199, 7.0444);
-  auto const leftBottom = ms::LatLon(58.5, 56.5);
-  auto const rightTop = ms::LatLon(61.5, 57.5);
+  auto const leftBottom = ms::LatLon(59.9, 56.55);
+  auto const rightTop = ms::LatLon(60.2, 56.75);
   auto const step = 1.0 / kArcSecondsInDegree;
   uint16_t const altitudeStep = 10;
 
   generator::SRTMAltExtractor altExtractor(m_srtmManager);
   generator::BluredAltitudeExtractor bluredAltExtractor(altExtractor, kArcSecondsInDegree);
-  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, altExtractor);//bluredAltExtractor);
+  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);// altExtractor);//bluredAltExtractor);
 
   std::vector<IsolinesList> isolines;
   geometry::Altitude minAltitude;

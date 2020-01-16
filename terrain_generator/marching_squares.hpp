@@ -2,7 +2,7 @@
 
 #include "altitude_extractor.hpp"
 
-#include <deque>
+#include <list>
 #include <vector>
 
 using Isoline = std::list<ms::LatLon>;
@@ -10,7 +10,7 @@ using IsolinesList = std::list<Isoline>;
 
 struct ActiveIsoline
 {
-  ActiveIsoline(Isoline && isoline) : m_isoline(std::move(isoline)) {}
+  explicit ActiveIsoline(Isoline && isoline) : m_isoline(std::move(isoline)) {}
 
   Isoline m_isoline;
   bool m_active = true;
@@ -21,15 +21,13 @@ using ActiveIsolineIter = ActiveIsolinesList::iterator;
 class IsolinesWriter
 {
 public:
-  double static constexpr EPS = 1e-7;
-
   explicit IsolinesWriter(size_t isolineLevelsCount);
 
-  void addSegment(size_t levelInd, ms::LatLon const & beginPos, ms::LatLon const & endPos);
-  void beginLine();
-  void endLine(bool finalLine);
+  void AddSegment(size_t levelInd, ms::LatLon const & beginPos, ms::LatLon const & endPos);
+  void BeginLine();
+  void EndLine(bool finalLine);
 
-  void getIsolines(std::vector<IsolinesList> & isolines);
+  void GetIsolines(std::vector<IsolinesList> & isolines);
 
 private:
   ActiveIsolineIter findLineStartsWith(size_t levelInd, ms::LatLon const & pos);
@@ -44,35 +42,40 @@ private:
 class Square
 {
 public:
-  Square(ms::LatLon const & leftBottom, double size, generator::AltitudeExtractor & altExtractor);
+  Square(ms::LatLon const & leftBottom, double size,
+    geometry::Altitude firstAltitude, uint16_t altitudeStep,
+    generator::AltitudeExtractor & altExtractor);
 
-  void generateSegments(geometry::Altitude firstAltitude, uint16_t altStep, IsolinesWriter & writer);
+  void GenerateSegments(IsolinesWriter & writer);
 
-//private:
-public:
-
-  enum Rib
+private:
+  enum class Rib
   {
-    NONE,
-    LEFT,
-    TOP,
-    RIGHT,
-    BOTTOM,
-    UNCLEAR,
+    None,
+    Left,
+    Top,
+    Right,
+    Bottom,
+    Unclear,
   };
 
-  void writeSegments(geometry::Altitude alt, uint16_t ind, IsolinesWriter & writer);
-  ms::LatLon interpolatePoint(Rib rib, geometry::Altitude alt);
+  geometry::Altitude CorrectAltitude(geometry::Altitude alt) const;
+
+  void WriteSegments(geometry::Altitude alt, uint16_t ind, IsolinesWriter & writer);
+  ms::LatLon InterpolatePoint(Rib rib, geometry::Altitude alt);
+
+  geometry::Altitude m_firstAltitude;
+  uint16_t m_altitudeStep;
 
   double m_left;
   double m_right;
   double m_bottom;
   double m_top;
 
-  geometry::Altitude m_hLB;
-  geometry::Altitude m_hLT;
-  geometry::Altitude m_hRT;
-  geometry::Altitude m_hRB;
+  geometry::Altitude m_altLB;
+  geometry::Altitude m_altLT;
+  geometry::Altitude m_altRT;
+  geometry::Altitude m_altRB;
 };
 
 class MarchingSquares
@@ -88,7 +91,7 @@ private:
   ms::LatLon const m_leftBottom;
   ms::LatLon const m_rightTop;
   double const m_step;
-  uint16_t const m_heightStep;
+  uint16_t const m_altitudeStep;
   generator::AltitudeExtractor & m_altExtractor;
 
   size_t m_stepsCountLon;

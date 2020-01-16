@@ -178,8 +178,8 @@ geometry::Altitude FilteredTile::GetHeight(ms::LatLon const & coord)
     lt += 1;
   lt = 1 - lt;  // from North to South
 
-  size_t const row = m_stepsInDegree * lt;
-  size_t const col = m_stepsInDegree * ln;
+  size_t const row = m_stepsInDegree * lt + 0.5;
+  size_t const col = m_stepsInDegree * ln + 0.5;
 
   size_t const ix = row * (m_stepsInDegree + 1) + col;
 
@@ -195,36 +195,41 @@ std::string FilteredTile::GetBase(ms::LatLon const & coord)
 
 geometry::Altitude BluredAltitudeExtractor::GetAltitude(ms::LatLon const & pos)
 {
-  static std::vector<double> kernel = {
-    0.000789, 0.006581, 0.013347, 0.006581, 0.000789,
-    0.006581, 0.054901, 0.111345, 0.054901, 0.006581,
-    0.013347, 0.111345, 0.225821, 0.111345, 0.013347,
-    0.006581, 0.054901, 0.111345, 0.054901, 0.006581,
-    0.000789, 0.006581, 0.013347, 0.006581, 0.000789 };
+  if (pos.m_lat < 60.0)
+    return m_altitudeExtractor.GetAltitude(pos);
 
-  double const gaussianStD = 2.0;
-  double const radiusFactor = 1.0;
-  size_t const medianKernelRadius = 1;
-  auto const kernelRadius = static_cast<size_t>(ceil(radiusFactor * gaussianStD));
-  auto const kernelSize = 2 * kernelRadius + 1;
-  std::vector<double> linearKernel(kernelSize, 0);
-
-  double sum = 1.0;
-  linearKernel[kernelRadius] = 1.0;
-  for (int i = 1; i <= kernelRadius; ++i)
-  {
-    double const val = exp(-i * i / (2 * gaussianStD * gaussianStD));
-    linearKernel[kernelRadius - i] = linearKernel[kernelRadius + i] = val;
-    sum += 2.0 * val;
-  }
-  for (auto & val : linearKernel)
-    val /= sum;
 
   std::string const base = FilteredTile::GetBase(pos);
   auto it = m_tiles.find(base);
   if (it == m_tiles.end())
   {
+    static std::vector<double> kernel = {
+      0.000789, 0.006581, 0.013347, 0.006581, 0.000789,
+      0.006581, 0.054901, 0.111345, 0.054901, 0.006581,
+      0.013347, 0.111345, 0.225821, 0.111345, 0.013347,
+      0.006581, 0.054901, 0.111345, 0.054901, 0.006581,
+      0.000789, 0.006581, 0.013347, 0.006581, 0.000789 };
+
+    double const gaussianStD = 2.0;
+    double const radiusFactor = 1.0;
+    size_t const medianKernelRadius = 1;
+    auto const kernelRadius = static_cast<size_t>(ceil(radiusFactor * gaussianStD));
+    auto const kernelSize = 2 * kernelRadius + 1;
+    std::vector<double> linearKernel(kernelSize, 0);
+
+    double sum = 1.0;
+    linearKernel[kernelRadius] = 1.0;
+    for (int i = 1; i <= kernelRadius; ++i)
+    {
+      double const val = exp(-i * i / (2 * gaussianStD * gaussianStD));
+      linearKernel[kernelRadius - i] = linearKernel[kernelRadius + i] = val;
+      sum += 2.0 * val;
+    }
+    for (auto & val : linearKernel)
+      val /= sum;
+
     FilteredTile tile(m_altitudeExtractor, m_stepsInDegree, medianKernelRadius, linearKernel, true);
+
     try
     {
       tile.Init("", pos);
