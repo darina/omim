@@ -1,21 +1,28 @@
 #pragma once
 
+#include "topography_generator/utils/values_provider.hpp"
 #include "generator/srtm_parser.hpp"
 
-namespace generator
+namespace topography_generator
 {
-class AltitudeExtractor
+class AltitudeProvider : public ValuesProvider<geometry::Altitude>
 {
-public:
-  virtual geometry::Altitude GetAltitude(ms::LatLon const & pos) = 0;
+  geometry::Altitude GetInvalidValue() const override { return geometry::kInvalidAltitude; }
 };
 
-class FilteredTile
+struct FilteringParams
+{
+  double m_gaussianStDev = 2.0;
+  double m_gaussianRadiusFactor = 1.0;
+  size_t m_medianKernelRadius = 0;
+};
+
+class FilteredSRTMTile
 {
 public:
-  FilteredTile(AltitudeExtractor & altitudeExtractor, size_t stepsInDegree, size_t medianKernelSize,
-               std::vector<double> const & kernel, bool linearKernel)
-    : m_altitudeExtractor(altitudeExtractor)
+  FilteredSRTMTile(generator::SrtmTileManager & srtmTileManager, size_t stepsInDegree, size_t medianKernelSize,
+                   std::vector<double> const & kernel, bool linearKernel)
+    : m_srtmTileManager(srtmTileManager)
     , m_stepsInDegree(stepsInDegree)
     , m_kernel(kernel)
     , m_linearKernel(linearKernel)
@@ -32,7 +39,7 @@ public:
     }
   }
 
-  FilteredTile(FilteredTile && rhs) = default;
+  FilteredSRTMTile(FilteredSRTMTile && rhs) = default;
 
   void Init(std::string const & dir, ms::LatLon const & coord);
 
@@ -52,7 +59,7 @@ private:
                                std::vector<geometry::Altitude> & dstAltitudes);
   void Finalize(size_t stepsCount, std::vector<geometry::Altitude> & originalAltitudes);
 
-  AltitudeExtractor & m_altitudeExtractor;
+  generator::SrtmTileManager & m_srtmTileManager;
   size_t m_stepsInDegree;
   std::vector<double> const & m_kernel;
   bool m_linearKernel;
@@ -61,37 +68,22 @@ private:
   std::vector<geometry::Altitude> m_altitudes;
   bool m_valid = false;
 
-  DISALLOW_COPY(FilteredTile);
+  DISALLOW_COPY(FilteredSRTMTile);
 };
 
-class BluredAltitudeExtractor : public AltitudeExtractor
+class FilteredSRTMTileManager : public AltitudeProvider
 {
 public:
-  BluredAltitudeExtractor(AltitudeExtractor & altitudeExtractor, size_t stepsInDegree)
-    : m_altitudeExtractor(altitudeExtractor)
+  FilteredSRTMTileManager(generator::SrtmTileManager & srtmTileManager, size_t stepsInDegree)
+    : m_srtmTileManager(srtmTileManager)
     , m_stepsInDegree(stepsInDegree)
   {}
 
-  geometry::Altitude GetAltitude(ms::LatLon const & pos) override;
+  geometry::Altitude GetValue(ms::LatLon const & pos) override;
 
 private:
-  AltitudeExtractor & m_altitudeExtractor;
-  std::unordered_map<std::string, FilteredTile> m_tiles;
+  generator::SrtmTileManager & m_srtmTileManager;
   size_t m_stepsInDegree;
+  std::unordered_map<std::string, FilteredSRTMTile> m_tiles;
 };
-
-class SRTMAltExtractor : public AltitudeExtractor
-{
-public:
-  explicit SRTMAltExtractor(generator::SrtmTileManager & srtmManager)
-    : m_srtmManager(srtmManager) {}
-
-  geometry::Altitude GetAltitude(ms::LatLon const & pos) override
-  {
-    return m_srtmManager.GetHeight(pos);
-  }
-
-private:
-  generator::SrtmTileManager & m_srtmManager;
-};
-}  // namespace generator
+}  // namespace topography_generator

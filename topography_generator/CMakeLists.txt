@@ -1,4 +1,4 @@
-project(terrain_generator_tool)
+project(topography_generator_tool)
 
 include_directories(
   ${OMIM_ROOT}/3party/gflags/src
@@ -6,14 +6,19 @@ include_directories(
 
 set(
   SRC
-  altitude_extractor.cpp
-  altitude_extractor.hpp
+  altitudes_provider.cpp
+  altitudes_provider.hpp
   generator.cpp
-  marching_squares.cpp
-  marching_squares.hpp
+  main.cpp
+  marching_squares/contours_builder.cpp
+  marching_squares/contours_builder.hpp
+  marching_squares/marching_squares.hpp
+  marching_squares/square.hpp
+  tile_filter.cpp
+  tile_filter.hpp
   tracks_processor.cpp
   tracks_processor.hpp
-  main.cpp
+  utils/values_provider.hpp
 )
 
 omim_add_executable(${PROJECT_NAME} ${SRC})

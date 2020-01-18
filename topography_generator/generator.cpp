@@ -1,5 +1,5 @@
 #include "generator.hpp"
-#include "marching_squares.hpp"
+#include "topography_generator/marching_squares/marching_squares.hpp"
 #include "tracks_processor.hpp"
 
 #include "platform/platform.hpp"
@@ -140,16 +140,16 @@ void TerrainGenerator::GenerateIsolines(std::string const & countryId,
   //France_Rhone-Alpes_Haute-Savoie small
   //auto const leftBottom = ms::LatLon(45.7656, 6.7236);
   //auto const rightTop = ms::LatLon(46.0199, 7.0444);
-  auto const leftBottom = ms::LatLon(59.9, 56.55);
-  auto const rightTop = ms::LatLon(60.2, 56.75);
+  auto const leftBottom = ms::LatLon(59.0, 56.0);
+  auto const rightTop = ms::LatLon(60.0, 57.0);
   auto const step = 1.0 / kArcSecondsInDegree;
   uint16_t const altitudeStep = 10;
 
   generator::SRTMAltExtractor altExtractor(m_srtmManager);
   generator::BluredAltitudeExtractor bluredAltExtractor(altExtractor, kArcSecondsInDegree);
-  MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);// altExtractor);//bluredAltExtractor);
+  topography_generator::MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);// altExtractor);//bluredAltExtractor);
 
-  std::vector<IsolinesList> isolines;
+  std::vector<topography_generator::ContoursList> isolines;
   geometry::Altitude minAltitude;
   marchingSquares.GenerateIsolines(isolines, minAltitude);
 

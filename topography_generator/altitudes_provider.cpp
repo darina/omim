@@ -1,10 +1,10 @@
-#include "altitude_extractor.hpp"
+#include "altitudes_provider.hpp"
 
 #include "base/file_name_utils.hpp"
 
-namespace generator
+namespace topography_generator
 {
-void FilteredTile::Init(std::string const & dir, ms::LatLon const & coord)
+void FilteredSRTMTile::Init(std::string const & dir, ms::LatLon const & coord)
 {
   CHECK(!m_valid, ());
   std::string const base = GetBase(coord);
@@ -29,7 +29,7 @@ void FilteredTile::Init(std::string const & dir, ms::LatLon const & coord)
     {
       auto const pos = ms::LatLon(shiftedCoord.m_lat - i * step,
                                   shiftedCoord.m_lon + j * step);
-      originalAltitudes[i * stepsCount + j] = m_altitudeExtractor.GetAltitude(pos);
+      originalAltitudes[i * stepsCount + j] = m_altitudeProvider.GetAltitude(pos);
     }
   }
 
@@ -54,8 +54,8 @@ void FilteredTile::Init(std::string const & dir, ms::LatLon const & coord)
   m_valid = true;
 }
 
-void FilteredTile::ProcessMedian(size_t stepsCount, std::vector<geometry::Altitude> const & origAltitudes,
-  std::vector<geometry::Altitude> & dstAltitudes)
+void FilteredSRTMTile::ProcessMedian(size_t stepsCount, std::vector<geometry::Altitude> const & origAltitudes,
+                                     std::vector<geometry::Altitude> & dstAltitudes)
 {
   size_t const offset = (stepsCount - m_stepsInDegree - 1) /  2;
   CHECK_LESS_OR_EQUAL(m_medianKernelRadius, offset, ());
@@ -81,8 +81,8 @@ void FilteredTile::ProcessMedian(size_t stepsCount, std::vector<geometry::Altitu
   }
 }
 
-void FilteredTile::ProcessWithLinearKernel(size_t stepsCount, std::vector<geometry::Altitude> const & originalAltitudes,
-                                           std::vector<geometry::Altitude> & dstAltitudes)
+void FilteredSRTMTile::ProcessWithLinearKernel(size_t stepsCount, std::vector<geometry::Altitude> const & originalAltitudes,
+                                               std::vector<geometry::Altitude> & dstAltitudes)
 {
   size_t const offset = (stepsCount - m_stepsInDegree - 1) /  2;
   CHECK_LESS_OR_EQUAL(m_kernelSize / 2, offset, ());
@@ -124,8 +124,8 @@ void FilteredTile::ProcessWithLinearKernel(size_t stepsCount, std::vector<geomet
   }
 }
 
-void FilteredTile::ProcessWithSquareKernel(size_t stepsCount, std::vector<geometry::Altitude> const & originalAltitudes,
-  std::vector<geometry::Altitude> & dstAltitudes)
+void FilteredSRTMTile::ProcessWithSquareKernel(size_t stepsCount, std::vector<geometry::Altitude> const & originalAltitudes,
+                                               std::vector<geometry::Altitude> & dstAltitudes)
 {
   size_t const offset = (stepsCount - m_stepsInDegree - 1) /  2;
   CHECK_LESS_OR_EQUAL(m_kernelSize / 2, offset, ());
@@ -148,7 +148,7 @@ void FilteredTile::ProcessWithSquareKernel(size_t stepsCount, std::vector<geomet
   }
 }
 
-void FilteredTile::Finalize(size_t stepsCount, std::vector<geometry::Altitude> & originalAltitudes)
+void FilteredSRTMTile::Finalize(size_t stepsCount, std::vector<geometry::Altitude> & originalAltitudes)
 {
   size_t const offset = (stepsCount - m_stepsInDegree - 1) /  2;
   CHECK_LESS_OR_EQUAL(m_kernelSize / 2, offset, ());
@@ -165,7 +165,7 @@ void FilteredTile::Finalize(size_t stepsCount, std::vector<geometry::Altitude> &
   }
 }
 
-geometry::Altitude FilteredTile::GetHeight(ms::LatLon const & coord)
+geometry::Altitude FilteredSRTMTile::GetHeight(ms::LatLon const & coord)
 {
   if (!IsValid())
     return geometry::kInvalidAltitude;
@@ -188,18 +188,17 @@ geometry::Altitude FilteredTile::GetHeight(ms::LatLon const & coord)
   return m_altitudes[ix];
 }
 
-std::string FilteredTile::GetBase(ms::LatLon const & coord)
+std::string FilteredSRTMTile::GetBase(ms::LatLon const & coord)
 {
   return SrtmTile::GetBase(coord);
 }
 
-geometry::Altitude BluredAltitudeExtractor::GetAltitude(ms::LatLon const & pos)
+geometry::Altitude FilteredSRTMTileManager::GetValue(ms::LatLon const & pos)
 {
-  if (pos.m_lat < 60.0)
-    return m_altitudeExtractor.GetAltitude(pos);
+  if (pos.m_lat < 59.9)
+    return m_srtmTileManager.GetHeight(pos);
 
-
-  std::string const base = FilteredTile::GetBase(pos);
+  std::string const base = FilteredSRTMTile::GetBase(pos);
   auto it = m_tiles.find(base);
   if (it == m_tiles.end())
   {
@@ -228,7 +227,7 @@ geometry::Altitude BluredAltitudeExtractor::GetAltitude(ms::LatLon const & pos)
     for (auto & val : linearKernel)
       val /= sum;
 
-    FilteredTile tile(m_altitudeExtractor, m_stepsInDegree, medianKernelRadius, linearKernel, true);
+    FilteredSRTMTile tile(m_altitudeProvider, m_stepsInDegree, medianKernelRadius, linearKernel, true);
 
     try
     {
@@ -244,4 +243,4 @@ geometry::Altitude BluredAltitudeExtractor::GetAltitude(ms::LatLon const & pos)
   }
   return it->second.GetHeight(pos);
 }
-}  // namespace generator
+}  // namespace topography_generator
