@@ -12,19 +12,12 @@
 namespace generator
 {
 void MixFakeNodes(std::istream & stream, std::function<void(OsmElement &)> processor);
-void MixFakeLines(std::istream & stream, std::function<void(OsmElement &,
+void MixFakeLines(std::string const filePath, std::function<void(OsmElement &,
   std::vector<m2::PointD> const &)> processor);
 
 inline void MixFakeNodes(std::string const filePath, std::function<void(OsmElement &)> processor)
 {
   std::ifstream stream(filePath);
   MixFakeNodes(stream, processor);
-}
-
-inline void MixFakeLines(std::string const filePath,
-  std::function<void(OsmElement &, std::vector<m2::PointD> const &)> processor)
-{
-  std::ifstream stream(filePath);
-  MixFakeLines(stream, processor);
 }
 }  // namespace generator

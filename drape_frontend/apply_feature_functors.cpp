@@ -1034,7 +1034,7 @@ void ApplyLineFeatureGeometry::Smooth()
       m2::PointD const & pt3 = i + 2 < spline.size() ? spline[i + 2] : ptEnd;
 
       double const currentLength = pt1.SquaredLength(pt2) * m_sqrScale;
-      size_t extrapolatedPointsCount = 10; //round(1.5 * sqrt(currentLength / avgSegmentLength));
+      size_t extrapolatedPointsCount = 3; //round(1.5 * sqrt(currentLength / avgSegmentLength));
 
       if (smoothedSpline.back().EqualDxDy(pt2, 1e-5))
         continue;

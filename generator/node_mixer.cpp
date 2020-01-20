@@ -1,9 +1,14 @@
 #include "generator/node_mixer.hpp"
 
+#include "topography_generator/utils/serdes.hpp"
+
+#include "coding/file_reader.hpp"
+#include "coding/point_coding.hpp"
+
+#include "geometry/point_with_altitude.hpp"
+
 #include "base/logging.hpp"
 #include "base/string_utils.hpp"
-
-#include "coding/point_coding.hpp"
 
 using namespace std;
 
@@ -78,10 +83,13 @@ void MixFakeNodes(istream & stream, function<void(OsmElement &)> processor)
   LOG(LINFO, ("Added", count, "fake nodes."));
 }
 
-void MixFakeLines(std::istream & stream, std::function<void(OsmElement &, std::vector<m2::PointD> const &)> processor)
+void MixFakeLines(std::string filePath, std::function<void(OsmElement &, std::vector<m2::PointD> const &)> processor)
 {
-  if (stream.fail())
-    return;
+  FileReader reader(filePath);
+  topography_generator::DeserializerContours<geometry::Altitude> des;
+  topography_generator::Contours<geometry::Altitude> contours;
+
+  des.Deserialize(reader, contours);
 
   // Max node id on 12.02.2018 times hundred — good enough until ~2030.
   uint64_t constexpr baseNodeId = 5396734321 * 100;
@@ -91,24 +99,9 @@ void MixFakeLines(std::istream & stream, std::function<void(OsmElement &, std::v
   p.m_id = baseNodeId;
   p.m_type = OsmElement::EntityType::Way;
 
-  string line;
-  while (getline(stream, line))
+  int height = contours.m_minValue;
+  for (auto const & levelIsolines : contours.m_contours)
   {
-    std::istringstream ss(line);
-    int height;
-    size_t pointsCount;
-    ss >> height >> pointsCount;
-    int kPointCoordBits = 30;
-    std::vector<m2::PointD> points;
-    points.reserve(pointsCount);
-    for (size_t i = 0; i < pointsCount; ++i)
-    {
-      double x;
-      double y;
-      ss >> x >> y;
-      points.emplace_back(x, y);
-      p.AddNd(PointToInt64Obsolete(x, y, kPointCoordBits));
-    }
     string isolineClass;
     if (height % 200 == 0)
       isolineClass = "1";
@@ -121,14 +114,29 @@ void MixFakeLines(std::istream & stream, std::function<void(OsmElement &, std::v
     else
       LOG(LWARNING, ("Invalid height", height));
 
-    p.AddTag("isoline", isolineClass);
-    p.AddTag("name", strings::to_string(height));
+    for (auto const & isoline : levelIsolines)
+    {
+      int kPointCoordBits = 30;
+      std::vector<m2::PointD> points;
+      points.reserve(isoline.size());
+      for (auto const & ptLatLon : isoline)
+      {
+        auto const pt = mercator::FromLatLon(ptLatLon);
+        points.emplace_back(pt.x, pt.y);
+        p.AddNd(PointToInt64Obsolete(pt.x, pt.y, kPointCoordBits));
+      }
 
-    processor(p, points);
-    count++;
-    p.Clear();
-    p.m_id = baseNodeId + count;
-    p.m_type = OsmElement::EntityType::Way;
+      p.AddTag("isoline", isolineClass);
+      p.AddTag("name", strings::to_string(height));
+
+      processor(p, points);
+      count++;
+      p.Clear();
+      p.m_id = baseNodeId + count;
+      p.m_type = OsmElement::EntityType::Way;
+    }
+
+    height += contours.m_valueStep;
   }
 
   LOG(LINFO, ("Added", count, "fake lines."));

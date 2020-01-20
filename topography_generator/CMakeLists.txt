@@ -6,18 +6,18 @@ include_directories(
 
 set(
   SRC
-  altitudes_provider.cpp
-  altitudes_provider.hpp
+  filters_impl.cpp
+  filters_impl.hpp
   generator.cpp
+  generator.hpp
   main.cpp
   marching_squares/contours_builder.cpp
   marching_squares/contours_builder.hpp
   marching_squares/marching_squares.hpp
   marching_squares/square.hpp
-  tile_filter.cpp
   tile_filter.hpp
-  tracks_processor.cpp
-  tracks_processor.hpp
+  utils/serdes.cpp
+  utils/serdes.hpp
   utils/values_provider.hpp
 )
 

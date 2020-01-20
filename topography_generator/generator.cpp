@@ -1,221 +1,207 @@
-#include "generator.hpp"
+#include "topography_generator/generator.hpp"
 #include "topography_generator/marching_squares/marching_squares.hpp"
-#include "tracks_processor.hpp"
+#include "topography_generator/utils/serdes.hpp"
 
-#include "platform/platform.hpp"
+#include "generator/srtm_parser.hpp"
 
-#include "indexer/feature_altitude.hpp"
-
-#include "geometry/distance_on_sphere.hpp"
-#include "geometry/mercator.hpp"
+#include "coding/file_writer.hpp"
+#include "coding/file_reader.hpp"
 
 #include "base/file_name_utils.hpp"
-#include "base/thread.hpp"
 
-#include <functional>
-#include <fstream>
-#include <vector>
-
-using namespace std;
-using namespace std::placeholders;
-
-size_t constexpr kThreadsCount = 6;
+namespace topography_generator
+{
 size_t constexpr kArcSecondsInDegree = 60 * 60;
-int constexpr stepMult = 2;
 
-class ReadTask : public threads::IRoutine
+class SrtmProvider : public ValuesProvider<geometry::Altitude>
 {
 public:
-  explicit ReadTask(generator::SrtmTileManager & srtmManager,
-                    std::vector<m2::RegionD> const & regions)
-    : m_srtmManager(srtmManager)
-    , m_regions(regions)
+  explicit SrtmProvider(std::string const & srtmDir):
+    m_srtmManager(srtmDir)
+  {}
+
+  geometry::Altitude GetValue(ms::LatLon const & pos) override
   {
+    return m_srtmManager.GetHeight(pos);
   }
+
+  geometry::Altitude GetInvalidValue() const override
+  {
+    return geometry::kInvalidAltitude;
+  }
+
+private:
+  generator::SrtmTileManager m_srtmManager;
+};
+
+class RawSrtmTile : public ValuesProvider<geometry::Altitude>
+{
+public:
+  RawSrtmTile(std::vector<geometry::Altitude> const & values,
+              int leftLon, int bottomLat)
+    : m_values(values)
+    , m_leftLon(leftLon)
+    , m_bottomLat(bottomLat)
+  {}
+
+  geometry::Altitude GetValue(ms::LatLon const & pos) override
+  {
+    // TODO: assert
+    CHECK_EQUAL(floor(pos.m_lat), m_bottomLat, ());
+    CHECK_EQUAL(floor(pos.m_lon), m_leftLon, ());
+
+    double ln = pos.m_lon - m_leftLon;
+    double lt = pos.m_lat - m_bottomLat;
+    lt = 1 - lt;  // from North to South
+
+    size_t const row = kArcSecondsInDegree * lt + 0.5;
+    size_t const col = kArcSecondsInDegree * ln + 0.5;
+
+    size_t const ix = row * (kArcSecondsInDegree + 1) + col;
+    return ix < m_values.size() ? m_values[ix] : geometry::kInvalidAltitude;
+  }
+
+  geometry::Altitude GetInvalidValue() const override
+  {
+    return geometry::kInvalidAltitude;
+  }
+
+private:
+  std::vector<geometry::Altitude> const & m_values;
+  int m_leftLon;
+  int m_bottomLat;
+};
+
+class IsolinesTask : public threads::IRoutine
+{
+public:
+  IsolinesTask(int leftLon, int bottomLat, int rightLon, int topLat,
+               std::string const & srtmDir, IsolinesParams const & params)
+    : m_leftLon(leftLon)
+    , m_bottomLat(bottomLat)
+    , m_rightLon(rightLon)
+    , m_topLat(topLat)
+    , m_srtmProvider(srtmDir)
+    , m_params(params)
+  {}
 
   void Do() override
   {
-    size_t lonStepsCount = static_cast<size_t>(fabs(m_rightTop.m_lon - m_leftBottom.m_lon) * (kArcSecondsInDegree / stepMult));
-    size_t latStepsCount = static_cast<size_t>(fabs(m_rightTop.m_lat - m_leftBottom.m_lat) * (kArcSecondsInDegree / stepMult));
-
-    LOG(LWARNING, ("Task ", m_id, ": left lon", m_leftBottom.m_lon, "right lon", m_rightTop.m_lon,
-      "dist", fabs(m_leftBottom.m_lon - m_rightTop.m_lon), "lonStepsCount", lonStepsCount));
-    LOG(LWARNING, ("Task ", m_id, ": bottom lat", m_leftBottom.m_lat, "top lat", m_rightTop.m_lat,
-      "dist", fabs(m_leftBottom.m_lat - m_rightTop.m_lat), "latStepsCount", latStepsCount));
-
-    double const step = stepMult * 1.0 / kArcSecondsInDegree;
-    int const stepInMeters = stepMult * 30;
-
-    m_data.reserve(latStepsCount * lonStepsCount * 3);
-
-    ms::LatLon pos = m_leftBottom;
-    for (size_t i = 0; i < latStepsCount; ++i)
+    for (int lat = m_bottomLat; lat < m_topLat; ++lat)
     {
-      pos.m_lon = m_leftBottom.m_lon;
-      for (size_t j = 0; j < lonStepsCount; ++j)
+      for (int lon = m_leftLon; lon < m_rightLon; ++lon)
       {
-        auto const mPos = mercator::FromLatLon(pos);
-        pos.m_lon += step;
-
-        if (!RegionsContain(m_regions, mPos))
-          continue;
-
-        auto const height = m_srtmManager.GetHeight(pos);
-        if (height == geometry::kInvalidAltitude)
-          continue;
-
-        m_minHeight = min(m_minHeight, height);
-        m_maxHeight = max(m_maxHeight, height);
-
-        double const x = ms::DistanceOnEarth(pos.m_lat, m_leftBottom.m_lon, pos.m_lat, pos.m_lon);
-        double const y = ms::DistanceOnEarth(m_leftBottom.m_lat, pos.m_lon, pos.m_lat, pos.m_lon);
-
-        m_data.push_back(static_cast<int>(m_leftOffset + x));
-        m_data.push_back(static_cast<int>(m_bottomOffset + y));
-        m_data.push_back(static_cast<int>(height));
+        ProcessTile(lat, lon);
       }
-      pos.m_lat += step;
     }
   }
-
-  void Init(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
-            double leftOffsetInMeters, double bottomOffsetInMeters, int id)
-  {
-    m_id = id;
-    m_leftBottom = leftBottom;
-    m_rightTop = rightTop;
-    m_maxHeight = numeric_limits<int16_t>::min();
-    m_minHeight = numeric_limits<int16_t>::max();
-    m_leftOffset = leftOffsetInMeters;
-    m_bottomOffset = bottomOffsetInMeters;
-    m_data.clear();
-  }
-
-  int const & GetId() const { return m_id; }
-  int16_t GetMaxHeight() const { return m_maxHeight; }
-  int16_t GetMinHeight() const { return m_minHeight; }
-  vector<int> const & GetData() const { return m_data; }
 
 private:
-  generator::SrtmTileManager & m_srtmManager;
-  std::vector<m2::RegionD> const & m_regions;
-  ms::LatLon m_leftBottom;
-  ms::LatLon m_rightTop;
-  vector<int> m_data;
-  int16_t m_maxHeight;
-  int16_t m_minHeight;
-  double m_leftOffset;
-  double m_bottomOffset;
-  int m_id;
+  void ProcessTile(int lat, int lon)
+  {
+    ms::LatLon const leftBottom = ms::LatLon(lat, lon);
+    ms::LatLon const rightTop = ms::LatLon(lat + 1, lon + 1);
+    double const squaresStep = 1.0 / (kArcSecondsInDegree) * m_params.m_latLonStepFactor;
+    Contours<geometry::Altitude> contours;
+    if (lat >= 60)
+    {
+      std::vector<geometry::Altitude> filteredValues = FilterTile(
+        m_params.m_filters, leftBottom, kArcSecondsInDegree,
+        kArcSecondsInDegree + 1, m_srtmProvider);
+      RawSrtmTile filteredProvider(filteredValues, lon, lat);
+
+      MarchingSquares<geometry::Altitude> squares(leftBottom, rightTop,
+                                                  squaresStep, m_params.m_alitudesStep,
+                                                  filteredProvider);
+      squares.GenerateContours(contours);
+    }
+    else
+    {
+      MarchingSquares<geometry::Altitude> squares(leftBottom, rightTop,
+                                                  squaresStep, m_params.m_alitudesStep,
+                                                  m_srtmProvider);
+      squares.GenerateContours(contours);
+    }
+
+    SaveIsolines(lat, lon, std::move(contours));
+  }
+
+  void SaveIsolines(int lat, int lon, Contours<geometry::Altitude> && contours)
+  {
+    auto const fileName = generator::SrtmTile::GetBase(ms::LatLon(lat, lon));
+    std::string const filePath = base::JoinPath(m_params.m_outputDir, fileName + ".isolines");
+
+    FileWriter file(filePath);
+    SerializerContours<geometry::Altitude> ser(std::move(contours));
+    ser.Serialize(file);
+  }
+
+  int m_leftLon;
+  int m_bottomLat;
+  int m_rightLon;
+  int m_topLat;
+  SrtmProvider m_srtmProvider;
+  IsolinesParams const & m_params;
 };
 
-TerrainGenerator::TerrainGenerator(std::string const & srtmDir, std::string const & outDir)
-  : m_outDir(outDir)
-  , m_srtmManager(srtmDir)
+Generator::Generator(std::string const & srtmPath, size_t threadsCount, size_t maxCachedTilesPerThread)
+  : m_maxCachedTilesPerThread(maxCachedTilesPerThread)
+  , m_srtmPath(srtmPath)
 {
-  m_infoGetter = storage::CountryInfoReader::CreateCountryInfoReader(GetPlatform());
-  CHECK(m_infoGetter, ());
-  m_infoReader = dynamic_cast<storage::CountryInfoReader *>(m_infoGetter.get());
-
-  m_threadsPool = make_unique<base::thread_pool::routine::ThreadPool>(
-    kThreadsCount, std::bind(&TerrainGenerator::OnTaskFinished, this, _1));
+  m_threadsPool = std::make_unique<base::thread_pool::routine::ThreadPool>(
+    threadsCount, std::bind(&Generator::OnTaskFinished, this, std::placeholders::_1));
 }
 
-void TerrainGenerator::ParseTracks(std::string const & csvPath, std::string const & outDir)
+Generator::~Generator()
 {
-  TracksProcessor processor(m_infoReader, &m_srtmManager);
-  processor.ParseTracks(csvPath, outDir);
+  m_threadsPool->Stop();
 }
 
-void TerrainGenerator::GenerateContours(std::vector<std::string> const & csvPaths, std::string const & countryId,
-                                        std::string const & outDir)
+void Generator::GenerateIsolines(IsolinesParams const & params)
 {
-  TracksProcessor processor(m_infoReader, &m_srtmManager);
-  processor.ParseContours(countryId, csvPaths, outDir);
-}
+  std::vector<std::unique_ptr<IsolinesTask>> tasks;
 
-void TerrainGenerator::GenerateIsolines(std::string const & countryId,
-                                        std::string const & outputDir)
-{
-  //France_Rhone-Alpes_Haute-Savoie small
-  //auto const leftBottom = ms::LatLon(45.7656, 6.7236);
-  //auto const rightTop = ms::LatLon(46.0199, 7.0444);
-  auto const leftBottom = ms::LatLon(59.0, 56.0);
-  auto const rightTop = ms::LatLon(60.0, 57.0);
-  auto const step = 1.0 / kArcSecondsInDegree;
-  uint16_t const altitudeStep = 10;
+  CHECK_GREATER(params.m_rightLon, params.m_leftLon, ());
+  CHECK_GREATER(params.m_topLat, params.m_bottomLat, ());
 
-  generator::SRTMAltExtractor altExtractor(m_srtmManager);
-  generator::BluredAltitudeExtractor bluredAltExtractor(altExtractor, kArcSecondsInDegree);
-  topography_generator::MarchingSquares marchingSquares(leftBottom, rightTop, step, altitudeStep, bluredAltExtractor);// altExtractor);//bluredAltExtractor);
+  //int const tilesPerRow0 = static_cast<int>(sqrt(m_maxCachedTilesPerThread) + 0.5);
+  //int const tilesPerCol0 = static_cast<int>(m_maxCachedTilesPerThread / tilesPerRow0);
 
-  std::vector<topography_generator::ContoursList> isolines;
-  geometry::Altitude minAltitude;
-  marchingSquares.GenerateIsolines(isolines, minAltitude);
-
-  m2::RectD limitRect = m2::RectD(mercator::FromLatLon(leftBottom),
-                                  mercator::FromLatLon(rightTop));
-  m2::RectD countryRect;
-  //std::vector<m2::RegionD> regions;
-  //TracksProcessor::GetCountryRegions(countryId, m_infoReader,
-  //                                   countryRect, regions);
-
-  std::ofstream dstFile(base::JoinPath(outputDir, countryId + "_isolines2.txt"));
-
-  dstFile << fixed << setprecision(10);
-
-  auto saveIsoline = [&](geometry::Altitude altitude, std::vector<m2::PointD> & points)
+  int tilesPerRow = params.m_topLat - params.m_bottomLat;
+  int tilesPerCol = params.m_rightLon - params.m_leftLon;
+  while (tilesPerRow * tilesPerCol > m_maxCachedTilesPerThread)
   {
-    dstFile << altitude << " " << points.size() << " ";
-
-    for (size_t ptInd = 0; ptInd < points.size(); ++ptInd)
-    {
-      dstFile << points[ptInd].x << " " << points[ptInd].y
-              << ((ptInd + 1 == points.size()) ? "" : " ");
-    }
-
-    dstFile << std::endl;
-  };
-
-  geometry::Altitude currentAltitude = minAltitude;
-  for (auto const & isolineList : isolines)
-  {
-    for (auto const & isoline : isolineList)
-    {
-      std::vector<m2::PointD> points;
-      points.reserve(isoline.size());
-
-      for (auto const & ptLatLon : isoline)
-      {
-        auto const pt = mercator::FromLatLon(ptLatLon);
-        if (limitRect.IsPointInside(pt))// && RegionsContain(regions, pt))
-        {
-          points.push_back(pt);
-        }
-        else
-        {
-          if (points.size() >= 2)
-            saveIsoline(static_cast<int>(currentAltitude), points);
-          points.clear();
-        }
-      }
-      if (points.size() >= 2)
-        saveIsoline(static_cast<int>(currentAltitude), points);
-    }
-    currentAltitude += altitudeStep;
+    if (tilesPerRow > tilesPerCol)
+      tilesPerRow = (tilesPerRow + 1) / 2;
+    else
+      tilesPerCol = (tilesPerCol + 1) / 2;
   }
+
+  for (int lat = params.m_bottomLat; lat < params.m_topLat; lat += tilesPerRow)
+  {
+    int const topLat = std::min(lat + tilesPerRow, params.m_topLat);
+    for (int lon = params.m_leftLon; lon < params.m_rightLon; lon += tilesPerCol)
+    {
+      int const rightLon = std::min(lon + tilesPerCol, params.m_rightLon);
+      tasks.emplace_back(new IsolinesTask(lon, lat, rightLon, topLat, m_srtmPath, params));
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(m_tasksMutex);
+    CHECK(m_activeTasksCount == 0, ());
+    m_activeTasksCount = tasks.size();
+  }
+
+  for (auto & task : tasks)
+    m_threadsPool->PushBack(task.get());
+
+  std::unique_lock<std::mutex> lock(m_tasksMutex);
+  m_tasksReadyCondition.wait(lock, [this] { return m_activeTasksCount == 0; });
 }
 
-void TerrainGenerator::OnTaskFinished(threads::IRoutine * task)
+void Generator::OnTaskFinished(threads::IRoutine * task)
 {
-  ASSERT(dynamic_cast<ReadTask *>(task) != NULL, ());
-  auto t = static_cast<ReadTask *>(task);
-
-  LOG(LINFO, ("On task finished", t->GetId(),
-    "maxHeight", t->GetMaxHeight(), "minHeight", t->GetMinHeight(),
-    "vert count", t->GetData().size() / 3));
-
-  // finish tiles
   {
     std::lock_guard<std::mutex> lock(m_tasksMutex);
     CHECK(m_activeTasksCount > 0, ());
@@ -225,145 +211,31 @@ void TerrainGenerator::OnTaskFinished(threads::IRoutine * task)
   }
 }
 
-void TerrainGenerator::Generate(string const & countryId)
+void GetCountryRegions(std::string const & countryId, m2::RectD & countryRect,
+                       std::vector<m2::RegionD> & countryRegions)
 {
-  m2::RectD const limitRect = m_infoGetter->GetLimitRectForLeaf(countryId);
-  LOG(LINFO, ("Limit rect", limitRect));
 
-  if (limitRect.IsEmptyInterior())
-  {
-    LOG(LWARNING, ("Invalid mwm rect for", countryId));
-    return;
-  }
+}
+
+void Generator::PackIsolinesForCountry(std::string const & countryId,
+                                       std::string const & isolinesPath)
+{
+  storage::CountryInfoReader * infoReader;
+  auto const countryRect = infoReader->GetLimitRectForLeaf(countryId);;
+  std::vector<m2::RegionD> countryRegions;
 
   size_t id;
-  for (id = 0; id < m_infoReader->GetCountries().size(); ++id)
+  for (id = 0; id < infoReader->GetCountries().size(); ++id)
   {
-    if (m_infoReader->GetCountries().at(id).m_countryId == countryId)
+    if (infoReader->GetCountries().at(id).m_countryId == countryId)
       break;
   }
+  CHECK_LESS(id, infoReader->GetCountries().size(), ());
 
-  std::vector<m2::RegionD> regions;
-  m_infoReader->LoadRegionsFromDisk(id, regions);
+  infoReader->LoadRegionsFromDisk(id, countryRegions);
 
-  ms::LatLon leftBottom = mercator::ToLatLon(limitRect.LeftBottom());
-  ms::LatLon rightTop = mercator::ToLatLon(limitRect.RightTop());
 
-  auto const factor = TracksProcessor::CalculateCoordinatesFactor(limitRect);
+  std::vector<m2::PointD> points;
 
-  auto const heightInMeters = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
-                                                  rightTop.m_lat, leftBottom.m_lon);
-  auto const widthInMetersBottom = ms::DistanceOnEarth(leftBottom.m_lat, leftBottom.m_lon,
-                                                       leftBottom.m_lat, rightTop.m_lon);
-  auto const widthInMetersTop = ms::DistanceOnEarth(rightTop.m_lat, leftBottom.m_lon,
-                                                    rightTop.m_lat, rightTop.m_lon);
-
-  int16_t const stepInMeters = 30 * stepMult;
-  LOG(LINFO, ("heightInMeters", heightInMeters, (int)(heightInMeters / stepInMeters),
-    "widthInMetersBottom", widthInMetersBottom, (int)(widthInMetersBottom / stepInMeters),
-    "widthInMetersTop", widthInMetersTop, (int)(widthInMetersTop / stepInMeters)));
-
-  LOG(LINFO, ("left lon", leftBottom.m_lon, "right lon", rightTop.m_lon, "dist", fabs(leftBottom.m_lon - rightTop.m_lon)));
-  LOG(LINFO, ("bottom lat", leftBottom.m_lat, "top lat", rightTop.m_lat, "dist", fabs(leftBottom.m_lat - rightTop.m_lat)));
-
-  double latStep = (rightTop.m_lat - leftBottom.m_lat) / kThreadsCount;
-
-  ms::LatLon currentLeftBottom = leftBottom;
-  ms::LatLon currentRightTop = ms::LatLon(leftBottom.m_lat + latStep, rightTop.m_lon);
-  double bottomOffset = 0.0;
-  vector<unique_ptr<ReadTask>> tasks;
-  for (int i = 0; i < kThreadsCount; ++i)
-  {
-    if (i == kThreadsCount - 1)
-      currentRightTop.m_lat = rightTop.m_lat;
-
-    tasks.emplace_back(new ReadTask(m_srtmManager, regions));
-    tasks.back()->Init(currentLeftBottom, currentRightTop, 0.0 /* leftOffset */, bottomOffset, i);
-
-    currentLeftBottom.m_lat += latStep;
-    currentRightTop.m_lat += latStep;
-    bottomOffset = ms::DistanceOnEarth(leftBottom, currentLeftBottom);
-    LOG(LINFO, ("Task", i, "bottomOffset", bottomOffset));
-
-    // Load srtm tiles before multithreading reading.
-    m_srtmManager.GetHeight(currentLeftBottom);
-    m_srtmManager.GetHeight(currentRightTop);
-  }
-
-  {
-    std::lock_guard<std::mutex> lock(m_tasksMutex);
-    CHECK(m_activeTasksCount == 0, ());
-    m_activeTasksCount = tasks.size();
-  }
-
-  for (int i = 0; i < tasks.size(); ++i)
-    m_threadsPool->PushBack(tasks[i].get());
-
-  std::unique_lock<std::mutex> lock(m_tasksMutex);
-  m_tasksReadyCondition.wait(lock, [this] { return m_activeTasksCount == 0; });
-
-  size_t verticesCount = 0;
-  int16_t maxHeight = numeric_limits<int16_t>::min();
-  int16_t minHeight = numeric_limits<int16_t>::max();
-
-  for (size_t i = 0; i < tasks.size(); ++i)
-  {
-    verticesCount += tasks[i]->GetData().size() / 3;
-    maxHeight = max(maxHeight, tasks[i]->GetMaxHeight());
-    minHeight = min(minHeight, tasks[i]->GetMinHeight());
-  }
-
-  auto width = static_cast<size_t>(fabs(rightTop.m_lon - leftBottom.m_lon) * (kArcSecondsInDegree / stepMult));
-  auto height = static_cast<size_t>(fabs(rightTop.m_lat - leftBottom.m_lat) * (kArcSecondsInDegree / stepMult));
-  {
-    ofstream fout(base::JoinPath(m_outDir, countryId + "_terrain_info.txt"), ofstream::out);
-    fout << "Lat bottom " << leftBottom.m_lat << " top " << rightTop.m_lat << endl;
-    fout << "Lon left " << leftBottom.m_lon << " right " << rightTop.m_lon << endl;
-    fout << "Width " << width << " vertices, " << width * stepInMeters << " m" << endl;
-    fout << "Height " << height << " vertices, " << height * stepInMeters << " m" << endl;
-    fout << "Min height " << minHeight << " m" << endl;
-    fout << "Max height " << maxHeight << " m" << endl;
-    fout << "Stored vertices count " << verticesCount << " (width * height = " << width * height << ")" << endl;
-  }
-
-  {
-    ofstream fout(base::JoinPath(m_outDir, countryId + "_terrain.txt"), ofstream::out);
-    fout << fixed << setprecision(5);
-    for (size_t i = 0; i < tasks.size(); ++i)
-    {
-      auto const & data = tasks[i]->GetData();
-      for (size_t j = 0; j + 2 < data.size(); j += 3)
-      {
-        fout << data[j] * factor << " "
-             << data[j + 1] * factor << " " << data[j + 2] * factor << endl;
-      }
-    }
-  }
-
-  {
-    ofstream fout(base::JoinPath(m_outDir, countryId + "_border.txt"), ofstream::out);
-    fout << fixed << setprecision(5);
-    for (size_t i = 0; i < regions.size(); ++i)
-    {
-      vector<m2::PointD> const & points = regions[i].Data();
-      for (size_t j = 0; j < points.size(); ++j)
-      {
-        double const x = mercator::DistanceOnEarth(points[j], m2::PointD(limitRect.LeftBottom().x, points[j].y));
-        double const y = mercator::DistanceOnEarth(points[j], m2::PointD(points[j].x, limitRect.LeftBottom().y));
-        fout << x * factor << " " << y * factor << endl;
-      }
-
-      if (regions.size() > 1)
-      {
-        LOG(LWARNING, ("Several borders are not supported! Current count", regions.size()));
-        break;
-      }
-    }
-  }
 }
-
-void TerrainGenerator::GenerateTracksMesh(std::string const & dataDir, std::string const & countryId)
-{
-  TracksProcessor processor(m_infoReader, &m_srtmManager);
-  processor.GenerateTracksMesh(countryId, dataDir, m_outDir);
-}
+}  // namespace topography_generator

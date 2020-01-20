@@ -1,5 +1,7 @@
 #pragma once
 
+#include "topography_generator/utils/contours.hpp"
+
 #include "geometry/latlon.hpp"
 
 #include <deque>
@@ -8,9 +10,6 @@
 
 namespace topography_generator
 {
-using Contour = std::deque<ms::LatLon>;
-using ContoursList = std::list<Contour>;
-
 class ContoursBuilder
 {
 public:
@@ -20,16 +19,19 @@ public:
   void BeginLine();
   void EndLine(bool finalLine);
 
-  void GetContours(std::vector<std::vector<ms::LatLon>> & contours);
+  void GetContours(std::vector<std::vector<Contour>> & contours);
 
 private:
+  using ContourRaw = std::deque<ms::LatLon>;
+  using ContoursList = std::list<ContourRaw>;
+
   struct ActiveContour
   {
-    explicit ActiveContour(Contour && isoline)
+    explicit ActiveContour(ContourRaw && isoline)
       : m_countour(std::move(isoline))
     {}
 
-    Contour m_countour;
+    ContourRaw m_countour;
     bool m_active = true;
   };
   using ActiveContoursList = std::list<ActiveContour>;

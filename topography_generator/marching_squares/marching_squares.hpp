@@ -2,33 +2,25 @@
 
 #include "topography_generator/marching_squares/contours_builder.hpp"
 #include "topography_generator/marching_squares/square.hpp"
+#include "topography_generator/utils/contours.hpp"
 
-//#include "geometry/rect2d.hpp"
+#include "geometry/rect2d.hpp"
 
-#include <vector>
+#include "base/logging.hpp"
 
 namespace topography_generator
 {
 template <typename ValueType>
-struct ContoursResult
-{
-  std::vector<std::vector<ms::LatLon>> m_contours;
-  ValueType m_minValue;
-  ValueType m_maxValue;
-  size_t m_invalidValuesCount = 0;
-};
-
-template <typename ValueType>
 class MarchingSquares
 {
-public:
+public: //45.492268, 6.603504
   MarchingSquares(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
                   double step, ValueType valueStep, ValuesProvider<ValueType> & valuesProvider)
-    : m_leftBottom(leftBottom),
-      m_rightTop(rightTop),
-      m_step(step),
-      m_valueStep(valueStep),
-      m_valuesProvider(valuesProvider)
+    : m_leftBottom(45.48, 6.5)//leftBottom)
+    , m_rightTop(45.50, 6.7)//rightTop)
+    , m_step(step)
+    , m_valueStep(valueStep)
+    , m_valuesProvider(valuesProvider)
   {
     CHECK_GREATER(m_rightTop.m_lon, m_leftBottom.m_lon, ());
     CHECK_GREATER(m_rightTop.m_lat, m_leftBottom.m_lat, ());
@@ -40,14 +32,15 @@ public:
     CHECK_GREATER(m_stepsCountLat, 0, ());
   }
 
-  void GenerateContours(ContoursResult<ValueType> & result)
+  void GenerateContours(Contours<ValueType> & result)
   {
     ScanValuesInRect(result.m_minValue, result.m_maxValue, result.m_invalidValuesCount);
+    result.m_valueStep = m_valueStep;
 
-    auto const levelsCount = static_cast<size_t>(result.maxValue - result.minValue) / m_valueStep;
+    auto const levelsCount = static_cast<size_t>(result.m_maxValue - result.m_minValue) / m_valueStep;
     if (levelsCount == 0)
     {
-      LOG(LINFO, ("Contours can't be generated: min and max values are equal."));
+      LOG(LINFO, ("Contours can't be generated: min and max values are equal:", result.m_minValue));
       return;
     }
 
@@ -60,18 +53,25 @@ public:
       {
         auto const pos = ms::LatLon(m_leftBottom.m_lat + m_step * i, m_leftBottom.m_lon + m_step * j);
         Square<ValueType> square(pos, m_step, result.m_minValue, m_valueStep, m_valuesProvider);
+
+        if (i == 2058 && j == 1963)
+        {
+          LOG(LINFO, (i, j, pos, square.m_top, square.m_right,
+            square.m_valueLB, square.m_valueLT, square.m_valueRB, square.m_valueRT));
+        }
+
         square.GenerateSegments(contoursBuilder);
 
-        /*
-        static m2::RectD limitRect(m2::PointD(59.92, 56.92), m2::PointD(59.96, 56.96));
+        //45.492268, 6.603504
+        static m2::RectD limitRect(m2::PointD(45.492, 6.603), m2::PointD(49.493, 6.604));
         if (limitRect.IsPointInside(m2::PointD(pos.m_lat, pos.m_lon)) && (i & 1) && (j & 1))
         {
-          contoursBuilder.addSegment(0, ms::LatLon(square.m_bottom, square.m_left), ms::LatLon(square.m_top, square.m_left));
-          contoursBuilder.addSegment(0, ms::LatLon(square.m_top, square.m_left), ms::LatLon(square.m_top, square.m_right));
-          contoursBuilder.addSegment(0, ms::LatLon(square.m_top, square.m_right), ms::LatLon(square.m_bottom, square.m_right));
+          contoursBuilder.AddSegment(0, ms::LatLon(square.m_bottom, square.m_left), ms::LatLon(square.m_top, square.m_left));
+          contoursBuilder.AddSegment(0, ms::LatLon(square.m_top, square.m_left), ms::LatLon(square.m_top, square.m_right));
+          contoursBuilder.AddSegment(0, ms::LatLon(square.m_top, square.m_right), ms::LatLon(square.m_bottom, square.m_right));
           contoursBuilder.AddSegment(0, ms::LatLon(square.m_bottom, square.m_right), ms::LatLon(square.m_bottom, square.m_left));
         }
-        */
+
       }
       auto const isLastLine = i == m_stepsCountLat - 2;
       contoursBuilder.EndLine(isLastLine);
@@ -92,16 +92,20 @@ private:
       {
         auto const pos = ms::LatLon(m_leftBottom.m_lat + m_step * i,
                                     m_leftBottom.m_lon + m_step * j);
-        auto const altitude = m_valuesProvider.GetAltitude(pos);
-        if (altitude == geometry::kInvalidAltitude)
+        auto const value = m_valuesProvider.GetValue(pos);
+        if (i >= 2057 && i <= 2059 && j >= 1962 && j <= 1964)
+        {
+          LOG(LINFO, (i, j, pos, value));
+        }
+        if (value == m_valuesProvider.GetInvalidValue())
         {
           ++invalidValuesCount;
           continue;
         }
-        if (altitude < minValue)
-          minValue = altitude;
-        if (altitude > minValue)
-          maxValue = altitude;
+        if (value < minValue)
+          minValue = value;
+        if (value > maxValue)
+          maxValue = value;
       }
     }
 

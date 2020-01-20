@@ -453,7 +453,7 @@ void CountryFinalProcessor::AddFakeNodes()
     fbs.emplace_back(std::move(fb));
   });
 
-  MixFakeLines("/Users/daravolvenkova/France_Rhone-Alpes_Haute-Savoie_isolines2.txt",
+  MixFakeLines("/Users/daravolvenkova/isolines/N45E006.isolines",
     [&](OsmElement & element, std::vector<m2::PointD> const & points) {
       FeatureBuilder fb;
       for (auto const & pt : points)

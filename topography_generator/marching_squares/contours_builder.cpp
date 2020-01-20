@@ -11,7 +11,7 @@ ContoursBuilder::ContoursBuilder(size_t levelsCount)
   m_activeContours.resize(m_levelsCount);
 }
 
-void ContoursBuilder::GetContours(std::vector<std::vector<ms::LatLon>> & contours)
+void ContoursBuilder::GetContours(std::vector<std::vector<Contour>> & contours)
 {
   contours.clear();
   contours.resize(m_finalizedContours.size());
@@ -56,7 +56,7 @@ void ContoursBuilder::AddSegment(size_t levelInd, ms::LatLon const & beginPos, m
   }
   else
   {
-    m_activeContours[levelInd].emplace_back(beginPos, endPos);
+    m_activeContours[levelInd].emplace_back(ContourRaw({beginPos, endPos}));
   }
 }
 

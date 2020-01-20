@@ -51,11 +51,7 @@ void SrtmTile::Init(std::string const & dir, ms::LatLon const & coord)
   Invalidate();
 
   std::string const base = GetBase(coord);
-  std::string  cont;
-  if (coord.m_lat >= 60.0)
-    cont = "/Users/daravolvenkova/Downloads/aster_rectangle/" + base + ".SRTMGL1.hgt.zip";
-  else
-    cont = dir + base + ".SRTMGL1.hgt.zip";
+  std::string const cont = dir + base + ".SRTMGL1.hgt.zip";
   std::string file = base + ".hgt";
 
   UnzipMemDelegate delegate(m_data);
@@ -151,8 +147,10 @@ void SrtmTile::Invalidate()
 SrtmTileManager::SrtmTileManager(std::string const & dir) : m_dir(dir) {}
 geometry::Altitude SrtmTileManager::GetHeight(ms::LatLon const & coord)
 {
-  std::string const base = SrtmTile::GetBase(coord);
-  auto it = m_tiles.find(base);
+  uint64_t const key = (static_cast<uint64_t>(floor(coord.m_lat)) << 32u) |
+    static_cast<uint64_t>(floor(coord.m_lon));
+
+  auto it = m_tiles.find(key);
   if (it == m_tiles.end())
   {
     SrtmTile tile;
@@ -162,12 +160,13 @@ geometry::Altitude SrtmTileManager::GetHeight(ms::LatLon const & coord)
     }
     catch (RootException const & e)
     {
+      std::string const base = SrtmTile::GetBase(coord);
       LOG(LINFO, ("Can't init SRTM tile:", base, "reason:", e.Msg()));
     }
 
     // It's OK to store even invalid tiles and return invalid height
     // for them later.
-    it = m_tiles.emplace(base, std::move(tile)).first;
+    it = m_tiles.emplace(key, std::move(tile)).first;
   }
 
   return it->second.GetHeight(coord);

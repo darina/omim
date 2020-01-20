@@ -47,7 +47,7 @@ public:
       AddSegments(alt, (alt - m_minValue) / m_valueStep, builder);
   }
 
-private:
+//private:
   enum class Rib
   {
     None,
