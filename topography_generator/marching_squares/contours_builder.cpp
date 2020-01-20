@@ -1,5 +1,7 @@
 #include "topography_generator/marching_squares/contours_builder.hpp"
 
+#include "geometry/mercator.hpp"
+
 namespace topography_generator
 {
 double constexpr kEps = 1e-7;
@@ -9,20 +11,6 @@ ContoursBuilder::ContoursBuilder(size_t levelsCount)
 {
   m_finalizedContours.resize(m_levelsCount);
   m_activeContours.resize(m_levelsCount);
-}
-
-void ContoursBuilder::GetContours(std::vector<std::vector<Contour>> & contours)
-{
-  contours.clear();
-  contours.resize(m_finalizedContours.size());
-  for (size_t i = 0; i < m_finalizedContours.size(); ++i)
-  {
-    auto const & contoursList = m_finalizedContours[i];
-    for (auto const & contour : contoursList)
-    {
-      contours[i].emplace_back(contour.begin(), contour.end());
-    }
-  }
 }
 
 void ContoursBuilder::AddSegment(size_t levelInd, ms::LatLon const & beginPos, ms::LatLon const & endPos)

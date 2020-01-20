@@ -16,8 +16,8 @@ class MarchingSquares
 public: //45.492268, 6.603504
   MarchingSquares(ms::LatLon const & leftBottom, ms::LatLon const & rightTop,
                   double step, ValueType valueStep, ValuesProvider<ValueType> & valuesProvider)
-    : m_leftBottom(45.48, 6.5)//leftBottom)
-    , m_rightTop(45.50, 6.7)//rightTop)
+    : m_leftBottom(leftBottom)
+    , m_rightTop(rightTop)
     , m_step(step)
     , m_valueStep(valueStep)
     , m_valuesProvider(valuesProvider)
@@ -62,6 +62,7 @@ public: //45.492268, 6.603504
 
         square.GenerateSegments(contoursBuilder);
 
+        /*
         //45.492268, 6.603504
         static m2::RectD limitRect(m2::PointD(45.492, 6.603), m2::PointD(49.493, 6.604));
         if (limitRect.IsPointInside(m2::PointD(pos.m_lat, pos.m_lon)) && (i & 1) && (j & 1))
@@ -71,13 +72,13 @@ public: //45.492268, 6.603504
           contoursBuilder.AddSegment(0, ms::LatLon(square.m_top, square.m_right), ms::LatLon(square.m_bottom, square.m_right));
           contoursBuilder.AddSegment(0, ms::LatLon(square.m_bottom, square.m_right), ms::LatLon(square.m_bottom, square.m_left));
         }
-
+        */
       }
       auto const isLastLine = i == m_stepsCountLat - 2;
       contoursBuilder.EndLine(isLastLine);
     }
 
-    contoursBuilder.GetContours(result.m_contours);
+    contoursBuilder.GetContours(result.m_minValue, result.m_valueStep, result.m_contours);
   }
 
 private:

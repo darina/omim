@@ -36,14 +36,16 @@ public:
   ~Generator();
 
   void GenerateIsolines(IsolinesParams const & params);
-
-  void PackIsolinesForCountry(std::string const & countryId, std::string const & isolinesPath);
-
-  void OnTaskFinished(threads::IRoutine * task);
+  void PackIsolinesForCountry(std::string const & countryId, std::string const & isolinesPath,
+                              std::string const & outDir);
 
 private:
+  void OnTaskFinished(threads::IRoutine * task);
   void GetCountryRegions(std::string const & countryId, m2::RectD & countryRect,
                          std::vector<m2::RegionD> & countryRegions);
+
+  std::unique_ptr<storage::CountryInfoGetter> m_infoGetter;
+  storage::CountryInfoReader * m_infoReader = nullptr;
 
   std::unique_ptr<base::thread_pool::routine::ThreadPool> m_threadsPool;
   size_t m_maxCachedTilesPerThread;

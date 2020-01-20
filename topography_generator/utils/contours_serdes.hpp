@@ -2,10 +2,9 @@
 
 #include "topography_generator/utils/contours.hpp"
 
+#include "coding/file_writer.hpp"
+#include "coding/file_reader.hpp"
 #include "coding/geometry_coding.hpp"
-#include "coding/reader.hpp"
-
-#include "geometry/mercator.hpp"
 
 namespace topography_generator
 {
@@ -23,15 +22,17 @@ public:
     WriteToSink(sink, m_contours.m_valueStep);
 
     WriteToSink(sink, static_cast<uint32_t>(m_contours.m_contours.size()));
-    for (auto const & contours : m_contours.m_contours)
+    for (auto const & levelContours : m_contours.m_contours)
     {
-      SerializeContours(sink, contours);
+      SerializeContours(sink, levelContours.first, levelContours.second);
     }
   }
 private:
   template <typename Sink>
-  void SerializeContours(Sink & sink, std::vector<topography_generator::Contour> const & contours)
+  void SerializeContours(Sink & sink, ValueType value,
+                         std::vector<topography_generator::Contour> const & contours)
   {
+    WriteToSink(sink, value);
     WriteToSink(sink, static_cast<uint32_t>(contours.size()));
     for (auto const & contour : contours)
     {
@@ -46,13 +47,9 @@ private:
     sink.Write(contour.data(), contour.size() * sizeof(contour[0]));
     /*
     serial::GeometryCodingParams codingParams(kFeatureSorterPointCoordBits, 0);
-    codingParams.SetBasePoint(mercator::FromLatLon(contour[0]));
+    codingParams.SetBasePoint(contour[0]);
     std::vector<m2::PointD> toSave;
-    toSave.reserve(contour.size() - 1);
-    for (size_t i = 1; i < contour.size(); ++i)
-    {
-      toSave.push_back(mercator::FromLatLon(contour[i]));
-    }
+    toSave.insert(contour.begin() + 1, contour.end());
     serial::SaveInnerPath(toSave, codingParams, sink);
     */
   }
@@ -73,15 +70,20 @@ public:
     contours.m_valueStep = ReadPrimitiveFromSource<ValueType>(source);
 
     size_t const levelsCount = ReadPrimitiveFromSource<uint32_t>(source);
-    contours.m_contours.resize(levelsCount);
-    for (auto & levelContours : contours.m_contours)
-      DeserializeContours(source, levelContours);
+    for (size_t i = 0; i < levelsCount; ++i)
+    {
+      ValueType levelValue;
+      std::vector<topography_generator::Contour> levelContours;
+      DeserializeContours(source, levelValue, levelContours);
+      contours.m_contours[levelValue].swap(levelContours);
+    }
   }
 
 private:
-  void DeserializeContours(NonOwningReaderSource & source,
+  void DeserializeContours(NonOwningReaderSource & source, ValueType & value,
                             std::vector<topography_generator::Contour> & contours)
   {
+    value = ReadPrimitiveFromSource<ValueType>(source);
     size_t const contoursCount = ReadPrimitiveFromSource<uint32_t>(source);
     contours.resize(contoursCount);
     for (auto & contour : contours)
@@ -96,4 +98,41 @@ private:
     source.Read(contour.data(), pointsCount * sizeof(contour[0]));
   }
 };
+
+template <typename ValueType>
+bool SaveContrours(std::string const & filePath,
+                   Contours<ValueType> && contours)
+{
+  try
+  {
+    FileWriter file(filePath);
+    SerializerContours<ValueType> ser(std::move(contours));
+    ser.Serialize(file);
+  }
+  catch (FileWriter::Exception const & ex)
+  {
+    LOG(LWARNING, ("File writer exception raised:", ex.what(), ", file", filePath));
+    return false;
+  }
+  return true;
+}
+
+template <typename ValueType>
+bool LoadContours(std::string const & filePath, Contours<ValueType> & contours)
+{
+  {
+    try
+    {
+      FileReader file(filePath);
+      DeserializerContours<ValueType> des;
+      des.Deserialize(file, contours);
+    }
+    catch (FileReader::Exception const & ex)
+    {
+      LOG(LWARNING, ("File writer exception raised:", ex.what(), ", file", filePath));
+      return false;
+    }
+    return true;
+  }
+}
 }  // namespace topography_generator

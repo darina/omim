@@ -1,13 +1,15 @@
 #include "topography_generator/generator.hpp"
+#include "topography_generator/isolines_utils.hpp"
 #include "topography_generator/marching_squares/marching_squares.hpp"
-#include "topography_generator/utils/serdes.hpp"
+#include "topography_generator/utils/contours_serdes.hpp"
+
+#include "platform/platform.hpp"
 
 #include "generator/srtm_parser.hpp"
 
-#include "coding/file_writer.hpp"
-#include "coding/file_reader.hpp"
+#include "geometry/mercator.hpp"
 
-#include "base/file_name_utils.hpp"
+#include <vector>
 
 namespace topography_generator
 {
@@ -123,17 +125,7 @@ private:
       squares.GenerateContours(contours);
     }
 
-    SaveIsolines(lat, lon, std::move(contours));
-  }
-
-  void SaveIsolines(int lat, int lon, Contours<geometry::Altitude> && contours)
-  {
-    auto const fileName = generator::SrtmTile::GetBase(ms::LatLon(lat, lon));
-    std::string const filePath = base::JoinPath(m_params.m_outputDir, fileName + ".isolines");
-
-    FileWriter file(filePath);
-    SerializerContours<geometry::Altitude> ser(std::move(contours));
-    ser.Serialize(file);
+    SaveContrours(GetIsolinesFilePath(lat, lon, m_params.m_outputDir), std::move(contours));
   }
 
   int m_leftLon;
@@ -148,6 +140,10 @@ Generator::Generator(std::string const & srtmPath, size_t threadsCount, size_t m
   : m_maxCachedTilesPerThread(maxCachedTilesPerThread)
   , m_srtmPath(srtmPath)
 {
+  m_infoGetter = storage::CountryInfoReader::CreateCountryInfoReader(GetPlatform());
+  CHECK(m_infoGetter, ());
+  m_infoReader = dynamic_cast<storage::CountryInfoReader *>(m_infoGetter.get());
+
   m_threadsPool = std::make_unique<base::thread_pool::routine::ThreadPool>(
     threadsCount, std::bind(&Generator::OnTaskFinished, this, std::placeholders::_1));
 }
@@ -211,31 +207,67 @@ void Generator::OnTaskFinished(threads::IRoutine * task)
   }
 }
 
-void GetCountryRegions(std::string const & countryId, m2::RectD & countryRect,
-                       std::vector<m2::RegionD> & countryRegions)
+void Generator::GetCountryRegions(std::string const & countryId, m2::RectD & countryRect,
+                                  std::vector<m2::RegionD> & countryRegions)
 {
+  countryRect = m_infoReader->GetLimitRectForLeaf(countryId);
 
+  size_t id;
+  for (id = 0; id < m_infoReader->GetCountries().size(); ++id)
+  {
+    if (m_infoReader->GetCountries().at(id).m_countryId == countryId)
+      break;
+  }
+  CHECK_LESS(id, m_infoReader->GetCountries().size(), ());
+
+  m_infoReader->LoadRegionsFromDisk(id, countryRegions);
 }
 
 void Generator::PackIsolinesForCountry(std::string const & countryId,
-                                       std::string const & isolinesPath)
+                                       std::string const & isolinesPath,
+                                       std::string const & outDir)
 {
-  storage::CountryInfoReader * infoReader;
-  auto const countryRect = infoReader->GetLimitRectForLeaf(countryId);;
+  m2::RectD countryRect;
   std::vector<m2::RegionD> countryRegions;
+  GetCountryRegions(countryId, countryRect, countryRegions);
 
-  size_t id;
-  for (id = 0; id < infoReader->GetCountries().size(); ++id)
+  auto const leftBottom = mercator::ToLatLon(countryRect.LeftBottom());
+  auto const rightTop = mercator::ToLatLon(countryRect.RightTop());
+
+  auto const left = static_cast<int>(floor(leftBottom.m_lon));
+  auto const bottom = static_cast<int>(floor(leftBottom.m_lat));
+  auto const right = static_cast<int>(floor(rightTop.m_lon));
+  auto const top = static_cast<int>(floor(rightTop.m_lat));
+
+  int const kBaseSimplificationZoom = 17;
+  size_t const kMaxIsolineLength = 1000;
+
+  Contours<geometry::Altitude> countryIsolines;
+  countryIsolines.m_minValue = std::numeric_limits<geometry::Altitude>::max();
+  countryIsolines.m_maxValue = std::numeric_limits<geometry::Altitude>::min();
+
+  for (int lat = bottom; lat <= top; ++lat)
   {
-    if (infoReader->GetCountries().at(id).m_countryId == countryId)
-      break;
+    for (int lon = left; lon <= right; ++lon)
+    {
+      Contours<geometry::Altitude> isolines;
+      if (!LoadContours(GetIsolinesFilePath(lat, lon, isolinesPath), isolines))
+        continue;
+
+      SimplifyContours(kBaseSimplificationZoom, isolines);
+      CropContours(countryRect, countryRegions, kMaxIsolineLength, isolines);
+
+      countryIsolines.m_minValue = std::min(isolines.m_minValue, countryIsolines.m_minValue);
+      countryIsolines.m_maxValue = std::max(isolines.m_maxValue, countryIsolines.m_maxValue);
+      countryIsolines.m_valueStep = isolines.m_valueStep;
+      for (auto & levelIsolines : isolines.m_contours)
+      {
+        auto & dst = countryIsolines.m_contours[levelIsolines.first];
+        dst.insert(dst.end(), levelIsolines.second.begin(), levelIsolines.second.end());
+      }
+    }
   }
-  CHECK_LESS(id, infoReader->GetCountries().size(), ());
 
-  infoReader->LoadRegionsFromDisk(id, countryRegions);
-
-
-  std::vector<m2::PointD> points;
-
+  SaveContrours(GetIsolinesFilePath(countryId, outDir), std::move(countryIsolines));
 }
 }  // namespace topography_generator

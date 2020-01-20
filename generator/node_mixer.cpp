@@ -1,6 +1,6 @@
 #include "generator/node_mixer.hpp"
 
-#include "topography_generator/utils/serdes.hpp"
+#include "topography_generator/utils/contours_serdes.hpp"
 
 #include "coding/file_reader.hpp"
 #include "coding/point_coding.hpp"
@@ -85,11 +85,9 @@ void MixFakeNodes(istream & stream, function<void(OsmElement &)> processor)
 
 void MixFakeLines(std::string filePath, std::function<void(OsmElement &, std::vector<m2::PointD> const &)> processor)
 {
-  FileReader reader(filePath);
-  topography_generator::DeserializerContours<geometry::Altitude> des;
   topography_generator::Contours<geometry::Altitude> contours;
-
-  des.Deserialize(reader, contours);
+  if (!topography_generator::LoadContours(filePath, contours))
+    return;
 
   // Max node id on 12.02.2018 times hundred — good enough until ~2030.
   uint64_t constexpr baseNodeId = 5396734321 * 100;
@@ -99,9 +97,9 @@ void MixFakeLines(std::string filePath, std::function<void(OsmElement &, std::ve
   p.m_id = baseNodeId;
   p.m_type = OsmElement::EntityType::Way;
 
-  int height = contours.m_minValue;
   for (auto const & levelIsolines : contours.m_contours)
   {
+    int const height = levelIsolines.first;
     string isolineClass;
     if (height % 200 == 0)
       isolineClass = "1";
@@ -114,14 +112,13 @@ void MixFakeLines(std::string filePath, std::function<void(OsmElement &, std::ve
     else
       LOG(LWARNING, ("Invalid height", height));
 
-    for (auto const & isoline : levelIsolines)
+    for (auto const & isoline : levelIsolines.second)
     {
       int kPointCoordBits = 30;
       std::vector<m2::PointD> points;
       points.reserve(isoline.size());
-      for (auto const & ptLatLon : isoline)
+      for (auto const & pt : isoline)
       {
-        auto const pt = mercator::FromLatLon(ptLatLon);
         points.emplace_back(pt.x, pt.y);
         p.AddNd(PointToInt64Obsolete(pt.x, pt.y, kPointCoordBits));
       }
@@ -135,8 +132,6 @@ void MixFakeLines(std::string filePath, std::function<void(OsmElement &, std::ve
       p.m_id = baseNodeId + count;
       p.m_type = OsmElement::EntityType::Way;
     }
-
-    height += contours.m_valueStep;
   }
 
   LOG(LINFO, ("Added", count, "fake lines."));

@@ -7,6 +7,7 @@
 #include <deque>
 #include <list>
 #include <vector>
+#include <unordered_map>
 
 namespace topography_generator
 {
@@ -19,7 +20,25 @@ public:
   void BeginLine();
   void EndLine(bool finalLine);
 
-  void GetContours(std::vector<std::vector<Contour>> & contours);
+  template <typename ValueType>
+  void GetContours(ValueType minValue, ValueType valueStep,
+                   std::unordered_map<ValueType, std::vector<Contour>> & contours)
+  {
+    contours.clear();
+    for (size_t i = 0; i < m_finalizedContours.size(); ++i)
+    {
+      auto const levelValue = minValue + i * valueStep;
+      auto const & contoursList = m_finalizedContours[i];
+      for (auto const & contour : contoursList)
+      {
+        Contour contourMerc;
+        contourMerc.reserve(contour.size());
+        for (auto const & pt : contour)
+          contourMerc.push_back(mercator::FromLatLon(pt));
+        contours[levelValue].emplace_back(std::move(contourMerc));
+      }
+    }
+  }
 
 private:
   using ContourRaw = std::deque<ms::LatLon>;
