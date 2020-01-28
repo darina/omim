@@ -7,19 +7,20 @@
 
 #include <cstdlib>
 
-DEFINE_string(out_dir, "", "Path to output directory.");
-DEFINE_uint64(simpl_zoom, 16, "Isolines simplification zoom.");
+DEFINE_string(out_dir, "", "Path to output directory. Used in generating and packing modes.");
+DEFINE_uint64(simpl_zoom, 16, "Isolines simplification zoom."
+                              "Disables simplification by zero value."
+                              "Used in generating and packing modes.");
+DEFINE_uint64(threads, 4, "Number of threads. Used in generating mode and packing mode for planet.");
 
-DEFINE_string(countryId, "",
-              "Isolines packing mode. Pack isolines for countryId.");
+DEFINE_bool(pack_planet, true, "Isolines packing mode. Pack isolines for all countries.");
+DEFINE_string(countryId, "", "Isolines packing mode. Pack isolines for countryId.");
 DEFINE_string(data_dir, "", "Isolines packing mode. Path to data directory.");
-DEFINE_string(isolines_path, "",
-              "Isolines packing mode. Path to the directory with isolines tiles.");
+DEFINE_string(isolines_path, "", "Isolines packing mode. Path to the directory with isolines tiles.");
 DEFINE_uint64(max_length, 1000, "Isolines packing mode. Isolines max length.");
 DEFINE_uint64(alt_step_factor, 1, "Isolines packing mode. Altitude step factor.");
 
-DEFINE_string(srtm_path, "",
-              "Isolines generating mode. Path to srtm directory.");
+DEFINE_string(srtm_path, "", "Isolines generating mode. Path to srtm directory.");
 DEFINE_int32(left, 0, "Isolines generating mode. Left longitude of tiles rect [-180, 179].");
 DEFINE_int32(right, 0, "Isolines generating mode. Right longitude of tiles rect [-179, 180].");
 DEFINE_int32(bottom, 0, "Isolines generating mode. Bottom latitude of tiles rect [-90, 89].");
@@ -29,8 +30,7 @@ DEFINE_uint64(latlon_step_factor, 2, "Isolines generating mode. Lat/lon step fac
 DEFINE_double(gaussian_st_dev, 2.0, "Isolines generating mode. Gaussian filter standard deviation.");
 DEFINE_double(gaussian_r_factor, 1.0, "Isolines generating mode. Gaussian filter radius factor.");
 DEFINE_uint64(median_r, 1, "Isolines generating mode. Median filter radius.");
-DEFINE_uint64(threads, 4, "Number of threads.");
-DEFINE_uint64(tiles_per_thread, 9, "Max cached tiles per thread");
+DEFINE_uint64(tiles_per_thread, 9, "Isolines generating mode. Max cached tiles per thread");
 
 int main(int argc, char ** argv)
 {
@@ -49,7 +49,7 @@ int main(int argc, char ** argv)
     "   Isolines simplification activates by nonzero simpl_zoom [1..17]\n"
     "\n"
     "2. Packing isolines from ready tiles into a binary file for specified country id.\n"
-    "   Mode activates by passing a countryId parameter.\n"
+    "   Mode activates by passing a countryId or pack_planet parameter.\n"
     "   Tool gets isolines from the tiles, covered by the country regions, selects\n"
     "   altitude levels with alt_step_factor (if a tile stores altitudes for each 10 meters\n"
     "   and alt_step_factor == 5, the result binary file will store altitudes for each 50 meters).\n"
@@ -64,23 +64,30 @@ int main(int argc, char ** argv)
     return EXIT_FAILURE;
   }
 
+  if (!FLAGS_countryId.empty() && FLAGS_pack_planet)
+  {
+    LOG(LERROR, ("Both pack_planet and countryId are set. Сhoose one operation: "
+                 "packing tiles for the all countries or packing tiles for the single country."));
+    return EXIT_FAILURE;
+  }
+
   auto const validTilesRect = FLAGS_right > FLAGS_left && FLAGS_top > FLAGS_bottom &&
                               FLAGS_right <= 180 && FLAGS_left >= -180 &&
                               FLAGS_top <= 90 && FLAGS_bottom >= -90;
 
   auto const isGeneratingMode = validTilesRect;
-  auto const isPackingMode = !FLAGS_countryId.empty();
+  auto const isPackingMode = !FLAGS_countryId.empty() || FLAGS_pack_planet;
 
   if (isGeneratingMode && isPackingMode)
   {
-    LOG(LERROR, ("Both tiles rect and country id are set. Сhoose one operation: "
-                 "generation of tiles rect or packing tiles for the country"));
+    LOG(LERROR, ("Both tiles rect and pack_planet/countryId are set. Сhoose one operation: "
+                 "generation of tiles rect or packing tiles."));
     return EXIT_FAILURE;
   }
 
   if (!isGeneratingMode && !isPackingMode)
   {
-    LOG(LERROR, ("Valid tiles rect or country id must be set."));
+    LOG(LERROR, ("Valid tiles rect or pack_planet or countryId must be set."));
     return EXIT_FAILURE;
   }
 
@@ -106,8 +113,12 @@ int main(int argc, char ** argv)
     params.m_alitudesStepFactor = FLAGS_alt_step_factor;
     params.m_isolinesTilesPath = FLAGS_isolines_path;
 
-    generator.InitCountryInfoGetter(FLAGS_data_dir);
-    generator.PackIsolinesForCountry(FLAGS_countryId, params, FLAGS_out_dir);
+    generator.SetDataDir(FLAGS_data_dir);
+
+    if (FLAGS_pack_planet)
+      generator.PackIsolinesForPlanet(params, FLAGS_out_dir);
+    else
+      generator.PackIsolinesForCountry(FLAGS_countryId, params, FLAGS_out_dir);
 
     return EXIT_SUCCESS;
   }

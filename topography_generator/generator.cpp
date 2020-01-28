@@ -3,13 +3,14 @@
 #include "topography_generator/marching_squares/marching_squares.hpp"
 #include "topography_generator/utils/contours_serdes.hpp"
 
-#include "platform/platform.hpp"
-
 #include "generator/srtm_parser.hpp"
+
+#include "storage/country_info_getter.hpp"
+
+#include "platform/platform.hpp"
 
 #include "geometry/mercator.hpp"
 
-#include "base/string_utils.hpp"
 #include "base/thread_pool_computational.hpp"
 
 #include <algorithm>
@@ -345,31 +346,52 @@ void Generator::GenerateIsolines(int left, int bottom, int right, int top,
   }
 }
 
-void Generator::InitCountryInfoGetter(std::string const & dataDir)
+void Generator::SetDataDir(std::string const & dataDir)
 {
-  CHECK(m_infoReader == nullptr, ());
-
   GetPlatform().SetResourceDir(dataDir);
-
-  m_infoGetter = storage::CountryInfoReader::CreateCountryInfoReader(GetPlatform());
-  CHECK(m_infoGetter, ());
-  m_infoReader = static_cast<storage::CountryInfoReader *>(m_infoGetter.get());
 }
 
 void Generator::GetCountryRegions(storage::CountryId const & countryId, m2::RectD & countryRect,
-                                  std::vector<m2::RegionD> & countryRegions)
+                                  std::vector<m2::RegionD> & countryRegions) const
 {
-  countryRect = m_infoReader->GetLimitRectForLeaf(countryId);
+  auto infoGetter = storage::CountryInfoReader::CreateCountryInfoReader(GetPlatform());
+  CHECK(infoGetter, ());
+  auto infoReader = static_cast<storage::CountryInfoReader *>(infoGetter.get());
+  countryRect = infoReader->GetLimitRectForLeaf(countryId);
 
   size_t id;
-  for (id = 0; id < m_infoReader->GetCountries().size(); ++id)
+  for (id = 0; id < infoReader->GetCountries().size(); ++id)
   {
-    if (m_infoReader->GetCountries().at(id).m_countryId == countryId)
+    if (infoReader->GetCountries().at(id).m_countryId == countryId)
       break;
   }
-  CHECK_LESS(id, m_infoReader->GetCountries().size(), ());
+  CHECK_LESS(id, infoReader->GetCountries().size(), ());
 
-  m_infoReader->LoadRegionsFromDisk(id, countryRegions);
+  infoReader->LoadRegionsFromDisk(id, countryRegions);
+}
+
+void Generator::PackIsolinesForPlanet(CountryIsolinesParams const & params,
+                                      std::string const & outDir)
+{
+  LOG(LINFO, ("Begin packing isolines for the planet."));
+  auto infoGetter = storage::CountryInfoReader::CreateCountryInfoReader(GetPlatform());
+  CHECK(infoGetter, ());
+  auto const & countries = infoGetter->GetCountries();
+
+  base::thread_pool::computational::ThreadPool threadPool(m_threadsCount);
+  for (size_t taskInd = 0; taskInd < countries.size(); ++taskInd)
+  {
+    threadPool.SubmitWork([this, taskInd, &countries, &params, &outDir]()
+    {
+      auto const country = countries[taskInd].m_countryId;
+      LOG(LINFO, ("Begin task", taskInd, "/", countries.size(), country));
+
+      PackIsolinesForCountry(country, params, outDir);
+
+      LOG(LINFO, ("End task", taskInd, "/", countries.size(), country));
+    });
+  }
+  LOG(LINFO, ("End packing isolines for the planet."));
 }
 
 void Generator::PackIsolinesForCountry(storage::CountryId const & countryId,
