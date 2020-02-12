@@ -17,7 +17,7 @@ std::string const kTypeZero = "zero";
 std::string GetIsolineName(topography_generator::Altitude altitude,
                            topography_generator::Altitude step)
 {
-  if (step > 10 || altitude % kNamedAltStep == 0)
+  if (step > 10 || abs(altitude) % kNamedAltStep == 0)
     return strings::to_string(altitude);
   return "";
 }
@@ -42,7 +42,7 @@ uint32_t IsolineFeaturesGenerator::GetIsolineType(int altitude) const
 
   for (auto altStep : kAltClasses)
   {
-    if (altitude % altStep == 0)
+    if (abs(altitude) % altStep == 0)
       return m_altClassToType.at(altStep);
   }
   return ftype::GetEmptyValue();
