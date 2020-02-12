@@ -14,9 +14,10 @@ int const kNamedAltStep = 50;
 std::string const kTypePrefix = "step_";
 std::string const kTypeZero = "zero";
 
-std::string GetIsolineName(topography_generator::Altitude altitude)
+std::string GetIsolineName(topography_generator::Altitude altitude,
+                           topography_generator::Altitude step)
 {
-  if (altitude % kNamedAltStep == 0)
+  if (step > 10 || altitude % kNamedAltStep == 0)
     return strings::to_string(altitude);
   return "";
 }
@@ -62,7 +63,7 @@ void IsolineFeaturesGenerator::GenerateIsolines(std::string const & countryName,
   for (auto const & levelIsolines : countryIsolines.m_contours)
   {
     auto const altitude = levelIsolines.first;
-    auto const isolineName = GetIsolineName(altitude);
+    auto const isolineName = GetIsolineName(altitude, countryIsolines.m_valueStep);
     auto const isolineType = GetIsolineType(altitude);
     if (isolineType == ftype::GetEmptyValue())
     {
