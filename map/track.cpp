@@ -11,7 +11,6 @@
 Track::Track(kml::TrackData && data)
   : Base(data.m_id == kml::kInvalidTrackId ? UserMarkIdStorage::Instance().GetNextTrackId() : data.m_id)
   , m_data(std::move(data))
-  , m_groupID(0)
 {
   m_data.m_id = GetId();
   ASSERT_GREATER(m_data.m_pointsWithAltitudes.size(), 1, ());
@@ -99,5 +98,10 @@ void Track::Attach(kml::MarkGroupId groupId)
 
 void Track::Detach()
 {
-  m_groupID = 0;
+  m_groupID = kml::kInvalidMarkGroupId;
+}
+
+void Track::SetSelectionMarkId(kml::MarkId markId)
+{
+  m_selectionMarkId = markId;
 }

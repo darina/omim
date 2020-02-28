@@ -542,6 +542,8 @@ BookmarkManager::BookmarkManager(User & user, Callbacks && callbacks)
   m_selectionMark = CreateUserMark<StaticMarkPoint>(m2::PointD{});
   m_myPositionMark = CreateUserMark<MyPositionMarkPoint>(m2::PointD{});
 
+  m_trackInfoMarkId = CreateUserMark<TrackInfoMark>(m2::PointD{})->GetId();
+
   using namespace std::placeholders;
   m_bookmarkCloud.SetSynchronizationHandlers(
       std::bind(&BookmarkManager::OnSynchronizationStarted, this, _1),
@@ -1465,6 +1467,38 @@ void BookmarkManager::GetSortedCategory(SortParams const & params)
   });
 }
 
+void BookmarkManager::ShowDefaultTrackInfo(kml::TrackId trackId)
+{
+  auto track = GetTrack(trackId);
+  CHECK(track != nullptr, ());
+
+  auto const & points = track->GetPointsWithAltitudes();
+  auto const pt = points[points.size() / 2].GetPoint();
+
+  auto es = GetEditSession();
+  auto trackInfoMark = es.GetMarkForEdit<TrackInfoMark>(m_trackInfoMarkId);
+  trackInfoMark->SetPosition(pt);
+  trackInfoMark->SetIsVisible(true);
+  trackInfoMark->SetTrackId(trackId);
+
+  auto trackSelectionMark = es.CreateUserMark<TrackSelectionMark>(pt);
+  trackSelectionMark->SetTrackId(trackId);
+}
+
+void BookmarkManager::SelectTrack(kml::TrackId trackId, double distance)
+{
+  auto track = GetTrack(trackId);
+  CHECK(track != nullptr, ());
+
+  m2::PointD const pt;
+  auto const markId = track->GetSelectionMarkId();
+  CHECK(markId != kml::kInvalidMarkId, ());
+
+  auto es = GetEditSession();
+  auto trackSelectionMark = es.GetMarkForEdit<TrackSelectionMark>(markId);
+  trackSelectionMark->SetPosition(pt);
+}
+
 void BookmarkManager::ClearGroup(kml::MarkGroupId groupId)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
@@ -1657,6 +1691,20 @@ void BookmarkManager::SetDrapeEngine(ref_ptr<df::DrapeEngine> engine)
 {
   m_drapeEngine.Set(engine);
   m_firstDrapeNotification = true;
+
+  std::vector<std::string> symbols;
+  symbols.push_back("bookmark-default-m");
+  symbols.push_back("ic_marker_ontrack");
+
+  m_drapeEngine.SafeCall(&df::DrapeEngine::RequestSymbolsSize, symbols,
+    [this](std::map<std::string, m2::PointF> && sizes)
+    {
+      GetPlatform().RunTask(Platform::Thread::Gui, [this, sizes = move(sizes)]() mutable
+      {
+        GetEditSession().GetMarkForEdit<TrackInfoMark>(m_trackInfoMarkId)->SetOffset(sizes.at("ic_marker_ontrack"));
+        m_maxBookmarkSymbolSize = sizes.at("bookmark-default-m");
+      });
+    });
 }
 
 void BookmarkManager::InitRegionAddressGetter(DataSource const & dataSource,

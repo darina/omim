@@ -6,6 +6,7 @@
 #include "map/cloud.hpp"
 #include "map/elevation_info.hpp"
 #include "map/track.hpp"
+#include "map/track_mark.hpp"
 #include "map/user_mark_layer.hpp"
 
 #include "drape_frontend/drape_engine_safe_ptr.hpp"
@@ -728,6 +729,9 @@ private:
 
   std::vector<std::string> GetAllPaidCategoriesIds() const;
 
+  void ShowDefaultTrackInfo(kml::TrackId trackId);
+  void SelectTrack(kml::TrackId trackId, double distance);
+
   ThreadChecker m_threadChecker;
 
   User & m_user;
@@ -768,6 +772,9 @@ private:
 
   StaticMarkPoint * m_selectionMark = nullptr;
   MyPositionMarkPoint * m_myPositionMark = nullptr;
+
+  kml::MarkId m_trackInfoMarkId = kml::kInvalidMarkId;
+  m2::PointF m_maxBookmarkSymbolSize;
 
   bool m_asyncLoadingInProgress = false;
   struct BookmarkLoaderInfo

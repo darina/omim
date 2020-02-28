@@ -35,8 +35,12 @@ public:
   void Attach(kml::MarkGroupId groupId);
   void Detach();
 
+  kml::MarkId GetSelectionMarkId() const { return m_selectionMarkId; }
+  void SetSelectionMarkId(kml::MarkId markId);
+
 private:
   kml::TrackData m_data;
-  kml::MarkGroupId m_groupID;
+  kml::MarkGroupId m_groupID = kml::kInvalidMarkGroupId;
+  kml::MarkId m_selectionMarkId = kml::kInvalidMarkId;
   mutable bool m_isDirty = true;
 };
