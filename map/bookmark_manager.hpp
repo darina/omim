@@ -211,8 +211,6 @@ public:
   kml::MarkIdSet const & GetUserMarkIds(kml::MarkGroupId groupId) const;
   kml::TrackIdSet const & GetTrackIds(kml::MarkGroupId groupId) const;
 
-  ElevationInfo MakeElevationInfo(kml::TrackId trackId) const;
-
   // Do not change the order.
   enum class SortingType
   {
@@ -453,11 +451,34 @@ public:
   std::vector<std::string> GetCategoriesFromCatalog(AccessRulesFilter && filter) const;
   static bool IsGuide(kml::AccessRules accessRules);
 
+  ElevationInfo MakeElevationInfo(kml::TrackId trackId) const;
   void SetElevationActivePoint(kml::TrackId const & trackId, double distanceInMeters);
   // Returns distance from start of the track to active point in meters.
   double GetElevationActivePoint(kml::TrackId const & trackId) const;
-
   void SetElevationActivePointChangedCallback(ElevationActivePointChangedCallback const & cb);
+
+  struct TrackSelectionInfo
+  {
+    TrackSelectionInfo() = default;
+    TrackSelectionInfo(kml::TrackId trackId, m2::PointD const & trackPoint, double distanceInMeters)
+      : m_trackId(trackId)
+      , m_trackPoint(trackPoint)
+      , m_distanceInMeters(distanceInMeters)
+    {}
+
+    kml::TrackId m_trackId = kml::kInvalidTrackId;
+    m2::PointD m_trackPoint = m2::PointD::Zero();
+    double m_distanceInMeters = 0.0;
+  };
+
+  TrackSelectionInfo FindNearestTrack(m2::RectD const & touchRect) const;
+  TrackSelectionInfo GetTrackSelectionInfo(kml::TrackId const & trackId) const;
+
+  void SelectTrack(TrackSelectionInfo const & trackSelectionInfo);
+  void DeselectTrack(kml::TrackId trackId);
+
+  void ShowDefaultTrackInfo(kml::TrackId trackId);
+  void HideTrackInfo(kml::TrackId trackId);
 
 private:
   class MarksChangesTracker : public df::UserMarksProvider
@@ -729,8 +750,7 @@ private:
 
   std::vector<std::string> GetAllPaidCategoriesIds() const;
 
-  void ShowDefaultTrackInfo(kml::TrackId trackId);
-  void SelectTrack(kml::TrackId trackId, double distance);
+  kml::MarkId GetTrackSelectionMarkId(kml::TrackId trackId) const;
 
   ThreadChecker m_threadChecker;
 

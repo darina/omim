@@ -1,5 +1,7 @@
 #include "map/track_mark.hpp"
 
+#include "indexer/scales.hpp"
+
 TrackInfoMark::TrackInfoMark(m2::PointD const & ptOrg)
   : UserMark(ptOrg, UserMark::TRACK_INFO)
 {
@@ -28,14 +30,14 @@ void TrackInfoMark::SetTrackId(kml::TrackId trackId)
   m_trackId = trackId;
 }
 
-drape_ptr<SymbolNameZoomInfo> TrackInfoMark::GetSymbolNames() const
+drape_ptr<df::UserPointMark::SymbolNameZoomInfo> TrackInfoMark::GetSymbolNames() const
 {
   auto symbol = make_unique_dp<SymbolNameZoomInfo>();
   symbol->insert(std::make_pair(1 /* zoomLevel */, "ic_marker_infosign"));
   return symbol;
 }
 
-drape_ptr<SymbolOffsets> TrackInfoMark::GetSymbolOffsets() const
+drape_ptr<df::UserPointMark::SymbolOffsets> TrackInfoMark::GetSymbolOffsets() const
 {
   SymbolOffsets offsets(scales::UPPER_STYLE_SCALE, m_offset);
   return make_unique_dp<SymbolOffsets>(offsets);
@@ -54,11 +56,15 @@ void TrackSelectionMark::SetPosition(m2::PointD const & ptOrg)
 
 void TrackSelectionMark::SetTrackId(kml::TrackId trackId)
 {
-  SetDirty();
   m_trackId = trackId;
 }
 
-drape_ptr<SymbolNameZoomInfo> TrackSelectionMark::GetSymbolNames() const
+void TrackSelectionMark::SetDistance(double distance)
+{
+  m_distance = distance;
+}
+
+drape_ptr<df::UserPointMark::SymbolNameZoomInfo> TrackSelectionMark::GetSymbolNames() const
 {
   auto symbol = make_unique_dp<SymbolNameZoomInfo>();
   symbol->insert(std::make_pair(1 /* zoomLevel */, "ic_marker_ontrack"));

@@ -18,6 +18,9 @@ public:
   drape_ptr<SymbolOffsets> GetSymbolOffsets() const override;
   dp::Anchor GetAnchor() const override { return dp::Bottom; }
   bool IsVisible() const override { return m_isVisible; }
+  bool SymbolIsPOI() const override { return true; }
+  df::SpecialDisplacement GetDisplacement() const override { return df::SpecialDisplacement::SpecialModeUserMark; }
+  df::DepthLayer GetDepthLayer() const override { return df::DepthLayer::RoutingMarkLayer; }
 
 private:
   m2::PointF m_offset;
@@ -35,7 +38,12 @@ public:
   void SetTrackId(kml::TrackId trackId);
   kml::TrackId GetTrackId() const { return m_trackId; }
 
+  void SetDistance(double distance);
+  double GetDistance() const { return m_distance; }
+
+  drape_ptr<SymbolNameZoomInfo> GetSymbolNames() const override;
+
 private:
-  uint32_t m_distance = 0;
+  double m_distance = 0.0;
   kml::TrackId m_trackId = kml::kInvalidTrackId;
 };
