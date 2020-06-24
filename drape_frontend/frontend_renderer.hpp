@@ -91,7 +91,7 @@ public:
            UserPositionPendingTimeoutHandler && userPositionPendingTimeoutHandler,
            ref_ptr<RequestedTiles> requestedTiles,
            OverlaysShowStatsCallback && overlaysShowStatsCallback,
-           bool allow3dBuildings, bool trafficEnabled, bool blockTapEvents,
+           bool allow3dBuildings, bool trafficEnabled, bool guidesEnabled, bool blockTapEvents,
            std::vector<PostprocessRenderer::Effect> && enabledEffects,
            OnGraphicsContextInitialized const & onGraphicsContextInitialized)
       : BaseRenderer::Params(apiVersion, commutator, factory, texMng, onGraphicsContextInitialized)
@@ -105,6 +105,7 @@ public:
       , m_overlaysShowStatsCallback(std::move(overlaysShowStatsCallback))
       , m_allow3dBuildings(allow3dBuildings)
       , m_trafficEnabled(trafficEnabled)
+      , m_guidesEnabled(guidesEnabled)
       , m_blockTapEvents(blockTapEvents)
       , m_enabledEffects(std::move(enabledEffects))
     {}
@@ -119,6 +120,7 @@ public:
     OverlaysShowStatsCallback m_overlaysShowStatsCallback;
     bool m_allow3dBuildings;
     bool m_trafficEnabled;
+    bool m_guidesEnabled;
     bool m_blockTapEvents;
     std::vector<PostprocessRenderer::Effect> m_enabledEffects;
   };
@@ -187,7 +189,8 @@ private:
   void RenderTransitSchemeLayer(ScreenBase const & modelView);
   void RenderTrafficLayer(ScreenBase const & modelView);
   void RenderRouteLayer(ScreenBase const & modelView);
-  void RenderTransitBackground();
+  void RenderGuidesLayer(ScreenBase const & modelView);
+  void RenderLayerBackground();
   void RenderEmptyFrame();
 
   bool HasTransitRouteData() const;
@@ -369,6 +372,7 @@ private:
   bool m_needRestoreSize;
 
   bool m_trafficEnabled;
+  bool m_guidesEnabled;
   bool m_transitSchemeEnabled = false;
 
   drape_ptr<OverlaysTracker> m_overlaysTracker;
@@ -404,7 +408,7 @@ private:
 #endif
 
   bool m_finishTexturesInitialization = false;
-  drape_ptr<ScreenQuadRenderer> m_transitBackground;
+  drape_ptr<ScreenQuadRenderer> m_layerBackground;
 
   drape_ptr<DrapeNotifier> m_notifier;
 

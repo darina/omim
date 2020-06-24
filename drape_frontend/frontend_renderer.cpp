@@ -57,7 +57,7 @@ double constexpr kVSyncInterval = 0.06;
 // Metal/Vulkan rendering is fast, so we can decrease sync inverval.
 double constexpr kVSyncIntervalMetalVulkan = 0.03;
 
-std::string const kTransitBackgroundColor = "TransitBackground";
+std::string const kLayerBackgroundColor = "TransitBackground";
 
 template <typename ToDo>
 bool RemoveGroups(ToDo & filter, std::vector<drape_ptr<RenderGroup>> & groups,
@@ -201,6 +201,7 @@ FrontendRenderer::FrontendRenderer(Params && params)
   , m_maxUserMarksGeneration(0)
   , m_needRestoreSize(false)
   , m_trafficEnabled(params.m_trafficEnabled)
+  , m_guidesEnabled(params.m_guidesEnabled)
   , m_overlaysTracker(new OverlaysTracker())
   , m_overlaysShowStatsCallback(std::move(params.m_overlaysShowStatsCallback))
   , m_forceUpdateScene(false)
@@ -711,7 +712,7 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
 
       // Must be recreated on map style changing.
       CHECK(m_context != nullptr, ());
-      m_transitBackground = make_unique_dp<ScreenQuadRenderer>(m_context);
+      m_layerBackground = make_unique_dp<ScreenQuadRenderer>(m_context);
 
       // Invalidate read manager.
       {
@@ -928,11 +929,18 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
   case Message::Type::UpdateMetalines:
   case Message::Type::EnableUGCRendering:
   case Message::Type::EnableIsolines:
-  case Message::Type::EnableGuides:
     {
       m_forceUpdateScene = true;
       break;
     }
+
+  case Message::Type::EnableGuides:
+  {
+    ref_ptr<EnableGuidesMessage> msg = message;
+    m_guidesEnabled = msg->IsEnabled();
+    m_forceUpdateScene = true;
+    break;
+  }
 
   case Message::Type::EnableDebugRectRendering:
     {
@@ -1495,10 +1503,10 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView, bool activeFram
       RenderUserMarksLayer(modelView, DepthLayer::UserMarkLayer);
       RenderUserMarksLayer(modelView, DepthLayer::RoutingBottomMarkLayer);
       RenderUserMarksLayer(modelView, DepthLayer::RoutingMarkLayer);
-      RenderUserMarksLayer(modelView, DepthLayer::GuidesBottomMarkLayer);
-      RenderNonDisplacedUserMarksLayer(modelView, DepthLayer::GuidesMarkLayer);
       RenderNonDisplacedUserMarksLayer(modelView, DepthLayer::SearchMarkLayer);
     }
+
+    RenderGuidesLayer(modelView);
 
     if (!HasRouteData())
       RenderTransitSchemeLayer(modelView);
@@ -1626,7 +1634,7 @@ void FrontendRenderer::RenderTransitSchemeLayer(ScreenBase const & modelView)
   {
     DEBUG_LABEL(m_context, "Transit Scheme");
     m_context->Clear(dp::ClearBits::DepthBit, dp::kClearBitsStoreAll);
-    RenderTransitBackground();
+    RenderLayerBackground();
     m_transitSchemeRenderer->RenderTransit(m_context, make_ref(m_gpuProgramManager), modelView,
                                            make_ref(m_postprocessRenderer), m_frameValues,
                                            make_ref(m_debugRectRenderer));
@@ -1645,28 +1653,42 @@ void FrontendRenderer::RenderTrafficLayer(ScreenBase const & modelView)
   }
 }
 
-void FrontendRenderer::RenderTransitBackground()
+void FrontendRenderer::RenderGuidesLayer(ScreenBase const & modelView)
+{
+  CHECK(m_context != nullptr, ());
+  if (!m_guidesEnabled)
+    return;
+
+  RenderLayerBackground();
+  {
+    StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
+    RenderUserMarksLayer(modelView, DepthLayer::GuidesBottomMarkLayer);
+    RenderNonDisplacedUserMarksLayer(modelView, DepthLayer::GuidesMarkLayer);
+  }
+}
+
+void FrontendRenderer::RenderLayerBackground()
 {
   if (!m_finishTexturesInitialization)
     return;
 
   CHECK(m_context != nullptr, ());
-  DEBUG_LABEL(m_context, "Transit Background");
+  DEBUG_LABEL(m_context, "Layer Background");
 
   dp::TextureManager::ColorRegion region;
-  m_texMng->GetColorRegion(df::GetColorConstant(kTransitBackgroundColor), region);
+  m_texMng->GetColorRegion(df::GetColorConstant(kLayerBackgroundColor), region);
   CHECK(region.GetTexture() != nullptr, ("Texture manager is not initialized"));
-  if (!m_transitBackground->IsInitialized())
-    m_transitBackground->SetTextureRect(m_context, region.GetTexRect());
+  if (!m_layerBackground->IsInitialized())
+    m_layerBackground->SetTextureRect(m_context, region.GetTexRect());
 
-  m_transitBackground->RenderTexture(m_context, make_ref(m_gpuProgramManager),
-                                     region.GetTexture(), 1.0f /* opacity */, false /* invertV */);
+  m_layerBackground->RenderTexture(m_context, make_ref(m_gpuProgramManager),
+                                   region.GetTexture(), 1.0f /* opacity */, false /* invertV */);
 }
 
 void FrontendRenderer::RenderRouteLayer(ScreenBase const & modelView)
 {
   if (HasTransitRouteData())
-    RenderTransitBackground();
+    RenderLayerBackground();
   
   if (m_routeRenderer->HasData() || m_routeRenderer->HasPreviewData())
   {
@@ -2301,7 +2323,7 @@ void FrontendRenderer::OnContextDestroy()
   m_postprocessRenderer->ClearContextDependentResources();
   m_transitSchemeRenderer->ClearContextDependentResources(nullptr /* overlayTree */);
 
-  m_transitBackground.reset();
+  m_layerBackground.reset();
   m_debugRectRenderer.reset();
 
   CHECK(m_context != nullptr, ());
@@ -2382,7 +2404,7 @@ void FrontendRenderer::OnContextCreate()
     return m_postprocessRenderer->OnFramebufferFallback(m_context);
   });
 
-  m_transitBackground = make_unique_dp<ScreenQuadRenderer>(m_context);
+  m_layerBackground = make_unique_dp<ScreenQuadRenderer>(m_context);
 }
 
 void FrontendRenderer::OnRenderingEnabled()
@@ -2462,7 +2484,7 @@ void FrontendRenderer::ReleaseResources()
   m_trafficRenderer.reset();
   m_transitSchemeRenderer.reset();
   m_postprocessRenderer.reset();
-  m_transitBackground.reset();
+  m_layerBackground.reset();
   m_gpuProgramManager.reset();
 
   // Here m_context can be nullptr, so call the method

@@ -87,6 +87,7 @@ DrapeEngine::DrapeEngine(Params && params)
                                     std::move(params.m_overlaysShowStatsCallback),
                                     params.m_allow3dBuildings,
                                     params.m_trafficEnabled,
+                                    params.m_guidesEnabled,
                                     params.m_blockTapEvents,
                                     std::move(effects),
                                     params.m_onGraphicsContextInitialized);
